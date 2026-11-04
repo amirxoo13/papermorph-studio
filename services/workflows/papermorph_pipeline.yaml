@@ -1,0 +1,58 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - project_id: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - job_id: ${args.jobId}
+          - require_approval: ${default(map.get(args, "requireApproval"), true)}
+          - max_critic_loops: 2
+          - critic_attempt: 0
+    - stage_ingesting:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> ingesting"}
+          severity: INFO
+    - stage_planning:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> planning"}
+          severity: INFO
+    - check_approval_gate:
+        switch:
+          - condition: ${require_approval == true and default(map.get(args, "approved"), false) == false}
+            next: pause_awaiting_approval
+        next: stage_scripting
+    - pause_awaiting_approval:
+        return:
+          jobId: ${job_id}
+          state: "awaiting_approval"
+          message: "Paused at human-in-the-loop storyboard approval gate."
+    - stage_scripting:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> scripting"}
+          severity: INFO
+    - stage_voice:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> synthesizing_voice"}
+          severity: INFO
+    - stage_illustrating:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> illustrating"}
+          severity: INFO
+    - stage_rendering:
+        call: sys.log
+        args:
+          text: ${"[Workflow] Transitioning job " + job_id + " -> rendering (10 shards)"}
+          severity: INFO
+    - stage_critiquing:
+        assign:
+          - critic_attempt: ${critic_attempt + 1}
+    - stage_publishing:
+        return:
+          jobId: ${job_id}
+          state: "done"
+          criticAttempts: ${critic_attempt}
