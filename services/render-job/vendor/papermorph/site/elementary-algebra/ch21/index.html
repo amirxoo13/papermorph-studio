@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expressions — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 21, title: 'Expressions', minutes: 6, next: '../ch22/' };
+const CF = COL.whole, VR = COL.nat, EXC = COL.int, CN = COL.irr;
+const TC = [COL.whole, COL.nat, COL.int, COL.irr];   // one colour per term
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A row of terms, each term a token (sign included). Boxes can be drawn around each term.
+const termRow = (p, terms, y, size = 64, x = 800) => tokens(p, terms, { x, y, size, anchor: 'middle', o: 0 });
+function boxTerms(p, row, t0, colors = TC, run = tw, step = .35) {
+  return row.map((e, i) => {
+    const r = put(mk('rect', { rx: 12, fill: 'none', stroke: colors[i % colors.length], 'stroke-width': 3 }, p),
+      { o: 0, a_x: e._px - e._w / 2 + 3, a_y: row.y - row.size * .95, a_width: e._w - 6, a_height: row.size * 1.3 });
+    run(r, { o: 1 }, t0 + i * step, .3);
+    return r;
+  });
+}
+// Slide the tokens of a row into a new order (indexes into row), keeping the row centred.
+function reorder(row, order, t0, dur = 1.2) {
+  const next = order.map(i => row[i]);
+  layRow(next, row, e => tw(e, { x: e._px }, t0 + order.indexOf(row.indexOf(e)) * .25, dur));
+  next.forEach((e, k) => prog(q => put(e, { y: row.y - Math.sin(Math.PI * q) * 60 }), t0 + k * .25, dur));
+  return Object.assign(next, { y: row.y, size: row.size });
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Expressions', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 4, Chapter 21', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Expressions', { x: 800, y: 430, size: 100, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['3x + 9'], 800, 600, m('q'), COL.dim, 64);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['define', 'What is an expression?', (m) => {
+    const p = panel(0);
+    caption(p, 'numbers, variables, and operations', .3, 150, COL.chalk, 34);
+    mline(p, ['x'], 800, 280, m('var'), VR, 90);
+    show(T(p, 'a variable: a letter that stands for a value', { x: 800, y: 340, size: 26, fill: VR, anchor: 'middle', o: 0 }), m('var', .5));
+    [[['3x + 9'], 400, 'ex', 0], [['7a', E(2), ' − 4ab'], 800, 'ex2', 0], [['38m'], 1200, 'ex2', 1.5]].forEach(([f, x, mark, d]) => {
+      const g = G(p, { o: 0 }), e = M(g, f, { x, y: 480, size: 52 });
+      mk('rect', { x: x - e._w / 2 - 22, y: 430, width: e._w + 44, height: 72, rx: 14, fill: 'none', stroke: COL.good, 'stroke-width': 2.5 }, g);
+      show(g, m(mark, d));
+    });
+    caption(p, 'No equals sign: an expression is a phrase, not a sentence.', m('no'), 640, COL.task, 30);
+  }],
+  ['terms', 'Terms', (m) => {
+    const p = panel(0);
+    caption(p, '+ and − split an expression into terms', m('split'), 150, COL.chalk, 32);
+    const r1 = termRow(p, ['3x', ' + 9'], 320);
+    r1.forEach(e => show(e, m('ex', -.5)));
+    boxTerms(p, r1, m('ex'));
+    show(T(p, '2 terms', { x: 800, y: 400, size: 28, fill: COL.dim, anchor: 'middle', o: 0 }), m('ex', 1));
+    const r2 = termRow(p, [['7a', E(2)], ' − 4ab', ' + 6'], 560);
+    r2.forEach(e => show(e, m('ex2', -.5)));
+    boxTerms(p, r2, m('ex2'));
+    show(T(p, '3 terms', { x: 800, y: 640, size: 28, fill: COL.dim, anchor: 'middle', o: 0 }), m('ex2', 1.3));
+    pulse(r2[1], m('sign'), 1.2);
+    show(T(p, 'this term is −4ab: the sign goes with it', { x: r2[1]._px, y: 700, size: 26, fill: TC[1], weight: 600, anchor: 'middle', o: 0 }), m('sign', .5));
+  }],
+  ['names', 'Monomial, binomial, trinomial', (m) => {
+    const p = panel(0);
+    [['monomial', 'mono = one', ['38m'], 'mono'], ['binomial', 'bi = two', ['−7y', ' + ', F(1, 2)], 'bi'],
+     ['trinomial', 'tri = three', ['8a', E(2), ' − 3ab + 6b', E(2)], 'tri'], ['polynomial', 'poly = many', ['x', E(3), ' + 5x', E(2), ' − 4x + 7'], 'poly']].forEach(([n, s, f, mark], i) => {
+      const g = G(p, { x: -16, y: 210 + i * 140, o: 0 });
+      T(g, n, { x: 200, size: 40, fill: TC[i], weight: 600 });
+      T(g, s, { x: 200, y: 40, size: 24, fill: COL.dim });
+      M(g, f, { x: 760, size: 48, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.q1 = termRow(p, [['9x', E(3)], ' + 5x', ' − 4'], 360, 80);
+    S.q1.forEach(e => show(e, .2));
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-count', prompt: ['What kind of expression is this?'],
+    build: choice([['Monomial'], ['Binomial'], ['Trinomial']], 2, 'Three terms: 9x³, 5x, and −4.',
+      ['A monomial has one term. Count the pieces split by + and −.', 'A binomial has two terms. Count again, including the constant.', null],
+      () => boxTerms(S.q || qlayer(), S.q1, 0, TC, fx, .25)),
+  }], done) }],
+  ['parts', 'Inside a term', (m) => {
+    const p = panel(0);
+    const t = tokens(p, [{ t: '7', fill: CF }, { t: 'a', fill: VR }, { t: [E(2)], fill: EXC }], { x: 800, y: 330, size: 140, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, m('term')));
+    const lab = (e, s, c, dx, dy, t0) => {
+      draw(path(p, `M${e._px} ${330 + (dy > 0 ? 30 : -120)}L${e._px + dx} ${330 + dy}`, { stroke: c, 'stroke-width': 3 }, { d: 0 }), t0, .4);
+      show(T(p, s, { x: e._px + dx, y: 330 + dy + (dy > 0 ? 36 : -12), size: 32, fill: c, weight: 600, anchor: 'middle', o: 0 }), t0 + .3);
+    };
+    lab(t[0], 'coefficient', CF, -120, 110, m('coef')); lab(t[1], 'variable', VR, 60, 110, m('var')); lab(t[2], 'exponent', EXC, 140, -170, m('exp'));
+    mline(p, ['x', E(2), ' = 1x', E(2)], 450, 680, m('one'), COL.chalk, 50);
+    show(T(p, 'no number written: coefficient 1', { x: 450, y: 740, size: 24, fill: COL.dim, anchor: 'middle', o: 0 }), m('one', .6));
+    mline(p, ['9'], 1150, 680, m('const'), CN, 56);
+    show(T(p, 'no variable: a constant', { x: 1150, y: 740, size: 24, fill: CN, anchor: 'middle', o: 0 }), m('const', .4));
+  }],
+  ['degree', 'Degree', (m) => {
+    const p = panel(0);
+    caption(p, 'degree of a term = sum of the exponents on its variables', .2, 140, COL.chalk);
+    [[['7a', E(2)], '2', 't1'], [['4x', E(3), 'y', E(2)], '3 + 2 = 5', 't2'], [['6ab'], '1 + 1 = 2', 't3'], [['9'], '0', 't4']].forEach(([f, d, mark], i) => {
+      const y = 240 + i * 95;
+      mline(p, f, 560, y, m(mark), COL.chalk, 50, 'end');
+      mline(p, ['degree ', d], 620, y, m(mark, .6), EXC, 44, 'start');
+    });
+    mline(p, ['−x', E(2), ' + 2x − 5'], 560, 700, m('poly'), COL.chalk, 50, 'end');
+    mline(p, ['degree 2 (the highest)'], 620, 700, m('poly', 2), COL.good, 44, 'start');
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-coef', prompt: ['In ', $m('3h', E(4), ' − 0.7k − 51mn'), ', what is the coefficient of k?'],
+    build: blanks([{ parts: ['coefficient of k = ', { box: '-0.7' }], why: 'The sign belongs to the term: −0.7k.', hint: 'Include the sign in front of the term.' }]),
+  }, {
+    id: 'c-deg', prompt: ['What is the degree of ', $m('4x', E(2), 'y', E(3), 'z', E(8)), '?'],
+    build: blanks([{ parts: ['degree = ', { box: '13' }], why: '2 + 3 + 8 = 13.', hint: 'Add the exponents on all the variables.' }]),
+  }], done) }],
+  ['standard', 'Standard form', (m) => {
+    const p = panel(0);
+    caption(p, 'standard form: highest exponent first, constant last', .2, 150, COL.chalk);
+    const r = termRow(p, [['9x', E(2)], ' − 4x', [' + ', F(5, 2)], [' + 10x', E(3)]], 360, 64);
+    r.forEach(e => show(e, m('q')));
+    const boxes = boxTerms(p, r, m('q', 1), TC, tw, .15);
+    boxes.forEach(b => hide(b, m('find'), .3));
+    pulse(r[3], m('find'), 1.15);
+    const moved = reorder(r, [3, 0, 1, 2], m('find', 1));
+    moved.forEach(e => hide(e, m('move', 1.6), .4));
+    mline(p, ['10x', E(3), ' + 9x', E(2), ' − 4x + ', F(5, 2)], 800, 360, m('move', 1.6), COL.chalk, 64);
+    mline(p, ['9x', E(2), ' − 4x + ', F(5, 2), ' + 10x', E(3), '   →   10x', E(3), ' + 9x', E(2), ' − 4x + ', F(5, 2)], 800, 560, m('move', 3), COL.good, 44);
+    caption(p, 'each term keeps its sign: −4x is still subtracted', m('sign'), 680, COL.task);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 250, y: 260, w: 1100, cls: 'side' }, [{   // a band squeezes the prompt beside three long choices
+    id: 'c-std', prompt: ['Which is ', $m('3.2x − 0.8x', E(3), ' + 5'), ' in standard form?'],
+    build: choice([[$m('0.8x', E(3), ' + 3.2x + 5')], [$m('−0.8x', E(3), ' + 3.2x + 5')], [$m('5 + 3.2x − 0.8x', E(3))]], 1, 'The x³ term goes first, and it keeps its minus sign.',
+      ['The x³ term lost its minus sign.', null, 'That is ascending order. Standard form starts with the highest exponent.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Expressions combine numbers, variables, and operations.', 'w1'], ['+ and − split terms; each term keeps its sign.', 'w1'],
+     ['Degree of a term = sum of its exponents.', 'w2'], ['Standard form: highest degree first.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 2 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-name', prompt: ['How many terms?'],
+    build: grid(NAMEQ, [['m', 'Monomial', TC[0]], ['b', 'Binomial', TC[1]], ['t', 'Trinomial', TC[2]], ['n', 'More terms', TC[3]]], { multi: false }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-parts', prompt: ['Find each value.'], build: blanks(PARTS),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-std', prompt: ['Is it written in standard form?'], build: grid(STDQ, [['y', 'Yes', COL.good], ['n', 'No', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const NAMEQ = [
+  { parts: ['6x', E(3), ' − 5y'], ans: ['b'], why: 'Two terms.' },
+  { parts: ['9x', E(3), ' + 5x', E(2), ' − 4x + 7'], ans: ['n'], why: 'Four terms: a polynomial, but not a trinomial.' },
+  { parts: ['8x', E(2), 'y'], ans: ['m'], why: 'One term.' },
+  { parts: ['a', E(2), ' − 2a + 1'], ans: ['t'], why: 'Three terms.' },
+  { parts: ['−12'], ans: ['m'], why: 'One term: a constant.' },
+];
+const PARTS = [
+  { parts: ['coefficient of ', 'b', ' in 9a', E(3), ' + 7ab', E(2), ' − 0.4b:  ', { box: '-0.4' }], why: 'The term is −0.4b.' },
+  { parts: ['coefficient of ', 'x', E(2), ' in ', 'x', E(2), ' + 3x:  ', { box: '1' }], why: 'x² means 1x².' },
+  { parts: ['degree of −', F(3, 2), 'pqr', E(7), ':  ', { box: '9' }], why: '1 + 1 + 7 = 9.' },
+  { parts: ['degree of 5a', E(3), ' − 0.9a', E(4), ' + a', E(5), ' + 7:  ', { box: '5' }], why: 'The highest degree of any term is 5.' },
+  { parts: ['constant in −7y + ', F(1, 2), ':  ', { box: '1/2' }], why: 'The term with no variable.' },
+];
+const STDQ = [
+  { parts: ['a', E(5), ' − 0.9a', E(4), ' + 5a', E(3), ' + 7'], ans: ['y'], why: 'Exponents 5, 4, 3, then the constant.' },
+  { parts: ['3 + 7y', E(2)], ans: ['n'], why: 'Write 7y² first: 7y² + 3.' },
+  { parts: ['−x', E(2), ' + 2x − 5'], ans: ['y'], why: 'Exponents 2, 1, then the constant.' },
+  { parts: ['4x + x', E(3)], ans: ['n'], why: 'Write x³ first: x³ + 4x.' },
+];
+boot();
+</script>
+</body>
+</html>

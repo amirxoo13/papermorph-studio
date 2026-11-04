@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear Inequalities — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 37, title: 'Graphing Linear Inequalities', minutes: 6, next: '../ch38/' };
+const LN = COL.whole, PT = COL.task, DASH = '14 10';
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 40) => mline(p, parts, 1000, y, t0, fill, size, 'start');
+const note = (p, str, y, t0, fill = COL.dim) => show(T(p, str, { x: 1000, y, size: 26, fill, o: 0 }), t0);
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 450, u: 40, x0: -8, x1: 8, y0: -8, y1: 8, t0 }); return S.P; }
+function stage() { const p = panel(0), P = S.P; P.layer = p; S.qp = p; return [p, P]; }
+const now = (e, to) => tw(e, to, 0, .01);   // draw at once (a line carried over from the last step)
+// Sample boundary: a short line and a number-line circle.
+function sample(p, y, dashed, t0) {
+  const g = G(p, { o: 0 });
+  path(g, `M1150 ${y - 10}H1260`, { stroke: LN, 'stroke-width': 5, ...(dashed ? { 'stroke-dasharray': DASH } : {}) });
+  mk('circle', { cx: 1310, cy: y - 10, r: 10, fill: dashed ? COL.board : COL.task, stroke: COL.task, 'stroke-width': 3 }, g);
+  show(g, t0);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Linear inequalities', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 37', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Graphing Linear Inequalities', { x: 800, y: 430, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['y < x + 3'], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['boundary', 'The boundary line', (m) => {
+    makePlane(.2);
+    const [p, P] = stage();
+    side(p, ['y < x + 3'], 170, .4, COL.chalk, 48);
+    side(p, ['y = x + 3'], 250, m('eq'), COL.dim, 40);
+    const solid = P.line(0, 3, 1, 4, LN, m('line'));
+    hide(solid, m('lt'), .4); P.line(0, 3, 1, 4, LN, m('lt', .2), { dash: DASH });
+    side(p, ['<  or  >'], 380, m('lt'), COL.chalk, 36); sample(p, 380, true, m('lt', .5));
+    note(p, 'dashed: the line is not included', 430, m('lt', 1));
+    side(p, ['≤  or  ≥'], 520, m('le'), COL.chalk, 36); sample(p, 520, false, m('le', .5));
+    note(p, 'solid: the line is included', 570, m('le', 1));
+  }],
+  ['test', 'Test a point', (m) => {
+    const [p, P] = stage();
+    side(p, ['y < x + 3'], 170, 0, COL.chalk, 48);
+    P.line(0, 3, 1, 4, LN, 0, { dash: DASH, run: now });
+    P.dot(0, 0, PT, m('pt'), { label: '(0, 0)' });
+    side(p, ['0 < 0 + 3  ✓'], 280, m('chk'), COL.good, 40);
+    P.half(1, -1, -3, LN, m('shade'));
+    note(p, 'shade the side with (0, 0)', 340, m('shade'));
+    P.dot(2, 1, COL.good, m('more'), { label: '(2, 1)' });
+    side(p, ['1 < 2 + 3  ✓'], 440, m('more', 1), COL.good, 36);
+    P.dot(-4, 3, COL.bad, m('bad'), { label: '(−4, 3)' });
+    side(p, ['3 < −4 + 3  ✗'], 520, m('bad', 1), COL.bad, 36);
+  }],
+  ['q1', 'Quick check', () => {
+    const [p, P] = stage();
+    side(p, ['y ≥ −2x + 1'], 150, .2, COL.chalk, 46);
+    P.line(0, 1, 1, -1, COL.dim, .3, { w: 2 });
+  }, { ask: done => quiz({ x: 1000, y: 220, w: 580, cls: 'side' }, [{
+    id: 'c-solid', prompt: ['Should the boundary of ', $m('y ≥ −2x + 1'), ' be solid or dashed?'],
+    build: choice([['Solid'], ['Dashed']], 0, '≥ includes equal, so points on the line count.', [null, 'Dashed is for < and >. This sign includes equal.'],
+      () => S.P.line(0, 1, 1, -1, LN, 0, { run: fx, into: S.qp })),
+  }, {
+    id: 'c-side', prompt: ['Test (0, 0). Which side do you shade?'],
+    build: choice([['The side with (0, 0)'], ['The other side']], 1, '0 ≥ −2(0) + 1 says 0 ≥ 1, which is false.', ['Check it: 0 ≥ 1 is false, so (0, 0) is not a solution.', null],
+      () => { S.P.dot(0, 0, COL.bad, 0, { run: fx, into: S.qp, label: '(0, 0)', dx: -14, dy: 30, anchor: 'end' }); S.P.half(2, 1, 1, LN, .4, { run: fx, into: S.qp }); }),
+  }], done) }],
+  ['ex2', 'Solve for y first', (m) => {
+    const [p, P] = stage();
+    side(p, ['6x − 2y ≥ 5'], 150, .2, COL.chalk, 44);
+    side(p, ['−2y ≥ −6x + 5'], 230, m('solve'), COL.chalk, 40);
+    side(p, ['y ≤ 3x − ', F(5, 2)], 320, m('flip'), COL.chalk, 44);
+    note(p, '÷ (−2): flip the sign', 380, m('flip', .5), COL.task);
+    P.line(0, -2.5, 1, .5, LN, m('line'));
+    P.dot(0, 0, COL.bad, m('test'), { label: '(0, 0)', dx: -14, dy: -14, anchor: 'end' });
+    side(p, ['6(0) − 2(0) = 0 ≥ 5  ✗'], 470, m('test', 1), COL.bad, 34);
+    P.half(6, -2, 5, LN, m('shade'));
+    note(p, 'below the line, matching ≤', 540, m('below'));
+  }],
+  ['q2', 'Quick check', () => {
+    const [p, P] = stage();
+    side(p, ['y > 4 − x'], 150, .2, COL.chalk, 46);
+    P.line(0, 4, 4, 0, LN, .3, { dash: DASH });
+  }, { ask: done => quiz({ x: 1000, y: 220, w: 580, cls: 'side' }, [{
+    id: 'c-any', prompt: ['Pick any point that is a solution of ', $m('y > 4 − x'), '.'],
+    build: pickPoint(S.P, [3, 3], (x, y) => `y = ${num(y)} and 4 − x = ${num(4 - x)}, so y > 4 − x.`,
+      (x, y) => y === 4 - x ? 'That point is on the dashed line. With >, the line itself is not included.' : `Here y = ${num(y)} but 4 − x = ${num(4 - x)}, so y is not greater. Try the other side.`,
+      () => S.P.half(1, 1, 4, LN, .3, { run: fx, into: S.qp }), (x, y) => y > 4 - x),
+  }], done) }],
+  ['special', 'Horizontal and vertical', (m) => {
+    const [p, P] = stage();
+    const g = G(p);
+    side(g, ['y > −5'], 170, m('h'), COL.chalk, 46);
+    P.line(-8, -5, 8, -5, LN, m('h', .5), { dash: DASH, into: g });
+    P.half(0, 1, -5, LN, m('hs'), { into: g });
+    hide(g, m('v'), .4);
+    side(p, ['x ≤ 2'], 300, m('v'), COL.chalk, 46);
+    P.line(2, -8, 2, 8, COL.rat, m('v', .5));
+    P.half(-1, 0, -2, COL.rat, m('vs'));
+  }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['Boundary: dashed for < and >, solid for ≤ and ≥.', 'w1'], ['Test a point not on the line, often (0, 0).', 'w2'], ['True: shade its side.  False: shade the other side.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      M(g, [str], { x: 260, size: 36, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-graph', prompt: ['Describe the graph: the boundary line, and the side that is shaded.'],
+    build: grid(GRAPHQ, [['sa', 'Solid, above'], ['sb', 'Solid, below'], ['da', 'Dashed, above'], ['db', 'Dashed, below']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-yes', prompt: ['Is the point a solution of the inequality?'],
+    build: grid(YESQ, [['y', 'Yes', null, 'Y'], ['n', 'No', null, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: ['Solve each inequality for y. Fractions are fine.'], build: blanks(SOLVEQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const GRAPHQ = [
+  { parts: [$m('y > 4 − x')], ans: ['da'], why: '> means dashed; y greater means above.' },
+  { parts: [$m('x − y ≥ −5')], ans: ['sb'], why: 'It becomes y ≤ x + 5: solid, below.' },
+  { parts: [$m('x − y ≤ 6')], ans: ['sa'], why: 'It becomes y ≥ x − 6: solid, above.' },
+  { parts: [$m('4x + 3y > 12')], ans: ['da'], why: 'It becomes y > −4/3 x + 4: dashed, above.' },
+  { parts: [$m('3x − 2y ≥ −6')], ans: ['sb'], why: 'Dividing by −2 flips it: y ≤ 3/2 x + 3. Solid, below.' },
+];
+const YESQ = [
+  { parts: ['(0, 0) for ', $m('y > 4 − x')], ans: ['n'], why: '0 > 4 is false.' },
+  { parts: ['(2, 3) for ', $m('y > 4 − x')], ans: ['y'], why: '3 > 2 is true.' },
+  { parts: ['(1, −3) for ', $m('x − y ≤ 6')], ans: ['y'], why: '1 − (−3) = 4, and 4 ≤ 6.' },
+  { parts: ['(0, 4) for ', $m('4x + 3y > 12')], ans: ['n'], why: '12 > 12 is false: the point is on the dashed line.' },
+  { parts: ['(−2, 0) for ', $m('3x − 2y ≥ −6')], ans: ['y'], why: '−6 ≥ −6 is true: the point is on the solid line.' },
+];
+const SOLVEQ = [
+  { parts: ['x − y ≥ −5:     y ≤ ', { box: '1' }, 'x + ', { box: '5' }], why: '−y ≥ −x − 5; divide by −1 and flip: y ≤ x + 5.' },
+  { parts: ['4x + 3y > 12:     y > ', { box: '-4/3' }, 'x + ', { box: '4' }], why: '3y > −4x + 12, so y > −4/3 x + 4.' },
+  { parts: ['3x − 2y ≥ −6:     y ≤ ', { box: '3/2' }, 'x + ', { box: '3' }], why: '−2y ≥ −3x − 6; divide by −2 and flip.' },
+  { parts: ['6x − 2y ≥ 5:     y ≤ ', { box: '3' }, 'x + ', { box: '-5/2' }], why: '−2y ≥ −6x + 5; divide by −2 and flip: y ≤ 3x − 5/2.' },
+];
+boot();
+</script>
+</body>
+</html>

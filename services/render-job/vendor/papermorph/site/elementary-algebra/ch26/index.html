@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving One-Variable Inequalities — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 26, title: 'Solving one-variable inequalities', minutes: 7, next: '../ch27/' };
+AXIS.o = 800; AXIS.u = 110;                     // number line −5…5
+const RAY = COL.task, OP = COL.task, SOL = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const ineqLine = (p, L, sym, R, y, t0, o = {}) => eqLine(p, L, R, y, t0, { ...o, sym });
+// Question: draw a solution ray yourself. ans = { v, closed, dir }.
+const graphIneq = ans => (body, api) => {
+  const L = qlayer(), st0 = { v: 0, closed: true, dir: 1 };
+  let locked = false, shown = null;
+  const redraw = () => { shown?.remove(); shown = ray(L, st0.v, st0.closed, st0.dir, 0, COL.whole, (e, to) => put(e, to)); };
+  for (let v = -5; v <= 5; v++) {
+    const h = G(L, { x: X(v), y: Y0 });
+    h.classList.add('hit');
+    mk('circle', { r: 26, class: 'ring' }, h);
+    h.addEventListener('click', () => { if (!locked) { st0.v = v; redraw(); } });
+  }
+  const row = h('div', 'opts');
+  const btn = (label, key, fn) => { const b = h('button', 'opt', [kbd(key), label]); b.onclick = () => { if (!locked) { fn(); redraw(); } }; row.append(b); return b; };
+  btn('Move left', '←', () => { st0.v = Math.max(-5, st0.v - 1); });
+  btn('Move right', '→', () => { st0.v = Math.min(5, st0.v + 1); });
+  btn('Open / closed', 'O', () => { st0.closed = !st0.closed; });
+  btn('Flip direction', 'D', () => { st0.dir *= -1; });
+  body.append(row);
+  redraw();
+  const say = s => `${s.closed ? 'closed' : 'open'} circle at ${num(s.v)}, shading ${s.dir > 0 ? 'right' : 'left'}`;
+  return {
+    check() {
+      const bad = [];
+      if (st0.v !== ans.v) bad.push(`the endpoint should be at ${num(ans.v)}`);
+      if (st0.closed !== ans.closed) bad.push(ans.closed ? 'the endpoint is included, so use a closed circle' : 'the endpoint is not included, so use an open circle');
+      if (st0.dir !== ans.dir) bad.push(`the solutions are ${ans.dir > 0 ? 'greater' : 'less'} than ${num(ans.v)}, so shade ${ans.dir > 0 ? 'right' : 'left'}`);
+      api.grade(!bad.length, bad.length ? ['Check: ', bad.join('; '), '.'] : [say(ans), '.']);
+    },
+    reveal() { Object.assign(st0, ans); redraw(); return say(ans); },
+    lock() { locked = true; },
+    hint: [kbd('←'), kbd('→'), ' move, ', kbd('O'), ' open or closed, ', kbd('D'), ' direction, ', kbd('Enter'), ' check'],
+    key(e) {
+      if (locked) return false;
+      const k = e.key.toLowerCase();
+      if (e.key === 'ArrowLeft') st0.v = Math.max(-5, st0.v - 1);
+      else if (e.key === 'ArrowRight') st0.v = Math.min(5, st0.v + 1);
+      else if (k === 'o') st0.closed = !st0.closed;
+      else if (k === 'd') st0.dir *= -1;
+      else return false;
+      redraw();
+      return true;
+    },
+  };
+};
+const SIGNS = [['<', '<'], ['>', '>'], ['≤', '≤'], ['≥', '≥']].map(([k, l], i) => [k, l, null, String(i + 1)]);
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Inequalities', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 5, Chapter 26', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving one-variable inequalities', { x: 800, y: 420, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['age ≥ 12,    weight ≤ 10'], 800, 590, 1, COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['symbols', 'Four symbols', (m) => {
+    const p = panel(0);
+    [['<', 'is less than', 'lt'], ['>', 'is greater than', 'gt'], ['≤', 'is less than or equal to', 'le'], ['≥', 'is greater than or equal to', 'ge']].forEach(([s, w, mark], i) => {
+      const g = G(p, { x: -16, y: 200 + i * 90, o: 0 });
+      M(g, [s], { x: 300, size: 60, fill: RAY });
+      T(g, w, { x: 380, y: -4, size: 32 });
+      tw(g, { o: 1, x: 0 }, m(mark), .5);
+    });
+    mline(p, ['at least  →  ≥'], 1180, 300, m('words'), COL.chalk, 44);
+    mline(p, ['at most  →  ≤'], 1180, 390, m('words', 2.5), COL.chalk, 44);
+    caption(p, 'The open side faces the larger amount:  5 > 2', m('tip'), 620, COL.dim);
+  }],
+  ['graph', 'Graphing', (m) => {
+    const p = panel(0);
+    numberLine(.1, -5, 5);
+    const q1 = mline(p, ['x > 3'], 800, 220, m('q'), COL.chalk, 60);
+    const r1 = ray(p, 3, false, 1, m('open'));
+    const openLab = T(p, 'open: 3 is not included', { x: X(3), y: Y0 + 100, size: 26, fill: RAY, anchor: 'middle', o: 0 });
+    show(openLab, m('open', .5)); hide(openLab, m('q2', -.3), .3);
+    [[4, '✓', SOL], [3.1, '✓', SOL], [3, '✗', COL.bad]].forEach(([v, s, c], i) => {
+      const t = T(p, `${v} ${s}`, { x: X(v), y: Y0 - 50 - i * 40, size: 26, fill: c, font: MATH, anchor: 'middle', o: 0 });
+      show(t, m('test', i * 1.2)); hide(t, m('q2', -.3), .3);
+    });
+    hide(r1, m('q2', -.3), .3); hide(q1, m('q2', -.3), .3);
+    mline(p, ['x ≤ −2'], 800, 220, m('q2'), COL.chalk, 60);
+    ray(p, -2, true, -1, m('closed'));
+    show(T(p, 'closed: −2 is included', { x: X(-2), y: Y0 + 100, size: 26, fill: RAY, anchor: 'middle', o: 0 }), m('closed', .5));
+  }],
+  ['q1', 'Quick check', () => { panel(0); numberLine(.1, -5, 5); mline(S.panel, ['x ≥ −1'], 800, 220, .2, COL.chalk, 60); }, { ask: done => quiz(TOPR, [{
+    id: 'c-graph', prompt: ['Graph ', $m('x ≥ −1'), ' on the number line.'], build: graphIneq({ v: -1, closed: true, dir: 1 }),
+  }], done) }],
+  ['solve', 'Solving', (m) => {
+    const p = panel(0);
+    hide(S.line, 0, .3);
+    ineqLine(p, ['2x − 1'], '≤', ['9'], 180, m('q'));
+    ineqLine(p, ['2x'], '≤', ['10'], 300, m('s1'), { note: 'add 1' });
+    ineqLine(p, ['x'], '≤', ['5'], 420, m('s2'), { fill: SOL, note: 'divide by 2' });
+    show(S.line, m('graph'), .4);
+    ray(p, 5, true, -1, m('graph', .3));
+  }],
+  ['flip', 'Flipping the sign', (m) => {
+    const p = panel(0);
+    const top = ineqLine(p, ['2'], '<', ['5'], 170, m('q'), { xEq: 500 });
+    const d2 = landDot(p, 2, m('q', .5), COL.whole), d5 = landDot(p, 5, m('q', .5), COL.nat);
+    show(T(p, '× (−1) on both sides', { x: 500, y: 250, size: 28, fill: OP, weight: 600, anchor: 'middle', o: 0 }), m('mul'));
+    tw(d2, { x: X(-2) }, m('line'), 1.2); tw(d5, { x: X(-5) }, m('line', .3), 1.2);
+    const bottom = ineqLine(p, ['−2'], '>', ['−5'], 350, m('now'), { xEq: 500, symFill: RAY });
+    caption(p, '× or ÷ by a negative: reverse the sign', m('rule'), 440, RAY, 30, 500);
+    ineqLine(p, ['−3x'], '≤', ['12'], 170, m('ex'), { xEq: 1150 });
+    ineqLine(p, [F('−3x', '−3')], '≥', [F(12, '−3')], 290, m('div'), { xEq: 1150, symFill: RAY });
+    ineqLine(p, ['x'], '≥', ['−4'], 410, m('div', 2), { xEq: 1150, fill: SOL });
+    show(T(p, 'test 0:  −3(0) = 0 ≤ 12 ✓', { x: 1150, y: 480, size: 26, fill: COL.dim, anchor: 'middle', o: 0 }), m('check'));
+  }],
+  ['q2', 'Quick check', () => { panel(0); hide(S.line, 0, .3); }, { ask: done => quiz(BAND, [{
+    id: 'c-flip', prompt: ['Solve ', $m('−4x > 8'), '.'],
+    build: choice([[$m('x > −2')], [$m('x < −2')], [$m('x < 2')]], 1, 'Divide by −4 and reverse the sign: x < −2.',
+      ['You divided by a negative number, so the sign must flip.', null, '8 ÷ (−4) = −2, not 2.']),
+  }], done) }],
+  ['story', 'At least six crates', (m) => {
+    const p = panel(0);
+    caption(p, '26 dolls in stock, crates of 12.  At least 89 dolls?', m('q'), 140, COL.chalk);
+    ineqLine(p, ['26 + 12c'], '≥', ['89'], 280, m('eq'));
+    ineqLine(p, ['12c'], '≥', ['63'], 400, m('s1'), { note: 'subtract 26' });
+    ineqLine(p, ['c'], '≥', ['5.25'], 520, m('s1', 2), { note: 'divide by 12' });
+    caption(p, 'whole crates only: at least 6', m('round'), 660, SOL, 34);
+    show(T(p, '5 crates → 86 dolls ✗      6 crates → 98 dolls ✓', { x: 800, y: 730, size: 26, fill: COL.dim, anchor: 'middle', o: 0 }), m('round', 3));
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-story', prompt: ['Tickets cost $6. Padma already has $15 and wants at most $200. At most how many tickets can she sell?'],
+    build: blanks([{ parts: ['6t + 15 ≤ 200:   at most ', { box: '30' }, ' tickets'], why: '6t ≤ 185, t ≤ 30.8…, so at most 30 whole tickets.', hint: 'Solve for t, then round down to a whole number.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Open circle for < and >; closed for ≤ and ≥.', 'w1'], ['Solve like an equation.', 'w2'], ['× or ÷ by a negative: reverse the sign.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-sign', prompt: ['Solve. Choose the sign in the answer.'], build: grid(SIGNQ, SIGNS, { multi: false }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => { panel(0); show(S.line, 0, .3); }, { ask: done => quiz(SCREEN, [
+    { id: 'p-g1', prompt: ['Graph ', $m('y > −2'), '.'], build: graphIneq({ v: -2, closed: false, dir: 1 }) },
+    { id: 'p-g2', prompt: ['Solve and graph ', $m('4x + 3 ≥ −5'), '.'], build: graphIneq({ v: -2, closed: true, dir: 1 }) },
+    { id: 'p-g3', prompt: ['Solve and graph ', $m('−9x + 16 ≥ −5x + 28'), '.'], build: graphIneq({ v: -3, closed: true, dir: -1 }) },
+  ], done, 'Chapter practice 2 of 3,  graph') }],
+  ['final3', 'Chapter practice', () => { hide(S.line, 0, .3); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIGNQ = [
+  { parts: ['4x < −12   →   x  ?  −3'], ans: ['<'], why: 'Divide by 4 (positive): the sign stays.' },
+  { parts: ['−7x ≤ −7   →   x  ?  1'], ans: ['≥'], why: 'Divide by −7: reverse ≤ to ≥.' },
+  { parts: ['10x + 15 > 6x − 5   →   x  ?  −5'], ans: ['>'], why: '4x > −20, divide by 4: x > −5.' },
+  { parts: [F('x', '−2'), ' ≥ 3   →   x  ?  −6'], ans: ['≤'], why: 'Multiply by −2: reverse ≥ to ≤.' },
+];
+const TFQ = [
+  { parts: [$m('x > 4'), ' is graphed with a closed circle at 4.'], ans: ['f'], why: '4 is not included: open circle.' },
+  { parts: ['“At least 18” means ', $m('≥ 18'), '.'], ans: ['t'], why: '18 or more.' },
+  { parts: ['Adding a negative number to both sides reverses the sign.'], ans: ['f'], why: 'Only multiplying or dividing by a negative does.' },
+  { parts: [$m('x = −4'), ' is a solution of ', $m('−3x ≤ 12'), '.'], ans: ['t'], why: '−3(−4) = 12 ≤ 12.' },
+  { parts: ['An inequality like ', $m('x < 3'), ' has exactly one solution.'], ans: ['f'], why: 'Every number less than 3 works.' },
+];
+boot();
+</script>
+</body>
+</html>

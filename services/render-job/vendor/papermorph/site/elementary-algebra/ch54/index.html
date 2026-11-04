@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring Trinomials When a = 1 — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 54, title: 'Factoring Trinomials When a = 1', minutes: 9, next: '../ch55/' };
+const CB = COL.whole, CC = COL.nat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const tri = (b, c, v = 'x') => [`${v}`, E(2), ` ${b < 0 ? '−' : '+'} ${Math.abs(b) === 1 ? '' : Math.abs(b)}${v} ${c < 0 ? '−' : '+'} ${Math.abs(c)}`];
+// Accept the two numbers in either order.
+const pair = (d, e) => ([a, b]) => (a === d && b === e) || (a === e && b === d);
+// A table of factor pairs of c with their sums; returns the row boxes for picking. The matching row can be marked.
+function pairTable(p, c, pairs, x, y, t0, { sums = true, b, sumAt } = {}) {
+  const g = G(p, { o: 0 }), rowH = 66;
+  T(g, `factor pairs of ${num(c)}`, { x: x + 10, y: y - 20, size: 24, fill: CC, weight: 600 });
+  if (sums) T(g, 'sum', { x: x + 330, y: y - 20, size: 24, fill: CB, weight: 600, anchor: 'middle' });
+  show(g, t0);
+  return pairs.map(([d, e], i) => {
+    const yy = y + 20 + i * rowH;
+    const r = G(p, { o: 0 });
+    M(r, [`${num(d)}  ×  ${num(e)}`], { x: x + 10, y: yy + 30, size: 40, anchor: 'start' });
+    show(r, t0 + .2 + i * .25);
+    const s = sums ? mline(p, num(d + e), x + 330, yy + 30, (sumAt ?? t0 + .5) + i * .4, d + e === b ? HIT : COL.dim, 40) : null;
+    return { r, s, box: [x - 10, yy - 10, 420, rowH - 6], d, e, y: yy };
+  });
+}
+function markRow(p, row, t0, color = HIT, run = tw) {
+  const [x, y, w, h] = row.box, r = put(mk('rect', { x, y, width: w, height: h, rx: 12, fill: 'none', stroke: color, 'stroke-width': 3.5 }, p), { o: 0 });
+  run(r, { o: 1 }, t0, .3);
+  return r;
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Trinomials', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 10, Chapter 54', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Factoring Trinomials', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    M(g, ['When a = 1'], { x: 800, y: 490, size: 80, fill: COL.chalk });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['x', E(2), ' + 5x + 6 = (x + 2)(x + 3)'], 800, 630, m('sub'), COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['tiles', 'A rectangle of tiles', (m) => {
+    const p = panel(0), K = 1.9, g = G(p, { x: 360, y: 230, s: K });   // tile units scaled up
+    mline(p, ['x', E(2), ' + 5x + 6'], 800, 130, .2, COL.chalk, 60);
+    const sq = atile(g, 'x2', 60, 60); const xs = Array.from({ length: 5 }, (_, i) => atile(g, 'x', 230 + i * 40, 60)); const ones = Array.from({ length: 6 }, (_, i) => atile(g, 'one', 470 + (i % 3) * 36, 30 + Math.floor(i / 3) * 36));
+    popIn([sq], m('sq')); popIn(xs, m('xs'), .1); popIn(ones, m('ones'), .08);
+    text(p, 'one rectangle, every tile used', 800, 820, m('try'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    // Target layout: x² at the top-left, three strips to its right, two strips (turned) below, ones in the corner.
+    const X0 = 0, Y0 = 0;
+    tw(sq, { x: X0 + 60, y: Y0 + 60 }, m('corner'), .8);
+    xs.slice(0, 3).forEach((t, i) => tw(t, { x: X0 + 135 + i * 30, y: Y0 + 60 }, m('side', i * .2), .8));
+    xs.slice(3).forEach((t, j) => tw(t, { x: X0 + 60, y: Y0 + 135 + j * 30, r: 90 }, m('side', .7 + j * .2), .8));
+    ones.forEach((t, i) => tw(t, { x: X0 + 135 + (i % 3) * 30, y: Y0 + 135 + Math.floor(i / 3) * 30 }, m('fill', i * .12), .7));
+    const L = 360, T0 = 230;
+    draw(path(p, `M${L} ${T0 - 24}H${L + 210 * K}`, { stroke: CB, 'stroke-width': 4 }, { d: 0 }), m('dims'), .5);
+    mline(p, 'x + 3', L + 105 * K, T0 - 40, m('dims', .3), CB, 46);
+    draw(path(p, `M${L - 24} ${T0}V${T0 + 180 * K}`, { stroke: CC, 'stroke-width': 4 }, { d: 0 }), m('dims', .8), .5);
+    mline(p, 'x + 2', L - 40, T0 + 90 * K + 14, m('dims', 1.1), CC, 46, 'end');
+    const r = G(p, { o: 0, x: 1180, y: 520 });
+    mk('rect', { x: -330, y: -62, width: 660, height: 96, rx: 18, fill: 'none', stroke: HIT, 'stroke-width': 3 }, r);
+    M(r, ['x', E(2), ' + 5x + 6 = (x + 2)(x + 3)'], { y: 4, size: 46, fill: HIT });
+    show(r, m('ans'));
+  }],
+  ['why', 'Multiply to c, add to b', (m) => {
+    const p = panel(0);
+    const row = tokens(p, ['(x + ', { t: 'd', fill: CB }, ')(x + ', { t: 'e', fill: CC }, ')  =  x', E(2), ' + ', { t: ['dx + ex'], fill: COL.int }, ' + ', { t: 'de', fill: COL.irr }], { x: 800, y: 220, size: 60, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, m('foil')));
+    const mid = row.at(-3), last = row.at(-1);
+    mline(p, ['= (d + e)x'], mid._px, 330, m('mid', 1.2), COL.int, 44);
+    mline(p, ['d + e = b'], 560, 430, m('mid', 2.4), COL.int, 54);
+    mline(p, ['d · e = c'], 1040, 430, m('last', .8), COL.irr, 54);
+    draw(path(p, `M${last._px} 250Q${last._px + 40} 340 1040 380`, { stroke: COL.irr, 'stroke-width': 3 }, { d: 0 }), m('last', .4), .5);
+    draw(path(p, `M${mid._px - 90} 345Q${mid._px - 200} 380 680 405`, { stroke: COL.int, 'stroke-width': 3 }, { d: 0 }), m('mid', 2), .5);
+    mline(p, ['x', E(2), ' + ', 'bx', ' + ', 'c'], 800, 560, m('rule'), COL.chalk, 60);
+    const r = G(p, { o: 0, x: 800, y: 690 });
+    mk('rect', { x: -380, y: -60, width: 760, height: 90, rx: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, r);
+    T(r, 'two numbers that multiply to c and add to b', { y: 0, size: 32, fill: COL.task, weight: 600, anchor: 'middle' });
+    show(r, m('rule', .8));
+  }],
+  ['table', 'Search the factor pairs', (m) => {
+    const p = panel(0);
+    mline(p, tri(8, 15), 800, 130, .2, COL.chalk, 60);
+    text(p, 'multiply to 15, add to 8', 800, 190, .4, { size: 26, fill: COL.dim, anchor: 'middle' });
+    const rows = pairTable(p, 15, [[1, 15], [3, 5]], 300, 330, m('list'), { b: 8, sumAt: m('sums') });
+    markRow(p, rows[1], m('hit'));
+    mline(p, '(x + 3)(x + 5)', 1150, 420, m('ans'), HIT, 60);
+    mline(p, '= (x + 5)(x + 3)', 1150, 520, m('order'), COL.dim, 46);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    mline(p, tri(9, 14), 800, 130, .2, COL.chalk, 60);
+    S.rows = pairTable(p, 14, [[1, 14], [2, 7]], 300, 330, .3, { sums: false });
+  }, { ask: done => quiz({ x: 820, y: 300, w: 640, cls: 'side' }, [{
+    id: 'c-pair', prompt: ['Click the pair that adds to 9.'],
+    build: pickEls(S.rows.map(r => ({ el: r.r, box: r.box, label: `${r.d} times ${r.e}` })), 1, '2 · 7 = 14 and 2 + 7 = 9: (x + 2)(x + 7).',
+      () => '1 + 14 = 15, not 9.',
+      () => S.rows.forEach((r, i) => { const L = S.q || qlayer(); const t = M(L, [String(r.d + r.e)], { x: 630, y: r.y + 30, size: 40, fill: i ? HIT : COL.dim, o: 0 }); fx(t, { o: 1 }, i * .2, .3); })),
+  }], done) }],
+  ['signs', 'Reading the signs', (m) => {
+    const p = panel(0);
+    const rows = [['c > 0,  b > 0', 'both numbers positive', 'pp'], ['c > 0,  b < 0', 'both numbers negative', 'nn'], ['c < 0', 'one positive, one negative', 'mix']];
+    rows.forEach(([a, b, k], i) => { mline(p, a, 200, 170 + i * 80, m(k), COL.chalk, 40, 'start'); text(p, b, 560, 160 + i * 80, m(k, .3), { size: 30, fill: COL.task, weight: 600 }); });
+    mline(p, [...tri(-10, 21), ' = (x − 3)(x − 7)'], 1000, 250, m('nn', 4), COL.dim, 34, 'start');
+    mline(p, tri(2, -35), 800, 470, m('ex'), COL.chalk, 52);
+    const t = pairTable(p, -35, [[-1, 35], [-5, 7], [-7, 5], [1, -35]], 300, 560, m('ex', .5), { b: 2, sumAt: m('ex', 1.5) });
+    markRow(p, t[1], m('ans', -1));
+    mline(p, '(x − 5)(x + 7)', 1150, 700, m('ans'), HIT, 56);
+  }],
+  ['careful', 'Which one is negative?', (m) => {
+    const p = panel(0);
+    mline(p, ['(x + 7)(x − 5) = x', E(2), ' + 2x − 35'], 800, 280, m('a'), COL.chalk, 56);
+    mline(p, ['(x − 7)(x + 5) = x', E(2), ' − 2x − 35'], 800, 430, m('b'), COL.chalk, 56);
+    text(p, 'different middle terms: check by multiplying back', 800, 600, m('diff'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-fac', prompt: ['Factor ', $m(...tri(-13, -48)), ' as ', $m('(x + d)(x + e)'), '.'],
+    build: blanks([{ parts: ['d = ', { box: '3' }, ',   e = ', { box: '-16' }], test: pair(3, -16), why: '3 · (−16) = −48 and 3 + (−16) = −13: (x + 3)(x − 16).', hint: 'c is negative, so one number is negative. Their product is −48 and their sum is −13.' }]),
+  }], done) }],
+  ['none', 'When nothing works', (m) => {
+    const p = panel(0);
+    mline(p, tri(5, 3), 800, 130, m('ex'), COL.chalk, 60);
+    pairTable(p, 3, [[1, 3], [-1, -3]], 300, 300, m('pairs'), { b: 5, sumAt: m('sums') });
+    text(p, 'no pair adds to 5', 1150, 380, m('nf'), { size: 32, fill: COL.bad, weight: 600, anchor: 'middle' });
+    text(p, 'not factorable with integers', 1150, 440, m('nf', .5), { size: 28, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 220, w: 1160, cls: 'side' }, [{
+    id: 'c-who', prompt: ['Who factored ', $m(...tri(-3, -28)), ' correctly?'],
+    build: choice([['Linda: ', $m('(x − 7)(x + 4)'), ' or ', $m('(x + 7)(x − 4)')], ['Maleek: ', $m('(x − 7)(x + 4)'), ' or ', $m('(x + 4)(x − 7)')]], 1,
+      '−7 · 4 = −28 and −7 + 4 = −3. Maleek wrote the same factors in two orders.', ['(x + 7)(x − 4) = x² + 3x − 28: the middle sign is wrong.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Find two numbers that multiply to c and add to b.', 'w1', COL.task], ['The signs of b and c tell you their signs.', 'w2', CB],
+     ['Check the middle term by multiplying back.', 'w3', HIT], ['No pair? It doesn’t factor with integers.', 'w4', COL.bad]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-fac', prompt: ['Write each as ', $m('(x + d)(x + e)'), '. Either order works.'], build: blanks(FACQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-can', prompt: ['Can it be factored with integers?'],
+    build: grid(CANQ, [['y', 'Yes', HIT, 'Y'], ['n', 'No', COL.bad, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-sign', prompt: ['Find d and e. Watch the signs.'], build: blanks(SIGNQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const prow = (b, c, d, e, v = 'x') => ({ parts: [...tri(b, c, v), ':     d = ', { box: String(d) }, ',   e = ', { box: String(e) }], test: pair(d, e),
+  why: `${num(d)} · ${num(e)} = ${num(c)} and ${num(d)} + ${num(e)} = ${num(b)}.`, hint: `Two numbers that multiply to ${num(c)} and add to ${num(b)}.` });
+const FACQ = [prow(9, 14, 2, 7), prow(13, 30, 3, 10), prow(-7, 6, -1, -6), prow(-17, 60, -5, -12), prow(-1, -6, 2, -3), prow(-3, -54, -9, 6)];
+const SIGNQ = [prow(8, -48, -4, 12, 'y'), prow(-18, 32, -16, -2, 'a'), prow(-12, 11, -1, -11), prow(-2, -35, 5, -7)];
+const CANQ = [
+  { parts: [$m(...tri(-5, 16))], ans: ['n'], why: 'Pairs of 16 add to ±17, ±10, ±8; none is −5.' },
+  { parts: [$m(...tri(7, 12))], ans: ['y'], why: '3 · 4 = 12, 3 + 4 = 7.' },
+  { parts: [$m(...tri(13, -24))], ans: ['n'], why: 'Pairs of −24 add to ±23, ±10, ±5, ±2.' },
+  { parts: [$m(...tri(-1, -12))], ans: ['y'], why: '3 · (−4) = −12, 3 − 4 = −1.' },
+  { parts: [$m(...tri(10, -16))], ans: ['n'], why: 'Pairs of −16 add to ±15, ±6, 0.' },
+  { parts: [$m(...tri(-11, 30))], ans: ['y'], why: '(−5)(−6) = 30, −5 − 6 = −11.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Systems by Elimination — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 30, title: 'Solving systems by elimination', minutes: 6, next: '../ch31/' };
+const E1 = COL.whole, E2 = COL.nat, CAN = COL.task, SOL = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// One equation written in columns: x term | y term | = | number. Returns the pieces so a column can be marked.
+function cols(p, [a, b, c], y, t0, fill = COL.chalk, { x0 = 520, size = 52 } = {}) {
+  const g = G(p, { o: 0 });
+  const A = M(g, [a], { x: x0, y, size, fill, anchor: 'end' });
+  const B = M(g, [b], { x: x0 + 220, y, size, fill, anchor: 'end' });
+  M(g, ['='], { x: x0 + 280, y, size, fill });
+  const C = M(g, [c], { x: x0 + 330, y, size, fill, anchor: 'start' });
+  show(g, t0);
+  return { g, A, B, C, y, x0, size };
+}
+function addBar(p, x0, y, t0) {
+  draw(path(p, `M${x0 - 180} ${y}H${x0 + 480}`, { stroke: COL.chalk, 'stroke-width': 3 }, { d: 0 }), t0, .5);
+  show(M(p, ['+'], { x: x0 - 210, y: y - 30, size: 50, fill: COL.dim, o: 0 }), t0);
+}
+// Strike through the y column of two rows and flash it: the terms cancel.
+function cancelCol(p, r1, r2, t0, col = 'B') {
+  const x = r1.x0 + (col === 'B' ? 220 : 0);
+  const box = put(mk('rect', { x: x - 150, y: r1.y - r1.size * .95, width: 170, height: r2.y - r1.y + r1.size * 1.3, rx: 14, fill: 'none', stroke: CAN, 'stroke-width': 3 }, p), { o: 0 });
+  show(box, t0, .3);
+  for (const r of [r1, r2]) draw(path(p, `M${x - 140} ${r.y - 5}L${x + 5} ${r.y - 30}`, { stroke: CAN, 'stroke-width': 4 }, { d: 0 }), t0 + .5, .3);
+  show(T(p, '0', { x: x - 60, y: r2.y + 100, size: 52, fill: CAN, font: MATH, anchor: 'middle', o: 0 }), t0 + 1);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Systems by elimination', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 5, Chapter 30', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving systems by elimination', { x: 800, y: 420, size: 78, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['y + (−y) = 0'], 800, 590, m('q'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['idea', 'Add the equations', (m) => {
+    const p = panel(0);
+    const r1 = cols(p, ['x', ' + y', '7'], 220, m('stack'), E1), r2 = cols(p, ['x', ' − y', '1'], 310, m('stack', .5), E2);
+    addBar(p, 520, 350, m('add', -.5));
+    show(M(p, ['2x'], { x: 520, y: 430, size: 52, anchor: 'end', o: 0 }), m('add', 1));
+    cancelCol(p, r1, r2, m('cancel'));
+    show(M(p, ['= 8'], { x: 800, y: 430, size: 52, anchor: 'middle', o: 0 }), m('num'));
+    mline(p, ['x = 4'], 520, 560, m('res', 2), SOL, 56, 'end');
+    mline(p, ['4 + y = 7  →  y = 3'], 1200, 560, m('back'), SOL, 44);
+    caption(p, 'Equal amounts added to equal amounts stay equal.', m('why'), 700, COL.dim);
+  }],
+  ['mult', 'Multiply first', (m) => {
+    const p = panel(0);
+    const a = cols(p, ['2x', ' + y', '5'], 190, m('q'), E1, { size: 46 }), b = cols(p, ['3x', ' − 2y', '−3'], 270, m('q', .5), E2, { size: 46 });
+    const nt = T(p, 'y and −2y: not opposites yet', { x: 940, y: 330, size: 26, fill: COL.dim, o: 0 });
+    show(nt, m('look')); hide(nt, m('now'), .3);
+    hide(a.g, m('mul', 1), .4);
+    const a2 = cols(p, ['4x', ' + 2y', '10'], 190, m('mul', 1.3), E1, { size: 46 });
+    show(T(p, '① × 2', { x: 940, y: 184, size: 28, fill: CAN, weight: 600, o: 0 }), m('mul'));
+    addBar(p, 520, 310, m('now'));
+    cancelCol(p, a2, b, m('now', .5));
+    show(M(p, ['7x'], { x: 520, y: 390, size: 46, anchor: 'end', o: 0 }), m('add'));
+    show(M(p, ['= 7'], { x: 800, y: 390, size: 46, anchor: 'middle', o: 0 }), m('add'));
+    mline(p, ['x = 1'], 520, 540, m('add', 2), SOL, 52, 'end');
+    mline(p, ['2(1) + y = 5  →  y = 3'], 1150, 540, m('back'), SOL, 42);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    cols(p, ['5x', ' + 4y', '7'], 220, .2, E1); cols(p, ['3x', ' + y', '7'], 310, .3, E2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-mult', prompt: ['To eliminate y, multiply the second equation by…'],
+    build: choice([['4'], ['−4'], ['3']], 1, '−4 turns y into −4y, the opposite of 4y.',
+      ['4y + 4y = 8y does not cancel. You need opposites.', null, 'That changes 3x, not the y term.']),
+  }], done) }],
+  ['both', 'Multiply both', (m) => {
+    const p = panel(0);
+    const a = cols(p, ['2x', ' + 5y', '3'], 180, m('q'), E1, { size: 44 }), b = cols(p, ['3x', ' + 4y', '1'], 250, m('q', .5), E2, { size: 44 });
+    show(T(p, 'LCM of 2 and 3 is 6: make 6x and −6x', { x: 800, y: 440, size: 26, fill: COL.dim, anchor: 'middle', o: 0 }), m('lcm'));
+    hide(a.g, m('m1', 1), .3); hide(b.g, m('m2', 1), .3);
+    const a2 = cols(p, ['6x', ' + 15y', '9'], 180, m('m1', 1.2), E1, { size: 44 });
+    const b2 = cols(p, ['−6x', ' − 8y', '−2'], 250, m('m2', 1.2), E2, { size: 44 });
+    show(T(p, '① × 3', { x: 940, y: 174, size: 26, fill: CAN, weight: 600, o: 0 }), m('m1'));
+    show(T(p, '② × (−2)', { x: 940, y: 244, size: 26, fill: CAN, weight: 600, o: 0 }), m('m2'));
+    addBar(p, 520, 290, m('add', -.5));
+    cancelCol(p, a2, b2, m('add'), 'A');
+    show(M(p, ['7y'], { x: 740, y: 370, size: 44, anchor: 'end', o: 0 }), m('add', 1));
+    show(M(p, ['= 7'], { x: 800, y: 370, size: 44, anchor: 'middle', o: 0 }), m('add', 1));
+    mline(p, ['y = 1'], 520, 520, m('add', 3), SOL, 52, 'end');
+    mline(p, ['3x + 4 = 1  →  x = −1'], 1150, 520, m('back'), SOL, 42);
+  }],
+  ['special', 'Special cases', (m) => {
+    const p = panel(0);
+    mline(p, ['0 = 0'], 450, 300, m('inf'), SOL, 72);
+    caption(p, 'always true: infinitely many solutions', m('inf', 1), 400, SOL, 28, 450);
+    mline(p, ['0 = −6'], 1150, 300, m('none'), COL.bad, 72);
+    caption(p, 'never true: no solution', m('none', 1), 400, COL.bad, 28, 1150);
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    cols(p, ['x', ' − 2y', '1'], 220, .2, E1); cols(p, ['4x', ' − 7y', '5'], 310, .3, E2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-elim', prompt: ['Solve the system.'],
+    build: blanks([{ parts: ['x = ', { box: '3' }, ',   y = ', { box: '1' }], why: '① × (−4): −4x + 8y = −4. Add to ②: y = 1. Then x − 2 = 1, so x = 3.', hint: 'Multiply the first equation by −4 to cancel x.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Line up like terms in columns.', 'w1'], ['Multiply so one pair of coefficients are opposites.', 'w2'], ['Add, solve, then substitute back.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: ['Solve each system.'], build: blanks(SOLVE),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-count', prompt: ['How many solutions?'], build: grid(COUNTQ, [['1', 'One'], ['0', 'None'], ['i', 'Infinitely many']].map(([k, l], i) => [k, l, null, String(i + 1)]), { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-word', prompt: ['2 apples and 3 pears cost $4.50. 4 apples and 1 pear cost $4.00. Find each price.'], build: blanks(WORD),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SOLVE = [
+  { parts: ['2x + y = 8,  −3x − 4y = −7:   x = ', { box: '5' }, ',  y = ', { box: '-2' }], why: '① × 4 and add: 5x = 25.' },
+  { parts: ['6x + 2y = 24,  4x − 5y = 16:   x = ', { box: '4' }, ',  y = ', { box: '0' }], why: '① × 5, ② × 2, add: 38x = 152.' },
+  { parts: ['5x + 4y = −13,  3x − 2y = 23:   x = ', { box: '3' }, ',  y = ', { box: '-7' }], why: '② × 2 and add: 11x = 33.' },
+  { parts: ['8x + 3y = 14,  6x − y = −9:   x = ', { box: '-1/2' }, ',  y = ', { box: '6' }], why: '② × 3 and add: 26x = −13.' },
+];
+const COUNTQ = [
+  { parts: ['x + y = 5,   x − y = 1'], ans: ['1'], why: 'Adding gives 2x = 6: one solution, (3, 2).' },
+  { parts: ['2x + 4y = 6,   x + 2y = 3'], ans: ['i'], why: 'The first is 2 times the second: 0 = 0.' },
+  { parts: ['x + y = 4,   x + y = 7'], ans: ['0'], why: 'Subtracting gives 0 = 3: never true.' },
+];
+const WORD = [
+  { parts: ['2a + 3p = 4.50,  4a + p = 4.00:   apple $', { box: '0.75' }, ',  pear $', { box: '1' }], why: '② × (−3): −12a − 3p = −12. Add: −10a = −7.5, so a = 0.75, p = 1.00.' },
+];
+boot();
+</script>
+</body>
+</html>

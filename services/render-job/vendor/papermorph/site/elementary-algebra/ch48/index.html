@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding and Subtracting Polynomials — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 48, title: 'Adding and Subtracting Polynomials', minutes: 9, next: '../ch49/' };
+const CX2 = TS.x2[2], CX = TS.x[2], C1 = TS.one[2];
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const KINDS = ['x2', 'x', 'one'], STEP = { x2: 132, x: 42, one: 42 };
+// Tiles for a·x² + b·x + c in one row starting at x (negative counts give dashed tiles). Each tile knows its kind and sign.
+function polyTiles(p, coef, x, y) {
+  const out = [];
+  KINDS.forEach((k, j) => {
+    const n = coef[j];
+    for (let i = 0; i < Math.abs(n); i++) { const t = atile(p, k, x, y + (k === 'one' ? 45 : 0), n < 0); t.k = k; t.n = n < 0; out.push(t); x += STEP[k]; }
+    if (n) x += 34;
+  });
+  return out;
+}
+// Zones for sorting tiles by kind, and where the i-th positive / negative tile of a kind goes.
+const ZONE = { x2: 230, x: 760, one: 1170 }, ZY = 600;
+const slotIn = (k, i, neg) => [ZONE[k] + i * STEP[k], ZY + (neg ? (k === 'one' ? 50 : 136) : 0) + (k === 'one' ? 45 : 0)];
+// Slide every tile into its zone; then cancel opposite pairs. Returns the time the cancelling finishes.
+function sortAndCancel(tiles, t0, tc) {
+  const by = {};
+  KINDS.forEach(k => { by[k] = { pos: tiles.filter(t => t.k === k && !t.n), neg: tiles.filter(t => t.k === k && t.n) }; });
+  KINDS.forEach(k => ['pos', 'neg'].forEach(s => by[k][s].forEach((t, i) => tw(t, { x: slotIn(k, i, s === 'neg')[0], y: slotIn(k, i, s === 'neg')[1] }, t0 + i * .06, .8))));
+  KINDS.forEach((k, j) => { const n = Math.min(by[k].pos.length, by[k].neg.length); cancel(by[k].pos.slice(0, n), by[k].neg.slice(0, n), tc + j * .4); });
+  return by;
+}
+const zoneLabel = (p, k, parts, t0, fill) => mline(p, parts, ZONE[k] + (k === 'x2' ? 60 : 40), 872, t0, fill || TS[k][2], 40);
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Polynomials', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 9, Chapter 48', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Adding and Subtracting', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Polynomials', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['3x', E(2), ' + 2x − 1'], 800, 630, m('sub'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['names', 'Monomials and polynomials', (m) => {
+    const p = panel(0);
+    const row = (parts, label, y, t0, n) => {
+      mline(p, parts, 360, y, t0, COL.chalk, 48, 'start');
+      text(p, label, 300, y - 6, t0, { size: 28, fill: COL.task, weight: 600, anchor: 'end' });
+      text(p, `${n} term${n > 1 ? 's' : ''}`, 1000, y - 6, t0 + .3, { size: 26, fill: COL.dim });
+    };
+    row(['38m'], 'monomial', 170, .3, 1);
+    text(p, 'polynomial: one monomial, or a sum of monomials', 800, 260, m('poly'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    row(['−7y + ', F(1, 2)], 'binomial', 350, m('bi'), 2);
+    row(['8a', E(2), ' − ', F(3, 5), 'ab + 6b', E(2)], 'trinomial', 460, m('tri'), 3);
+    mline(p, ['3x', E(2), ' − 2x  =  3x', E(2), ' + (−2x)'], 800, 570, m('sub'), COL.dim, 40);
+    text(p, 'descending order:', 160, 720, m('order'), { size: 28, fill: COL.dim });
+    const tk = tokens(p, ['22x', ' + ', ['5x', E(3)], ' + ', '6'], { x: 460, y: 730, size: 54, o: 0 });
+    tk.forEach(e => show(e, m('order')));
+    // Swap 22x and 5x³: the highest power moves to the front.
+    const a = tk[0], b = tk[2], w = a._w, wb = b._w;
+    tw(b, { x: 460 + wb / 2, y: 730 }, m('sort'), .8);
+    tw(a, { x: 460 + wb + tk[1]._w + w / 2 }, m('sort'), .8);
+    tw(tk[1], { x: 460 + wb + tk[1]._w / 2 }, m('sort'), .8);
+    text(p, 'x³, then x, then the number', 1050, 722, m('sort', .8), { size: 26, fill: COL.task });
+  }],
+  ['like', 'Like terms and tiles', (m) => {
+    const p = panel(0);
+    [['x2', 380, ['x', E(2)]], ['x', 800, ['x']], ['one', 1150, ['1']]].forEach(([k, x, lab], i) => {
+      const t = atile(p, k, x, 330); tw(t, { o: 1, s: 1 }, m('tiles', 1 + i * 1.6), .4, back);
+      mline(p, lab, x, 470, m('tiles', 1.3 + i * 1.6), TS[k][2], 46);
+    });
+    text(p, 'Count tiles of one shape at a time.', 800, 560, m('same'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+    const a = tileRow(p, 'x2', 3, 260, 720, false, 12), b = tileRow(p, 'x', 3, 900, 720, false, 12);
+    popIn(a, m('not')); popIn(b, m('not', .5));
+    mline(p, ['3x', E(2)], 390, 830, m('not', .8), CX2, 40);
+    mline(p, '3x', 942, 830, m('not', 1), CX, 40);
+    text(p, 'not like terms', 1200, 730, m('not', 2), { size: 30, fill: COL.bad, weight: 600 });
+  }],
+  ['add', 'Adding', (m) => {
+    const p = panel(0);
+    mline(p, ['(2x', E(2), ' + 3x + 1)'], 40, 165, m('p1'), COL.chalk, 40, 'start');
+    const A = polyTiles(p, [2, 3, 1], 420, 160);
+    popIn(A, m('p1', .3), .06);
+    mline(p, ['+ (x', E(2), ' − x + 2)'], 40, 375, m('p2'), COL.chalk, 40, 'start');
+    const B = polyTiles(p, [1, -1, 2], 420, 370);
+    popIn(B, m('p2', .3), .06);
+    KINDS.forEach(k => text(p, { x2: 'x² tiles', x: 'x tiles', one: 'ones' }[k], ZONE[k] - 20, 512, m('group'), { size: 24, fill: TS[k][2], weight: 600 }));
+    sortAndCancel([...A, ...B], m('group'), m('cancel'));
+    zoneLabel(p, 'x2', ['3x', E(2)], m('count'));
+    zoneLabel(p, 'x', ['+ 2x'], m('count', .6));
+    zoneLabel(p, 'one', ['+ 3'], m('count', 1.2));
+    const cols = G(p, { o: 0 });
+    M(cols, ['  2x', E(2), ' + 3x + 1'], { x: 1500, y: 150, size: 34, anchor: 'end' });
+    M(cols, ['+  x', E(2), ' −  x + 2'], { x: 1500, y: 200, size: 34, anchor: 'end' });
+    path(cols, 'M1240 218H1500', { stroke: COL.chalk, 'stroke-width': 2.5 });
+    M(cols, ['3x', E(2), ' + 2x + 3'], { x: 1500, y: 262, size: 34, anchor: 'end', fill: COL.good });
+    show(cols, m('cols'));
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-add', prompt: ['Add and simplify.'],
+    build: blanks([{ parts: ['(3x', E(2), ' − 6x) + (4x', E(2), ' − 11x)  =  ', { box: '7' }, 'x', E(2), ' − ', { box: '17' }, 'x'],
+      why: '3x² + 4x² = 7x², and −6x − 11x = −17x.', hint: 'Combine the x² terms, then the x terms. −6 − 11 = −17.' }]),
+  }], done) }],
+  ['subtract', 'Subtracting', (m) => {
+    const p = panel(0);
+    mline(p, ['(3x', E(2), ' + 2x − 1)'], 40, 165, m('q'), COL.chalk, 40, 'start');
+    const A = polyTiles(p, [3, 2, -1], 420, 160);
+    popIn(A, m('q', .3), .05);
+    const minus = mline(p, ['− (x', E(2), ' + 4x − 3)'], 40, 375, m('q', 2.4), COL.chalk, 40, 'start');
+    const B = polyTiles(p, [1, 4, -3], 420, 370);
+    popIn(B, m('q', 2.7), .05);
+    // The minus sign flips every tile in the second group.
+    mline(p, ['+ (−x', E(2), ' − 4x + 3)'], 40, 375, m('opp', 5), COL.task, 40, 'start');
+    hide(minus, m('opp', 4.9), .3);
+    const when = { x2: 0, x: 1.6, one: 3.6 }, seen = { x2: 0, x: 0, one: 0 };
+    B.forEach((t, i) => {
+      const at = m('opp', when[t.k] + seen[t.k]++ * .15);
+      tw(t, { s: .05 }, at, .2);
+      const nt = atile(p, t.k, st(t).x, st(t).y, !t.n); nt.k = t.k; nt.n = !t.n;
+      put(nt, { o: 0, s: .05 }); tw(nt, { o: 1 }, at + .2, .01); tw(nt, { s: 1 }, at + .2, .25, back);
+      hide(t, at + .2, .01);
+      B[i] = nt;
+    });
+    sortAndCancel([...A, ...B], m('add'), m('cancel'));
+    zoneLabel(p, 'x2', ['2x', E(2)], m('ans'));
+    zoneLabel(p, 'x', ['− 2x'], m('ans', .6));
+    zoneLabel(p, 'one', ['+ 2'], m('ans', 1.2));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-sub', prompt: ['Simplify ', $m('(5x − 2) − (3x − 4)'), '.'],
+    build: choice([[$m('2x − 6')], [$m('2x + 2')], [$m('8x − 6')]], 1, '5x − 2 − 3x + 4 = 2x + 2.',
+      ['The minus sign flips −4 to +4 too: −2 + 4 = 2.', null, 'Subtracting 3x gives 5x − 3x = 2x, not 8x.']),
+  }], done) }],
+  ['perim', 'Perimeter', (m) => {
+    const p = panel(0), x0 = 300, y0 = 220, W = 600, H = 300;
+    const r = path(p, `M${x0} ${y0}H${x0 + W}V${y0 + H}H${x0}Z`, { stroke: COL.irr, 'stroke-width': 4, fill: mix(COL.board, COL.irr, .12) }, { d: 0 });
+    draw(r, m('rect'), 1);
+    mline(p, '3x + 2', x0 + W / 2, y0 - 20, m('rect', .6), COL.whole, 40);
+    mline(p, 'x − 1', x0 + W + 20, y0 + H / 2 + 12, m('rect', 1), COL.nat, 40, 'start');
+    const bug = put(mk('circle', { r: 12, fill: COL.task }, p), { x: x0, y: y0, o: 0 });
+    show(bug, m('walk'), .2);
+    prog(q => { const s = q * 2 * (W + H); const pt = s < W ? [x0 + s, y0] : s < W + H ? [x0 + W, y0 + s - W] : s < 2 * W + H ? [x0 + W - (s - W - H), y0 + H] : [x0, y0 + H - (s - 2 * W - H)]; put(bug, { x: pt[0], y: pt[1] }); }, m('walk', .3), 3.5, lin);
+    hide(bug, m('walk', 4), .3);
+    const rows = [['3x + 2', COL.whole], ['x − 1', COL.nat], ['3x + 2', COL.whole], ['x − 1', COL.nat]];
+    rows.forEach(([s, c], i) => mline(p, (i ? '+ ' : '   ') + s, 1350, 220 + i * 60, m('walk', .6 + i * .9), c, 40, 'end'));
+    show(path(p, 'M1120 445H1360', { stroke: COL.chalk, 'stroke-width': 2.5 }, { o: 0 }), m('sum'));
+    mline(p, '3x + x + 3x + x = 8x', 1350, 520, m('sum', .5), COL.chalk, 34, 'end');
+    mline(p, '2 − 1 + 2 − 1 = 2', 1350, 580, m('nums'), COL.chalk, 34, 'end');
+    mline(p, 'perimeter = 8x + 2', 600, 680, m('ans'), COL.good, 52);
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0), A = [300, 620], B = [800, 620], C = [520, 260];
+    draw(path(p, `M${A}L${B}L${C}Z`, { stroke: COL.irr, 'stroke-width': 4, fill: mix(COL.board, COL.irr, .12) }, { d: 0 }), .2, .8);
+    mline(p, '2a + 1', 550, 680, .5, COL.whole, 38);
+    mline(p, 'a + 3', 700, 430, .6, COL.nat, 38, 'start');
+    mline(p, '3a − 2', 380, 430, .7, COL.int, 38, 'end');
+  }, { ask: done => quiz({ x: 960, y: 260, w: 560, cls: 'side' }, [{
+    id: 'c-per', prompt: ['Find the perimeter of the triangle.'],
+    build: blanks([{ parts: ['perimeter = ', { box: '6' }, 'a + ', { box: '2' }], why: '2a + a + 3a = 6a, and 1 + 3 − 2 = 2.', hint: 'Add the three sides: the a terms, then the numbers.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Polynomial: a monomial or a sum of monomials, in descending order.', 'w1', CX2], ['Add: combine like terms (same variables, same powers).', 'w2', CX],
+     ['Subtract: flip the sign of every subtracted term, then add.', 'w3', COL.bad]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 150, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 150, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 210, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-name', prompt: ['How many terms? Name each polynomial.'],
+    build: grid(NAMEQ, [['m', 'Monomial', CX2, '1'], ['b', 'Binomial', CX, '2'], ['t', 'Trinomial', C1, '3']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-add', prompt: ['Add and simplify.'], build: blanks([
+      { parts: ['(3k', E(2), ' − 8) + (−4k − 5)  =  3k', E(2), ' − ', { box: '4' }, 'k − ', { box: '13' }], why: '−8 − 5 = −13; −4k has no like term.', hint: 'Only the numbers combine; −4k stays.' },
+      { parts: ['(9a + 10b) + (8a + 2b)  =  ', { box: '17' }, 'a + ', { box: '12' }, 'b'], why: '9a + 8a = 17a, 10b + 2b = 12b.', hint: 'a terms with a terms, b terms with b terms.' },
+      { parts: ['(x', E(2), ' + 5x − 2) + (2x', E(2), ' − 5x + 7)  =  ', { box: '3' }, 'x', E(2), ' + ', { box: '5' }], why: '5x − 5x = 0, so the x terms vanish.', hint: 'The x terms cancel.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-sub', prompt: ['Subtract and simplify.'], build: blanks([
+      { parts: ['(8x − 5y) − (7x − 9y)  =  x + ', { box: '4' }, 'y'], why: '8x − 7x = x; −5y + 9y = 4y.', hint: '−(−9y) = +9y.' },
+      { parts: ['(8a', E(2), ' + 11a) − (19a − 5)  =  8a', E(2), ' − ', { box: '8' }, 'a + ', { box: '5' }], why: '11a − 19a = −8a; −(−5) = +5.', hint: 'Flip both signs inside the second parentheses.' },
+      { parts: ['(3m', E(2), ' + n) − (5n − 6m', E(2), ')  =  ', { box: '9' }, 'm', E(2), ' − ', { box: '4' }, 'n'], why: '3m² + 6m² = 9m²; n − 5n = −4n.', hint: '−(−6m²) = +6m².' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const NAMEQ = [
+  { parts: [$m('4x', E(2), ' − 9')], ans: ['b'], why: 'Two terms.' },
+  { parts: [$m('−12ab')], ans: ['m'], why: 'One term: a product of a number and variables.' },
+  { parts: [$m('x', E(2), ' + 3x − 10')], ans: ['t'], why: 'Three terms.' },
+  { parts: [$m('7')], ans: ['m'], why: 'A number alone is a monomial.' },
+  { parts: [$m('5m', E(3), ' + 2m')], ans: ['b'], why: 'Two terms.' },
+  { parts: [$m(F(1, 2), 'y', E(2), ' − y + 8')], ans: ['t'], why: 'Three terms.' },
+];
+boot();
+</script>
+</body>
+</html>

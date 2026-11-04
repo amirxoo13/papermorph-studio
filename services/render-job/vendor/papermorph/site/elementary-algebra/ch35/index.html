@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point-Slope Form — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 35, title: 'Point-Slope Form', minutes: 7, next: '../ch36/' };
+const LN = COL.whole, PT = COL.task, SL = COL.irr, KP = COL.nat, AP = COL.real;   // line, point, slope, known point, any point
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 40) => mline(p, parts, 1000, y, t0, fill, size, 'start');
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 450, u: 40, x0: -8, x1: 8, y0: -8, y1: 8, t0 }); return S.P; }
+function stage() { const p = panel(0), P = S.P; P.layer = p; S.qp = p; return [p, P]; }
+// Equation as tokens; a small label appears under chosen tokens.
+function tagged(p, items, y, t0, size = 56) {
+  const row = tokens(p, items, { x: 800, y, size, anchor: 'middle', o: 0 });
+  row.forEach(e => show(e, t0));
+  return row;
+}
+const under = (p, row, i, str, color, t0, dy = 56) => show(M(p, [str], { x: row[i]._px, y: row.y + dy, size: 26, fill: color, o: 0 }), t0);
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Point-slope form', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 35', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Point-Slope Form', { x: 800, y: 430, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['y − y₁ = m(x − x₁)'], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['derive', 'Where it comes from', (m) => {
+    makePlane(.2);
+    const [p, P] = stage();
+    P.line(-3, -2, 3, 2, LN, .4);
+    P.dot(-3, -2, KP, .6, { label: '(x₁, y₁)', dx: -14, dy: 34, anchor: 'end' });
+    side(p, ['slope m'], 170, .8, LN, 36);
+    P.dot(3, 2, AP, m('any'), { label: '(x, y)', dx: 16, dy: 8 });
+    P.arrow(3, -2, 3, 2, SL, m('rise'), { into: p });
+    show(M(p, ['y − y₁'], { x: P.PX(3) + 16, y: P.PY(-1) + 9, size: 26, fill: SL, anchor: 'start', o: 0 }), m('rise', .3));
+    P.arrow(-3, -2, 3, -2, SL, m('run'), { into: p });
+    show(M(p, ['x − x₁'], { x: P.PX(1.2), y: P.PY(-2) + 40, size: 26, fill: SL, o: 0 }), m('run', .3));
+    side(p, [F('y − y₁', 'x − x₁'), ' = m'], 330, m('slope'), COL.chalk, 44);
+    side(p, ['y − y₁ = m(x − x₁)'], 480, m('mult'), COL.good, 48);
+    show(M(p, ['multiply both sides by x − x₁'], { x: 1000, y: 410, size: 26, fill: COL.dim, anchor: 'start', o: 0 }), m('mult'));
+  }],
+  ['read', 'Reading the form', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    const a = tagged(p, ['y − ', { t: '3', fill: PT }, ' = ', { t: '2', fill: SL }, '(x − ', { t: '7', fill: PT }, ')'], 200, m('ex'));
+    under(p, a, 3, 'm', SL, m('m'));
+    under(p, a, 1, 'y₁', PT, m('pt')); under(p, a, 5, 'x₁', PT, m('pt'));
+    mline(p, ['slope 2,  point (7, 3)'], 800, 340, m('pt', 1.5), COL.good, 40);
+    const b = tagged(p, ['y + ', { t: '1', fill: PT }, ' = ', { t: '−2', fill: SL }, '(x − ', { t: '9', fill: PT }, ')'], 500, m('ex2'));
+    mline(p, ['y + 1  is  y − (−1)'], 800, 630, m('rew'), COL.dim, 36);
+    under(p, b, 1, 'y₁', PT, m('pt2')); under(p, b, 5, 'x₁', PT, m('pt2')); under(p, b, 3, 'm', SL, m('pt2'));
+    mline(p, ['slope −2,  point (9, −1)'], 800, 720, m('pt2', 1), COL.good, 40);
+  }],
+  ['q1', 'Quick check', () => {
+    show(S.pg, 0, .3);
+    const [p] = stage();
+    side(p, ['y + 4 = 3(x + 2)'], 200, .2, COL.chalk, 48);
+  }, { ask: done => quiz({ x: 1000, y: 290, w: 580, cls: 'side' }, [{
+    id: 'c-read', prompt: ['Find the slope and the point named by ', $m('y + 4 = 3(x + 2)'), '.'],
+    build: blanks([{ parts: ['m = ', { box: '3' }, '    point (', { box: '-2' }, ', ', { box: '-4' }, ')'], why: 'x + 2 is x − (−2) and y + 4 is y − (−4).', hint: 'Write x + 2 as x − (−2), and y + 4 as y − (−4).',
+      fx: () => { const L = S.q || qlayer(), P = S.P; P.dot(-2, -4, PT, 0, { run: fx, into: L, label: '(−2, −4)', dx: -14, dy: 30, anchor: 'end' }); P.stair(-2, -4, 3, 1, .5, { run: fx, into: L }); P.line(-2, -4, -1, -1, LN, 1.4, { run: fx, into: L }); } }]),
+  }], done) }],
+  ['graph', 'Graph from a point', (m) => {
+    const [p, P] = stage();
+    side(p, ['slope 2,  through (−1, 4)'], 180, .2, COL.chalk, 36);
+    P.dot(-1, 4, PT, m('pt'), { label: '(−1, 4)', dx: -14, dy: 8, anchor: 'end' });
+    side(p, ['2 = ', F(2, 1), ':  up 2, right 1'], 270, m('st'), SL, 34);
+    P.stair(-1, 4, 2, 1, m('st', 1), { labels: false }); P.dot(0, 6, PT, m('st', 2.2));
+    P.line(-1, 4, 0, 6, LN, m('line'));
+    side(p, ['y − 4 = 2(x + 1)'], 400, m('eq'), COL.good, 46);
+  }],
+  ['q2', 'Quick check', () => {
+    const [p] = stage();
+    side(p, ['y + 2 = ', F(1, 2), '(x − 4)'], 170, .2, COL.chalk, 48);
+  }, { ask: done => quiz({ x: 1000, y: 260, w: 580, cls: 'side' }, [{
+    id: 'c-plot', prompt: ['Plot the point named by ', $m('y + 2 = ', F(1, 2), '(x − 4)'), '.'],
+    build: pickPoint(S.P, [4, -2], 'x₁ = 4 and y₁ = −2, so the point is (4, −2).',
+      (x, y) => x === -4 && y === 2 ? 'Both signs are flipped: x − 4 means x₁ = 4, and y + 2 means y₁ = −2.' : x === 4 && y === 2 ? 'y + 2 is y − (−2), so y₁ = −2.' : x === -4 && y === -2 ? 'x − 4 means x₁ = 4.' : 'The point is (x₁, y₁): the numbers subtracted from x and from y.',
+      () => { const P = S.P; P.stair(4, -2, 1, 2, .4, { run: fx, into: S.qp }); P.line(4, -2, 6, -1, LN, 1.4, { run: fx, into: S.qp }); }),
+  }], done) }],
+  ['twoPts', 'From two points', (m) => {
+    const [p, P] = stage();
+    const a = P.dot(3, -5, PT, m('pts'), { label: '(3, −5)' }), b = P.dot(7, 1, PT, m('pts'), { label: '(7, 1)', dx: -14, anchor: 'end' });
+    side(p, ['m = ', F('1 − (−5)', '7 − 3'), ' = ', F(6, 4), ' = ', F(3, 2)], 180, m('m'), SL, 38);
+    side(p, ['y + 5 = ', F(3, 2), '(x − 3)'], 310, m('e1'), COL.chalk, 42);
+    pulse(a, m('e1'));
+    side(p, ['y − 1 = ', F(3, 2), '(x − 7)'], 420, m('e2'), COL.chalk, 42);
+    pulse(b, m('e2'));
+    P.line(3, -5, 7, 1, LN, m('same'));
+    side(p, ['same line ✓'], 520, m('same', .5), COL.good, 34);
+  }],
+  ['toSI', 'Into slope-intercept form', (m) => {
+    const [p, P] = stage();
+    side(p, ['slope −2,  through (1, 6)'], 170, m('ex'), COL.dim, 34);
+    P.dot(1, 6, PT, m('ex'), { label: '(1, 6)' });
+    side(p, ['y − 6 = −2(x − 1)'], 270, m('ps'), COL.chalk, 44);
+    side(p, ['y − 6 = −2x + 2'], 360, m('dist'), COL.chalk, 44);
+    side(p, ['y = −2x + 8'], 450, m('add'), COL.good, 48);
+    P.line(1, 6, 2, 4, LN, m('add'));
+    P.dot(0, 8, COL.nat, m('chk'), { label: '(0, 8)', dx: 16, dy: 8 });
+  }],
+  ['q3', 'Quick check', () => {
+    const [p] = stage();
+    side(p, ['slope 4,  through (1, −2)'], 200, .2, COL.chalk, 36);
+  }, { ask: done => quiz({ x: 1000, y: 290, w: 580, cls: 'side' }, [{
+    id: 'c-si', prompt: ['Write the line in slope-intercept form.'],
+    build: blanks([{ parts: ['y = ', { box: '4' }, 'x + ', { box: '-6' }], why: 'y + 2 = 4(x − 1), so y + 2 = 4x − 4 and y = 4x − 6.', hint: 'Start with y + 2 = 4(x − 1). Distribute, then subtract 2.',
+      fx: () => { const L = S.q || qlayer(), P = S.P; P.dot(1, -2, PT, 0, { run: fx, into: L, label: '(1, −2)' }); P.line(1, -2, 0, -6, LN, .4, { run: fx, into: L }); P.dot(0, -6, COL.nat, 1.2, { run: fx, into: L, label: '(0, −6)', dx: -14, anchor: 'end' }); } }]),
+  }], done) }],
+  ['standard', 'Standard form', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    mline(p, ['Ax + B\u200By = C'], 800, 130, m('f'), COL.chalk, 60);
+    show(M(p, ['A, B, C are integers, and A is positive'], { x: 800, y: 195, size: 30, fill: COL.dim, o: 0 }), m('rule'));
+    show(T(p, 'slope 1/3, through (−12, 7)', { x: 800, y: 280, size: 30, fill: COL.task, anchor: 'middle', weight: 600, o: 0 }), m('ex'));
+    eqLine(p, ['y − 7'], [F(1, 3), '(x + 12)'], 380, m('ps'), { xEq: 800, size: 46 });
+    eqLine(p, ['3y − 21'], ['x + 12'], 470, m('x3'), { xEq: 800, size: 46, note: '× 3' });
+    eqLine(p, ['−x + 3y'], ['33'], 560, m('mv'), { xEq: 800, size: 46, note: '− x, + 21' });
+    eqLine(p, ['x − 3y'], ['−33'], 660, m('neg'), { xEq: 800, size: 50, fill: COL.good, note: '× (−1)' });
+  }],
+  ['q4', 'Quick check', () => {
+    const p = panel(0);
+    mline(p, ['slope 2,  through (10, 3)'], 800, 200, .2, COL.chalk, 44);
+  }, { ask: done => quiz({ x: 500, y: 290, w: 600, cls: 'side' }, [{
+    id: 'c-std', prompt: ['Write the line in standard form.'],
+    build: blanks([{ parts: ['2x − y = ', { box: '17' }], why: 'y − 3 = 2(x − 10) gives y = 2x − 17, so 2x − y = 17.', hint: 'Start with y − 3 = 2(x − 10). Simplify, then move the x term to the left.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Slope-intercept:   y = mx + b', 'w1'], ['Point-slope:   y − y₁ = m(x − x₁).  Watch the signs.', 'w2'], ['Standard:   Ax + B\u200By = C, integers, A positive', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      M(g, [str], { x: 260, size: 38, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-read', prompt: ['Find the slope and the point named by each equation.'], build: blanks(READQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-b', prompt: ['Each line has slope m and passes through the point. Find b in ', $m('y = mx + b'), '.'], build: blanks(BQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-std', prompt: ['Write each line in standard form, with integers. A is given.'], build: blanks(STDQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const READQ = [
+  { parts: ['y − 1 = 5(x − 3):     m = ', { box: '5' }, '    point (', { box: '3' }, ', ', { box: '1' }, ')'], why: 'm = 5; x₁ = 3, y₁ = 1.' },
+  { parts: ['y + 1 = −2(x − 9):     m = ', { box: '-2' }, '    point (', { box: '9' }, ', ', { box: '-1' }, ')'], why: 'y + 1 is y − (−1).' },
+  { parts: ['y = 5(x − ', F(4, 3), '):     m = ', { box: '5' }, '    point (', { box: '4/3' }, ', ', { box: '0' }, ')'], why: 'y is y − 0, so y₁ = 0.' },
+  { parts: ['y + 7 = −(x + 2):     m = ', { box: '-1' }, '    point (', { box: '-2' }, ', ', { box: '-7' }, ')'], why: '−(x + 2) is −1 · (x − (−2)).' },
+];
+const BQ = [
+  { parts: ['m = −3, through (2, 5):     b = ', { box: '11' }], why: 'y − 5 = −3(x − 2) gives y = −3x + 11.' },
+  { parts: ['m = ', F(1, 2), ', through (−6, 7):     b = ', { box: '10' }], why: 'y − 7 = ½(x + 6) gives y = ½x + 10.' },
+  { parts: ['m = 4, through (9, 5):     b = ', { box: '-31' }], why: 'y − 5 = 4(x − 9) gives y = 4x − 31.' },
+  { parts: ['m = −', F(7, 6), ', through (3, 0):     b = ', { box: '7/2' }], why: 'y = −7/6 (x − 3) gives y = −7/6 x + 7/2.' },
+];
+const STDQ = [
+  { parts: ['m = 2, through (10, 3):     2x + ', { box: '-1' }, 'y = ', { box: '17' }], why: 'y = 2x − 17, so 2x − y = 17.' },
+  { parts: ['m = 6, through (−', F(3, 4), ', 1):     12x + ', { box: '-2' }, 'y = ', { box: '-11' }], why: 'y = 6x + 11/2; times 2: 2y = 12x + 11, so 12x − 2y = −11.' },
+  { parts: ['m = −', F(5, 4), ', through (8, −6):     5x + ', { box: '4' }, 'y = ', { box: '16' }], why: 'y = −5/4 x + 4; times 4: 4y = −5x + 16, so 5x + 4y = 16.' },
+  { parts: ['m = 3, through (1, 1):     3x + ', { box: '-1' }, 'y = ', { box: '2' }], why: 'y = 3x − 2, so 3x − y = 2.' },
+];
+boot();
+</script>
+</body>
+</html>

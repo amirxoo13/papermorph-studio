@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring Polynomials Using GCF — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 52, title: 'Factoring Polynomials Using GCF', minutes: 10, next: '../ch53/' };
+const GCFC = COL.task, CN = COL.int, CXC = COL.whole, CYC = COL.nat;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const pw = (b, e) => [b, E(e)];
+// A row of factor chips starting at x (left edge); items: [label, color]. Returns chips with their centres.
+function chipRow(p, items, x, y, t0, gap = 86) {
+  return items.map(([s, c], i) => { const ch = chip(p, [s], c, { x: x + i * gap, y, size: 34, s: 0, o: 0 }); ch.cx = x + i * gap; ch.lab = s; pop(ch, t0 + i * .08); return ch; });
+}
+// Link matched chips in two rows with a line and a glow ring.
+function link(p, a, b, t0, color = GCFC) {
+  draw(path(p, `M${a.cx} ${st(a).y + 30}L${b.cx} ${st(b).y - 30}`, { stroke: color, 'stroke-width': 3.5 }, { d: 0 }), t0, .35);
+  [a, b].forEach(c => { put(c._rect, { c_stroke: c._rect.getAttribute('stroke') }); tw(c._rect, { c_stroke: color, 'a_stroke-width': 5 }, t0, .3); });
+}
+// 12 dots that rearrange into r rows.
+const DOT0 = [800, 280];
+function dotPos(r, i, gap = 46) { const c = 12 / r; return [DOT0[0] + (i % c - (c - 1) / 2) * gap, DOT0[1] + (Math.floor(i / c) - (r - 1) / 2) * gap]; }
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Factoring with the GCF', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 10, Chapter 52', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Factoring Polynomials', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Using the GCF', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['6x', E(2), ' + 9x  =  3x(2x + 3)'], 800, 630, m('sub'), COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['factors', 'Factors', (m) => {
+    const p = panel(0);
+    const ds = Array.from({ length: 12 }, (_, i) => { const d = put(mk('circle', { r: 15, fill: COL.int }, p), { x: dotPos(1, i)[0], y: dotPos(1, i)[1], s: 0, o: 0 }); pop(d, m('dots', i * .05)); return d; });
+    const lab = (r, t0) => { const t = mline(p, `${r} × ${12 / r}`, 800, 470, t0, COL.chalk, 44); hide(t, t0 + 1.3, .2); };
+    [['r1', 1], ['r2', 2], ['r3', 3]].forEach(([k, r], j) => { ds.forEach((d, i) => tw(d, { x: dotPos(r, i)[0], y: dotPos(r, i)[1] }, m(k), .6)); if (j < 2) lab(r, m(k, .3)); else mline(p, '3 × 4', 800, 470, m(k, .3), COL.chalk, 44); });
+    mline(p, 'factors of 12:  1, 2, 3, 4, 6, 12', 800, 580, m('list'), COL.task, 46);
+    mline(p, '6x  =  2 · 3x  =  3 · 2x  =  6 · x', 800, 720, m('mono'), COL.chalk, 46);
+  }],
+  ['gcf', 'Greatest common factor', (m) => {
+    const p = panel(0);
+    mline(p, '12', 300, 320, m('ex'), COL.chalk, 60, 'end'); mline(p, '20', 300, 520, m('ex'), COL.chalk, 60, 'end');
+    const a = chipRow(p, [['2', CN], ['2', CN], ['3', CN]], 420, 300, m('primes', .5)), b = chipRow(p, [['2', CN], ['2', CN], ['5', CN]], 420, 540, m('primes', 4));
+    link(p, a[0], b[0], m('match')); link(p, a[1], b[1], m('match', .9));
+    const r = G(p, { o: 0, x: 1150, y: 430 });
+    mk('rect', { x: -170, y: -60, width: 340, height: 92, rx: 18, fill: 'none', stroke: GCFC, 'stroke-width': 3 }, r);
+    M(r, ['GCF = 2 · 2 = 4'], { y: 4, size: 44, fill: GCFC });
+    show(r, m('gcf'));
+  }],
+  ['mono', 'GCF of monomials', (m) => {
+    const p = panel(0);
+    mline(p, ['12x', E(3), 'y', E(2)], 270, 280, m('ex'), COL.chalk, 52, 'end');
+    mline(p, ['18x', E(2), 'y', E(4)], 270, 520, m('ex', .5), COL.chalk, 52, 'end');
+    const A = chipRow(p, [['2', CN], ['2', CN], ['3', CN], ['x', CXC], ['x', CXC], ['x', CXC], ['y', CYC], ['y', CYC]], 380, 270, m('expand'), 80);
+    const B = chipRow(p, [['2', CN], ['3', CN], ['3', CN], ['x', CXC], ['x', CXC], ['y', CYC], ['y', CYC], ['y', CYC], ['y', CYC]], 380, 530, m('expand', .4), 80);
+    link(p, A[0], B[0], m('nums')); link(p, A[2], B[1], m('nums', .4));
+    link(p, A[3], B[3], m('xs')); link(p, A[4], B[4], m('xs', .3));
+    link(p, A[6], B[5], m('ys')); link(p, A[7], B[6], m('ys', .3));
+    const r = G(p, { o: 0, x: 800, y: 690 });
+    mk('rect', { x: -330, y: -62, width: 660, height: 96, rx: 18, fill: 'none', stroke: GCFC, 'stroke-width': 3 }, r);
+    M(r, ['GCF = 2 · 3 · x', E(2), ' · y', E(2), ' = 6x', E(2), 'y', E(2)], { y: 4, size: 46, fill: GCFC });
+    show(r, m('gcf'));
+    text(p, 'GCF of the numbers × each shared variable to its smallest exponent', 800, 820, m('rule'), { size: 28, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-gcf', prompt: ['Find the GCF of ', $m('10a', E(2), 'b'), ' and ', $m('8a', E(3), 'b', E(2)), '.'],
+    build: blanks([{ parts: ['GCF = ', { box: '2' }, 'a', E('m'), 'b', E('n'), ':     m = ', { box: '2' }, ',  n = ', { box: '1' }], why: 'GCF of 10 and 8 is 2; smallest powers are a² and b¹: 2a²b.', hint: 'Use the smaller exponent of each variable. b alone means b¹.' }]),
+  }], done) }],
+  ['factor', 'Pulling out the GCF', (m) => {
+    const p = panel(0);
+    mline(p, ['6x', E(2), ' + 9x'], 800, 140, m('ex'), COL.chalk, 64);
+    const A = areaGrid(p, 460, 300, [340, 240], [200], ['', ''], [''], m('area'), { size: 48 });
+    A.cell(0, 0, ['6x', E(2)], m('area', .6), { tint: CXC });
+    A.cell(0, 1, '9x', m('area', .8), { tint: CXC });
+    // Replace the question marks one by one: height first, then widths.
+    const swap = (parts, x, y, anchor, t0, fill) => { const q = mline(p, '?', x, y, m('area', .4), COL.dim, 48, anchor); hide(q, t0, .2); show(M(p, [parts], { x, y, size: 48, fill, anchor, o: 0 }), t0 + .2); };
+    swap('3x', 436, 417, 'end', m('gcf'), GCFC);
+    swap('2x', 630, 278, 'middle', m('w1', 1.2), COL.whole);
+    swap('3', 920, 278, 'middle', m('w2', 1.2), COL.whole);
+    mline(p, [F('6x²', '3x'), ' = 2x'], 400, 640, m('w1'), COL.whole, 44);
+    mline(p, [F('9x', '3x'), ' = 3'], 760, 640, m('w2'), COL.whole, 44);
+    const r = G(p, { o: 0, x: 800, y: 770 });
+    mk('rect', { x: -330, y: -62, width: 660, height: 96, rx: 18, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, r);
+    M(r, ['6x', E(2), ' + 9x = 3x(2x + 3)'], { y: 4, size: 50, fill: COL.good });
+    show(r, m('ans'));
+    mline(p, ['3x · 2x = 6x', E(2), ',   3x · 3 = 9x  ✓'], 1250, 640, m('chk'), COL.dim, 36);
+  }],
+  ['big', 'Bigger exponents', (m) => {
+    const p = panel(0), X = 470;
+    mline(p, ['6x', E(9), 'y', E(7), ' − 10x', E(4), 'y', E(15)], 800, 140, m('ex'), COL.chalk, 58);
+    eqLine(p, 'GCF', ['2x', E(4), 'y', E(7)], 270, m('gcf'), { xEq: X, fill: GCFC, note: 'GCF(6, 10) = 2; smaller exponents', noteX: 900 });
+    eqLine(p, [F('6x⁹y⁷', '2x⁴y⁷')], ['3x', E(5)], 400, m('d1'), { xEq: X });
+    eqLine(p, [F('10x⁴y¹⁵', '2x⁴y⁷')], ['5y', E(8)], 530, m('d2'), { xEq: X });
+    const r = G(p, { o: 0, x: 800, y: 690 });
+    mk('rect', { x: -420, y: -62, width: 840, height: 96, rx: 18, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, r);
+    M(r, ['= 2x', E(4), 'y', E(7), '(3x', E(5), ' − 5y', E(8), ')'], { y: 4, size: 52, fill: COL.good });
+    show(r, m('ans'));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-fac', prompt: ['Factor ', $m('30x', E(5), ' − 12x', E(3)), ' completely.'],
+    build: blanks([{ parts: ['= ', { box: '6' }, 'x', E('n'), '(', { box: '5' }, 'x', E(2), ' − ', { box: '2' }, '),     n = ', { box: '3' }], why: 'GCF = 6x³; 30x⁵ ÷ 6x³ = 5x², 12x³ ÷ 6x³ = 2.', hint: 'GCF of 30 and 12 is 6; the smaller power of x is x³.' }]),
+  }], done) }],
+  ['one', 'Keep the 1', (m) => {
+    const p = panel(0);
+    mline(p, '5a + 5', 800, 180, m('ex'), COL.chalk, 72);
+    mline(p, [F('5a', 5), ' = a,     ', F(5, 5), ' = 1'], 800, 340, m('div'), COL.chalk, 56);
+    mline(p, '5a + 5 = 5(a + 1)', 800, 500, m('ans'), COL.good, 64);
+    mline(p, '5(a)', 800, 660, m('warn'), COL.bad, 56);
+    draw(path(p, 'M730 645H870', { stroke: COL.bad, 'stroke-width': 4 }, { d: 0 }), m('warn', 1), .3);
+    text(p, '= 5a only: the + 5 is lost', 900, 650, m('warn', 1.4), { size: 28, fill: COL.bad, weight: 600 });
+  }],
+  ['full', 'Factor completely', (m) => {
+    const p = panel(0);
+    mline(p, ['12x', E(7), 'y', E(9), ' − 16x', E(10), 'y', E(4)], 800, 140, m('ex'), COL.chalk, 54);
+    const t = tokens(p, [['2x', E(7), 'y', E(2), '('], ['6y', E(7)], ' − ', ['8x', E(3), 'y', E(2)], ')'], { x: 800, y: 280, size: 54, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, m('ex', 3)));
+    text(p, 'multiplies back correctly ✓', 800, 360, m('chk'), { size: 26, fill: COL.dim, anchor: 'middle' });
+    [1, 3].forEach(k => { const e = t[k], r = put(mk('rect', { x: e._px - e._w / 2 - 8, y: 230, width: e._w + 16, height: 70, rx: 12, fill: 'none', stroke: COL.bad, 'stroke-width': 3.5 }, p), { o: 0 }); show(r, m('left')); });
+    text(p, 'both still contain 2y²', 800, 430, m('left', .6), { size: 28, fill: COL.bad, anchor: 'middle', weight: 600 });
+    const r = G(p, { o: 0, x: 800, y: 590 });
+    mk('rect', { x: -410, y: -62, width: 820, height: 96, rx: 18, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, r);
+    M(r, ['= 4x', E(7), 'y', E(4), '(3y', E(5), ' − 4x', E(3), ')'], { y: 4, size: 52, fill: COL.good });
+    show(r, m('ans'));
+    text(p, 'Inside the parentheses, nothing common should remain.', 800, 760, m('test'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-full', prompt: ['Is ', $m('4(2x + 6)'), ' factored completely?'],
+    build: choice([['Yes'], ['No: 2x and 6 still share a 2']], 1, 'The GCF of 8x + 24 is 8: 8(x + 3).', ['2x and 6 are both even, so a factor of 2 is still inside.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['GCF: GCF of the numbers × shared variables to their smallest exponents.', 'w1', GCFC], ['Factor: divide every term by the GCF; write GCF(…what’s left).', 'w2', COL.whole],
+     ['Check by multiplying back; nothing common should be left inside.', 'w3', COL.good]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 140, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 140, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 200, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [
+    { id: 'p-g1', prompt: ['GCF of ', $m('cx + cy'), '?'], build: choice([[$m('c')], [$m('cx')], [$m('xy')]], 0, 'Both terms share only c.', [null, 'cy has no x.', 'Neither term has both x and y.']) },
+    { id: 'p-g2', prompt: ['GCF of ', $m('8m − 6n'), '?'], build: choice([[$m('2')], [$m('2m')], [$m('48')]], 0, 'GCF of 8 and 6 is 2; no shared variable.', [null, '6n has no m.', '48 is a common multiple, not a common factor.']) },
+    { id: 'p-g3', prompt: ['GCF of ', $m('10a', E(2), 'b + 8a', E(3), 'b', E(2)), '?'], build: choice([[$m('2a', E(3), 'b', E(2))], [$m('2a', E(2), 'b')], [$m('a', E(2), 'b')]], 1, 'GCF(10, 8) = 2, with the smaller powers a² and b.', ['Use the smaller exponents, not the larger.', null, 'Both coefficients are even: include the 2.']) },
+    { id: 'p-g4', prompt: ['GCF of ', $m('12m', E(2), 'n', E(5), 'p', E(4), ' − 8mn', E(3), 'p', E(5), ' + 20mp', E(2)), '?'], build: choice([[$m('4mnp')], [$m('4mp', E(2))], [$m('2mp', E(2))]], 1, 'GCF(12, 8, 20) = 4; m¹, p², and no n (the last term has none).', ['The last term has no n.', null, '4 divides 12, 8 and 20.']) },
+  ], done, 'Chapter practice 1 of 3,  question') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-fac', prompt: ['Factor completely.'], build: blanks([
+      { parts: ['16a', E(3), 'b', E(7), ' − 12a', E(2), 'b', E(6), ' = ', { box: '4' }, 'a', E(2), 'b', E(6), '(', { box: '4' }, 'ab − ', { box: '3' }, ')'], why: 'GCF = 4a²b⁶.', hint: 'GCF(16, 12) = 4.' },
+      { parts: ['9y', E(2), ' + 6y = ', { box: '3' }, 'y(', { box: '3' }, 'y + ', { box: '2' }, ')'], why: 'GCF = 3y.', hint: 'GCF(9, 6) = 3, and both terms have y.' },
+      { parts: ['7a + 7 = 7(a + ', { box: '1' }, ')'], why: '7 ÷ 7 = 1.', hint: 'Keep the 1.' },
+      { parts: ['18f', E(20), 'g', E(12), ' − 15f', E(4), 'g', E(8), ' = ', { box: '3' }, 'f', E(4), 'g', E(8), '(', { box: '6' }, 'f', E(16), 'g', E(4), ' − ', { box: '5' }, ')'], why: 'GCF = 3f⁴g⁸.', hint: 'GCF(18, 15) = 3.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-full', prompt: ['Is it factored completely?'],
+    build: grid(FULLQ, [['y', 'Completely', COL.good, 'Y'], ['n', 'Not yet', COL.bad, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const FULLQ = [
+  { parts: [$m('3x(x + 5)')], ans: ['y'], why: 'x and 5 share no factor.' },
+  { parts: [$m('2(6y + 4)')], ans: ['n'], why: '6y and 4 still share a 2: 4(3y + 2).' },
+  { parts: [$m('x(4x', E(2), ' − 8x)')], ans: ['n'], why: '4x² and 8x share 4x: 4x²(x − 2).' },
+  { parts: [$m('7(a + 1)')], ans: ['y'], why: 'a and 1 share nothing.' },
+  { parts: [$m('5ab(2a − 3b)')], ans: ['y'], why: '2a and 3b share nothing.' },
+  { parts: [$m('2x', E(7), 'y', E(2), '(6y', E(7), ' − 8x', E(3), 'y', E(2), ')')], ans: ['n'], why: '6y⁷ and 8x³y² still share 2y².' },
+];
+boot();
+</script>
+</body>
+</html>

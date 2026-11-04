@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compound Events — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 43, title: 'Compound Events', minutes: 8, next: '../ch44/' };
+const CA = COL.nat, CB = COL.whole, BOTH = COL.task, RED = COL.nat, BLUE = COL.whole;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// Area model: a square split into cols × rows equal cells. strip / cell shade parts of it.
+function area(p, x, y, W, H, cols, rows, t0) {
+  const g = G(p, { o: 0 }), cw = W / cols, rh = H / rows;
+  let d = '';
+  for (let c = 1; c < cols; c++) d += `M${x + c * cw} ${y}V${y + H}`;
+  for (let r = 1; r < rows; r++) d += `M${x} ${y + r * rh}H${x + W}`;
+  path(g, d, { stroke: COL.faint, 'stroke-width': 2 });
+  mk('rect', { x, y, width: W, height: H, fill: 'none', stroke: COL.chalk, 'stroke-width': 3 }, g);
+  show(g, t0);
+  const shade = (x1, y1, w, h, color, t0, o = .35, run = tw, into = p) => {
+    const r = put(mk('rect', { x: x1, y: y1, width: w, height: h, fill: color }, into), { o: 0 });
+    into.insertBefore(r, into.firstChild);
+    run(r, { o }, t0, .5);
+    return r;
+  };
+  return { g, cw, rh,
+    col: (c, color, t0) => shade(x + c * cw, y, cw, H, color, t0),
+    row: (r, color, t0) => shade(x, y + r * rh, W, rh, color, t0),
+    cell: (c, r, color, t0, run = tw, into = p) => {
+      const e = put(mk('rect', { x: x + c * cw + 4, y: y + r * rh + 4, width: cw - 8, height: rh - 8, rx: 8, fill: 'none', stroke: color, 'stroke-width': 5 }, into), { o: 0 });
+      run(e, { o: 1 }, t0, .4);
+      return e;
+    } };
+}
+// A bag of marbles. order: colours; marbles sit in a grid inside the bag.
+function bag(p, x, y, order, t0, cols = 4) {
+  const g = G(p, { o: 0 }), w = cols * 90 + 60, rows = Math.ceil(order.length / cols), h = rows * 90 + 90;
+  path(g, `M${x} ${y}V${y + h - 40}Q${x} ${y + h} ${x + 40} ${y + h}H${x + w - 40}Q${x + w} ${y + h} ${x + w} ${y + h - 40}V${y}`, { stroke: COL.dim, 'stroke-width': 4 });
+  show(g, t0);
+  return order.map((c, i) => {
+    const m = put(mk('circle', { r: 32, fill: mix(COL.board, c, .8), stroke: c, 'stroke-width': 3 }, p), { x: x + 75 + (i % cols) * 90, y: y + 70 + Math.floor(i / cols) * 90, s: 0, o: 0 });
+    m.c = c;
+    pop(m, t0 + .3 + i * .05);
+    return m;
+  });
+}
+function arcTo(e, x, y, t0, dur = .9, lift = 120, run = prog) {
+  const { x: x0, y: y0 } = st(e);
+  run(q => put(e, { x: x0 + (x - x0) * q, y: y0 + (y - y0) * q - Math.sin(Math.PI * q) * lift }), t0, dur);
+}
+const pulseAll = (els, t0, k = 1.2) => els.forEach((e, i) => pulse(e, t0 + i * .06, k));
+
+/* ---------- beats ---------- */
+const MARB = [RED, BLUE, BLUE, RED, BLUE, RED, BLUE, BLUE, RED, BLUE];
+const RANK = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'], SUIT = [['♠', COL.chalk], ['♥', COL.nat], ['♦', COL.nat], ['♣', COL.chalk]];
+const BEATS = [
+  ['intro', 'Compound events', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 7, Chapter 43', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Compound Events', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, 'P(A and B)', 800, 600, m('sub'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['compound', 'Two events at once', (m) => {
+    const p = panel(0), x0 = 420, y0 = 300, cw = 130, rh = 110;
+    text(p, 'flip a coin and roll a number cube', 800, 130, .2, { size: 30, fill: COL.dim, anchor: 'middle' });
+    for (let n = 1; n <= 6; n++) pop(die(p, n, x0 + (n - .5) * cw, 230, 64), .4 + n * .08);
+    coin(p, 'H', 340, y0 + rh * .5, .6); coin(p, 'T', 340, y0 + rh * 1.5, .7);
+    const cells = [];
+    ['H', 'T'].forEach((s, r) => { for (let n = 1; n <= 6; n++) {
+      const i = r * 6 + n - 1, t = m('grid', .5 + i * .22);
+      const box = put(mk('rect', { x: x0 + (n - 1) * cw + 5, y: y0 + r * rh + 5, width: cw - 10, height: rh - 10, rx: 12, fill: mix(COL.board, COL.chalk, .06), stroke: COL.faint, 'stroke-width': 2 }, p), { o: 0 });
+      show(box, t, .3);
+      cells.push(text(p, `${s}${n}`, x0 + (n - .5) * cw, y0 + r * rh + rh / 2 + 11, t + .1, { size: 30, fill: s === 'H' ? COL.int : COL.rat, anchor: 'middle', weight: 600 }));
+    } });
+    mline(p, '2 × 6 = 12 outcomes', 800, 600, m('grid', 3.4), COL.chalk, 44);
+    const hit = put(mk('rect', { x: x0 + 2 * cw + 2, y: y0 + rh + 2, width: cw - 4, height: rh - 4, rx: 14, fill: 'none', stroke: BOTH, 'stroke-width': 5 }, p), { o: 0 });
+    show(hit, m('ev'));
+    mline(p, ['P(tails and 3) = ', F(1, 12)], 800, 700, m('p'), BOTH, 48);
+  }],
+  ['multiply', 'Multiply for independent events', (m) => {
+    const p = panel(0), X0 = 420, Y0 = 180, W = 540, H = 540, A = area(p, X0, Y0, W, H, 6, 2, m('sq'));
+    for (let n = 1; n <= 6; n++) text(p, String(n), X0 + (n - .5) * A.cw, Y0 - 16, m('sq', .3), { size: 26, fill: COL.dim, anchor: 'middle' });
+    text(p, 'H', X0 - 30, Y0 + H / 4 + 10, m('sq', .3), { size: 28, fill: COL.int, anchor: 'middle', weight: 700 });
+    text(p, 'T', X0 - 30, Y0 + 3 * H / 4 + 10, m('sq', .3), { size: 28, fill: COL.rat, anchor: 'middle', weight: 700 });
+    text(p, 'area 1: every outcome', X0 + W / 2, Y0 + H + 50, m('sq'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    A.col(2, CB, m('col'));
+    mline(p, ['P(3) = ', F(1, 6)], 1060, 260, m('col'), CB, 46, 'start');
+    A.row(1, CA, m('row'));
+    mline(p, ['P(tails) = ', F(1, 2)], 1060, 360, m('row'), CA, 46, 'start');
+    A.cell(2, 1, BOTH, m('both'));
+    mline(p, [F(1, 2), ' × ', F(1, 6), ' = ', F(1, 12)], 1060, 470, m('both', .5), BOTH, 50, 'start');
+    text(p, 'independent: the coin', 1060, 570, m('ind'), { size: 26, fill: COL.dim });
+    text(p, 'has no effect on the cube', 1060, 606, m('ind'), { size: 26, fill: COL.dim });
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 1040, y: 650, width: 500, height: 80, rx: 16, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, r);
+    M(r, ['P(A and B) = P(A) · P(B)'], { x: 1290, y: 703, size: 38, fill: COL.task });
+    show(r, m('rule'));
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0), X0 = 300, Y0 = 220, W = 520, H = 400;
+    S.qa = area(p, X0, Y0, W, H, 4, 2, .2);
+    [CA, CB, COL.irr, COL.int].forEach((c, i) => { const s = put(mk('rect', { x: X0 + i * W / 4 + 30, y: Y0 - 50, width: W / 4 - 60, height: 26, rx: 13, fill: c }, p), { o: 0 }); show(s, .3); });
+    text(p, 'spinner: 4 equal colors', X0 + W / 2, Y0 - 76, .2, { size: 24, fill: COL.dim, anchor: 'middle' });
+    text(p, 'H', X0 - 30, Y0 + H / 4 + 10, .3, { size: 28, fill: COL.int, anchor: 'middle', weight: 700 });
+    text(p, 'T', X0 - 30, Y0 + 3 * H / 4 + 10, .3, { size: 28, fill: COL.rat, anchor: 'middle', weight: 700 });
+  }, { ask: done => quiz({ x: 920, y: 220, w: 560, cls: 'side' }, [{
+    id: 'c-ind', prompt: ['Spin the spinner, then flip a coin. Find the probability of red and heads.'],
+    build: blanks([{ parts: ['P(red and heads) = ', { box: '1/8' }], why: '1/4 × 1/2 = 1/8: one cell of eight.', hint: 'Multiply P(red) by P(heads).',
+      fx: () => S.qa.cell(0, 0, COL.good, 0, fx, S.q || qlayer()) }]),
+  }], done) }],
+  ['dep', 'Dependent events', (m) => {
+    const p = panel(0), ms = bag(p, 140, 230, MARB, .2);
+    text(p, '4 red, 6 blue', 330, 200, .3, { size: 28, fill: COL.dim, anchor: 'middle' });
+    const reds = ms.filter(x => x.c === RED), blues = ms.filter(x => x.c === BLUE);
+    pulseAll(reds, m('first'));
+    mline(p, ['P(red) = ', F(4, 10)], 720, 260, m('first', .5), RED, 46, 'start');
+    arcTo(ms[0], 640, 700, m('keep'));
+    text(p, 'kept out', 640, 770, m('keep', .8), { size: 22, fill: COL.dim, anchor: 'middle' });
+    mline(p, '9 left: 3 red, 6 blue', 720, 360, m('now'), COL.chalk, 40, 'start');
+    pulseAll(blues, m('second'));
+    mline(p, ['P(blue after red) = ', F(6, 9)], 720, 460, m('second', .5), BLUE, 46, 'start');
+    text(p, 'The first pick changed the bag: dependent.', 720, 545, m('dep'), { size: 28, fill: COL.task, weight: 600 });
+    const row = tokens(p, [['P(red, then blue) = ', F(4, 10), ' × ', F(6, 9), ' = ', F(24, 90)], [' = ', F(4, 15)]], { x: 720, y: 640, size: 46, o: 0 });
+    show(row[0], m('mult')); show(row[1], m('simp'));
+  }],
+  ['replace', 'With or without replacement', (m) => {
+    const p = panel(0), ms = bag(p, 140, 230, MARB, 0);
+    text(p, '4 red, 6 blue', 330, 200, 0, { size: 28, fill: COL.dim, anchor: 'middle' });
+    arcTo(ms[0], 660, 330, m('back', -1.6), .7);
+    arcTo(ms[0], 215, 300, m('back'), .9);
+    text(p, 'put it back', 640, 250, m('back'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    pulseAll(ms.filter(x => x.c === BLUE), m('ten'));
+    mline(p, ['with replacement:  ', F(4, 10), ' × ', F(6, 10)], 720, 420, m('ind'), COL.good, 46, 'start');
+    text(p, 'independent: the bag is the same each time', 720, 480, m('ind', .5), { size: 24, fill: COL.dim });
+    mline(p, ['without replacement:  ', F(4, 10), ' × ', F(6, 9)], 720, 620, m('diff'), COL.task, 46, 'start');
+    text(p, 'dependent: the second fraction changes', 720, 680, m('diff', .5), { size: 24, fill: COL.dim });
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    S.qm = bag(p, 160, 260, [COL.irr, COL.real, COL.irr, COL.real, COL.irr], .2, 3);
+    text(p, '3 green, 2 purple', 340, 230, .3, { size: 28, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 760, y: 220, w: 640, cls: 'side' }, [{
+    id: 'c-dep', prompt: ['Pick two marbles without replacement. Find the probability of green, then green.'],
+    build: blanks([{ parts: ['P(green, then green) = ', { box: '3/10' }], why: '3/5 × 2/4 = 6/20 = 3/10.', hint: 'After a green is taken out, 4 marbles are left and 2 are green.',
+      fx: () => { const g = S.qm[0]; const { x, y } = st(g); fxp(q => put(g, { x: x + (640 - x) * q, y: y + (700 - y) * q - Math.sin(Math.PI * q) * 120 }), 0, .9); S.qm.filter(e => e.c === COL.irr && e !== g).forEach((e, i) => pulseFx(e, 1.25)); } }]),
+  }], done) }],
+  ['cards', 'A deck of cards', (m) => {
+    const p = panel(0), cw = 76, chh = 100, x0 = 110, y0 = 170, cards = [];
+    SUIT.forEach(([s, c], r) => RANK.forEach((k, j) => {
+      const g = G(p, { x: x0 + j * (cw + 6) + cw / 2, y: y0 + r * (chh + 10) + chh / 2, o: 0 });
+      g._r = mk('rect', { x: -cw / 2, y: -chh / 2, width: cw, height: chh, rx: 8, fill: mix(COL.board, COL.chalk, .08), stroke: COL.faint, 'stroke-width': 2 }, g);
+      T(g, k, { x: 0, y: -8, size: 28, fill: c, anchor: 'middle', weight: 600 });
+      T(g, s, { x: 0, y: 30, size: 26, fill: c, anchor: 'middle' });
+      show(g, .2 + (r * 13 + j) * .012, .3);
+      cards.push(g);
+    }));
+    text(p, '52 cards', x0, 130, .3, { size: 28, fill: COL.dim });
+    const aces = [0, 13, 26, 39].map(i => cards[i]);
+    aces.forEach((a, i) => { tw(a._r, { c_stroke: BOTH, 'a_stroke-width': 5 }, m('aces', i * .2), .3); });
+    mline(p, ['P(ace) = ', F(4, 52)], 1200, 260, m('first'), BOTH, 46, 'start');
+    tw(aces[0], { x: 1300, y: 620, s: 1.4 }, m('out'), .8);
+    text(p, 'kept out', 1300, 720, m('out', .6), { size: 24, fill: COL.dim, anchor: 'middle' });
+    mline(p, ['P(ace after ace) = ', F(3, 51)], 1200, 380, m('left'), BOTH, 40, 'start');
+    text(p, '51 cards left, 3 aces', 1200, 430, m('left', .4), { size: 24, fill: COL.dim });
+    const row = tokens(p, [['P(ace, then ace) = ', F(4, 52), ' × ', F(3, 51), ' = ', F(12, 2652)], [' = ', F(1, 221), '  ≈ 0.45%']], { x: 110, y: 700, size: 44, o: 0 });
+    show(row[0], m('mult')); show(row[1], m('simp'));
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 300, y: 260, w: 1000, cls: 'side' }, [{
+    id: 'c-kind1', prompt: ['Roll a number cube, then spin a spinner.'],
+    build: choice([['Independent'], ['Dependent']], 0, 'The cube has no effect on the spinner.', [null, 'Nothing is taken away: the spinner is the same no matter what the cube shows.']),
+  }, {
+    id: 'c-kind2', prompt: ['Pick a name from a hat, keep it out, then pick another name.'],
+    build: choice([['Independent'], ['Dependent']], 1, 'The first name is gone, so the second pick has fewer names to choose from.', ['The first pick removes a name, which changes the second pick.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A compound event combines two or more events.', 'w1', COL.irr], ['Independent: P(A and B) = P(A) · P(B).', 'w2', CB],
+     ['Dependent: P(A, then B) = P(A) · P(B after A).', 'w3', BOTH]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['Are the events independent or dependent?'],
+    build: grid(KINDQ, [['i', 'Independent', CB, 'I'], ['d', 'Dependent', BOTH, 'D']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-ind', prompt: ['Find each probability.'], build: blanks([
+      { parts: ['two coins:  P(tails, tails) = ', { box: '1/4' }], why: '1/2 × 1/2 = 1/4.', hint: 'Each coin: 1/2.' },
+      { parts: ['coin and cube:  P(heads and 6) = ', { box: '1/12' }], why: '1/2 × 1/6 = 1/12.', hint: 'Multiply P(heads) by P(6).' },
+      { parts: ['cube twice:  P(even, then 5) = ', { box: '1/12' }], why: '3/6 × 1/6 = 3/36 = 1/12.', hint: 'P(even) = 3/6 and P(5) = 1/6.' },
+      { parts: ['coin and cube:  P(tails and less than 3) = ', { box: '1/6' }], why: '1/2 × 2/6 = 2/12 = 1/6.', hint: 'Less than 3 means 1 or 2.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-dep', prompt: ['A case holds 2 red, 5 green, 1 yellow and 2 black markers. Pick two without replacement.'], build: blanks([
+      { parts: ['P(black, then black) = ', { box: '1/45' }], why: '2/10 × 1/9 = 2/90 = 1/45.', hint: 'After one black is taken, 9 markers are left and 1 is black.' },
+      { parts: ['P(red, then green) = ', { box: '1/9' }], why: '2/10 × 5/9 = 10/90 = 1/9.', hint: 'Taking a red leaves all 5 greens among 9 markers.' },
+      { parts: ['P(green, then green) = ', { box: '2/9' }], why: '5/10 × 4/9 = 20/90 = 2/9.', hint: 'After one green, 4 of the 9 left are green.' },
+      { parts: ['P(yellow, then yellow) = ', { box: '0' }], why: 'There is only one yellow marker, so a second yellow is impossible.', hint: 'How many yellow markers are left after the first one?' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: ['Flip a coin, then roll a number cube.'], ans: ['i'], why: 'The coin has no effect on the cube.' },
+  { parts: ['Draw a marble, keep it, then draw another.'], ans: ['d'], why: 'The first marble is gone from the bag.' },
+  { parts: ['Draw a marble, put it back, then draw again.'], ans: ['i'], why: 'The bag is the same for both draws.' },
+  { parts: ['Pick a captain, then a co-captain from the rest of the team.'], ans: ['d'], why: 'The captain can’t be picked again.' },
+  { parts: ['Roll two number cubes at the same time.'], ans: ['i'], why: 'One cube has no effect on the other.' },
+  { parts: ['Deal two cards from a deck to the same player.'], ans: ['d'], why: 'The first card is no longer in the deck.' },
+];
+boot();
+</script>
+</body>
+</html>

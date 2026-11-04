@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Percent Applications — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 15, title: 'Percent applications', minutes: 7, next: '../ch16/' };
+const BASE = COL.whole, ADD = COL.nat, OFF = COL.real, PAY = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A price bar: 100% of the base is `w` pixels. seg(from%, to%) adds a coloured piece with labels.
+function priceBar(p, { x = 200, y = 330, w = 900, h = 80 } = {}) {
+  const X = pc => x + w * pc / 100;
+  return {
+    X,
+    seg(from, to, color, t0, { top, bottom, fillO = .55, dash = false, run = tw } = {}) {
+      const g = G(p, { o: 0 });
+      const r = mk('rect', { x: X(Math.min(from, to)), y, width: Math.abs(X(to) - X(from)), height: h, rx: 6, fill: color, 'fill-opacity': fillO, stroke: color, 'stroke-width': 2.5 }, g);
+      if (dash) { r.setAttribute('fill-opacity', .08); r.setAttribute('stroke-dasharray', '10 7'); }
+      if (top) T(g, top, { x: (X(from) + X(to)) / 2, y: y - 18, size: 28, fill: color, font: MATH, anchor: 'middle' });
+      if (bottom) T(g, bottom, { x: (X(from) + X(to)) / 2, y: y + h + 40, size: 24, fill: color, anchor: 'middle' });
+      run(g, { o: 1 }, t0, .5);
+      return g;
+    },
+    brace(from, to, label, color, t0, dy = 150) {
+      const yy = y + h + dy;
+      draw(path(p, `M${X(from)} ${yy - 12}V${yy}H${X(to)}V${yy - 12}`, { stroke: color, 'stroke-width': 3 }, { d: 0 }), t0, .5);
+      show(T(p, label, { x: (X(from) + X(to)) / 2, y: yy + 36, size: 28, fill: color, font: MATH, anchor: 'middle', o: 0 }), t0 + .3);
+    },
+  };
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Percent applications', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 15', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Percent applications', { x: 800, y: 430, size: 90, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const ex = G(scene);
+    [['+ tax', ADD, 420], ['− discount', OFF, 700], ['+ markup', ADD, 980], ['+ tip', ADD, 1200]].forEach(([s, c, x], i) => show(T(ex, s, { x, y: 590, size: 34, fill: c, weight: 600, anchor: 'middle', o: 0 }), m('q', 1 + i * .5)));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(ex, D - .9, .8);
+  }],
+  ['tax', 'Sales tax', (m) => {
+    const p = panel(0), B = priceBar(p);
+    mline(p, ['$40 hat,   7% sales tax'], 800, 150, m('q'), COL.chalk, 48);
+    B.seg(0, 100, BASE, m('bar'), { top: '$40', bottom: 'price: 100%' });
+    B.seg(100, 107, ADD, m('tax'), { top: '$2.80', bottom: '7%' });
+    mline(p, ['0.07 × 40 = 2.80'], 800, 600, m('calc'), ADD, 44);
+    mline(p, ['40 + 2.80 = $42.80'], 800, 680, m('total'), COL.good, 48);
+    B.brace(0, 107, 'total: 107%', COL.task, m('short'), 70);
+    mline(p, ['1.07 × 40 = 42.80'], 1300, 450, m('short', 1), COL.dim, 42);
+  }],
+  ['taxBack', 'Price before tax', (m) => {
+    const p = panel(0), B = priceBar(p);
+    mline(p, ['$54 including 8% tax.   Price before tax?'], 800, 150, m('q'), COL.chalk, 44);
+    B.seg(0, 100, BASE, m('bar'), { top: '?', bottom: 'price: 100%' });
+    B.seg(100, 108, ADD, m('bar', .4), { bottom: '8%' });
+    B.brace(0, 108, 'total $54 = 108%', COL.task, m('bar', .8), 70);
+    mline(p, ['1.08 × price = 54'], 800, 600, m('eq'), COL.chalk, 46);
+    mline(p, ['price = 54 ÷ 1.08 = $50'], 800, 680, m('div'), COL.good, 48);
+    mline(p, ['✗  54 − 8% of 54 ≠ 50'], 800, 770, m('warn'), COL.bad, 40);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.B = priceBar(p);
+    S.B.seg(0, 100, BASE, .2, { top: '$94', bottom: 'price: 100%' });
+    caption(p, 'Software costs $94. The sales tax is 7%.', .2, 170, COL.chalk);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-tax', prompt: ['What is the tax, and what is the total?'],
+    build: blanks([{ parts: ['tax = $', { box: '6.58' }, ',   total = $', { box: '100.58' }], why: '0.07 × 94 = 6.58, and 94 + 6.58 = 100.58.', hint: 'Tax: 0.07 × 94. Then add it to the price.',
+      fx: () => S.B.seg(100, 107, ADD, 0, { top: '$6.58', bottom: '7%', run: fx }) }]),
+  }], done) }],
+  ['discount', 'Discounts', (m) => {
+    const p = panel(0), B = priceBar(p);
+    mline(p, ['$60 backpack,   25% off'], 800, 150, m('q'), COL.chalk, 48);
+    B.seg(0, 100, BASE, m('bar'), { fillO: .12 });
+    B.brace(0, 100, 'price $60 = 100%', BASE, m('bar'), 70);
+    B.seg(75, 100, OFF, m('cut'), { top: '−$15', bottom: '25% off', dash: true });
+    B.seg(0, 75, PAY, m('sale'), { bottom: 'you pay 75%' });
+    mline(p, ['0.25 × 60 = 15'], 800, 600, m('calc'), OFF, 44);
+    mline(p, ['60 − 15 = $45'], 800, 680, m('sale'), COL.good, 48);
+    mline(p, ['0.75 × 60 = 45'], 800, 770, m('short'), COL.dim, 42);
+  }],
+  ['discBack', 'Working backward', (m) => {
+    const p = panel(0), B = priceBar(p, { y: 250, w: 800, x: 200 });
+    mline(p, ['35% off,  sale price $52.   Original?'], 800, 140, m('q'), COL.chalk, 42);
+    B.seg(0, 100, BASE, m('pay'), { fillO: .12 });
+    B.brace(0, 100, 'original ? = 100%', BASE, m('pay'), 60);
+    B.seg(65, 100, OFF, m('pay'), { bottom: '35% off', dash: true });
+    B.seg(0, 65, PAY, m('pay', .4), { top: '$52', bottom: 'you pay 65%' });
+    mline(p, ['0.65 × original = 52'], 1300, 260, m('eq'), COL.chalk, 38);
+    mline(p, ['original = $80'], 1300, 330, m('ans'), COL.good, 42);
+    mline(p, ['$40 shirt sells for $30.   Percent off?'], 800, 560, m('q2'), COL.chalk, 42);
+    mline(p, ['saved: 40 − 30 = $10'], 800, 650, m('save'), OFF, 44);
+    mline(p, [F(10, 40), ' = ', F(1, 4), ' = 25% off'], 800, 750, m('pct'), COL.good, 48);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-disc', prompt: ['A $400 couch is 15% off. What is the sale price?'],
+    build: blanks([{ parts: ['0.85 × 400 = $', { box: '340' }], why: 'You pay 100% − 15% = 85%: 0.85 × 400 = 340.', hint: 'You pay 85% of the price.' }]),
+  }, {
+    id: 'c-back', prompt: ['A laptop is 45% off. The sale price is $299.75. What was the original price?'],
+    build: blanks([{ parts: ['299.75 ÷ 0.55 = $', { box: '545' }], why: 'You pay 55%: 0.55 × original = 299.75, so the original is $545.', hint: 'You pay 100% − 45% = 55%. Divide by 0.55.' }]),
+  }], done) }],
+  ['markup', 'Markups', (m) => {
+    const p = panel(0), B = priceBar(p, { w: 780 });
+    mline(p, ['store cost $20,   40% markup'], 800, 150, m('q'), COL.chalk, 46);
+    B.seg(0, 100, BASE, m('bar'), { top: '$20', bottom: 'cost: 100%' });
+    B.seg(100, 140, ADD, m('up'), { top: '+$8', bottom: '40%' });
+    mline(p, ['selling price: $28'], 800, 580, m('sell'), COL.good, 48);
+    mline(p, ['1.4 × cost = 70,   cost = $50'], 800, 700, m('back'), COL.dim, 42);
+  }],
+  ['tip', 'Tips and commissions', (m) => {
+    const p = panel(0), B = priceBar(p, { y: 250, w: 800 });
+    mline(p, ['$45 meal,   20% tip'], 800, 140, m('q'), COL.chalk, 44);
+    B.seg(0, 100, BASE, m('q', .5), { top: '$45', bottom: 'bill' });
+    B.seg(100, 110, ADD, m('ten'), { top: '4.50' });
+    B.seg(110, 120, ADD, m('twenty'), { top: '4.50' });
+    mline(p, ['tip $9,   total $54'], 800, 400, m('total'), COL.good, 42);
+    mline(p, ['15% commission on $1700 in sales'], 800, 560, m('comm'), COL.chalk, 42);
+    mline(p, ['0.15 × 1700 = $255'], 800, 660, m('earn'), COL.good, 50);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-markup', prompt: ['A store buys umbrellas for $40 and marks them up 40%. What is the selling price?'],
+    build: blanks([{ parts: ['1.4 × 40 = $', { box: '56' }], why: 'The markup is 0.4 × 40 = $16, so the price is 40 + 16 = $56.', hint: 'The selling price is 140% of the cost.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A percent of an amount: multiply.', 'w1'], ['Tax, markup, tip: add.   Discount: subtract.', 'w2'],
+     ['Work backward: divide by the total percent (1.08, 0.65, …).', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-forward', prompt: ['Find each amount.'], build: blanks(FORWARD),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-back', prompt: ['Work backward.'], build: blanks(BACK),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const FORWARD = [
+  { parts: ['A $40 sweater with 4% tax: tax = $', { box: '1.6' }], why: '0.04 × 40 = 1.60.' },
+  { parts: ['A $450 rug with 5.5% tax: tax = $', { box: '24.75' }], why: '0.055 × 450 = 24.75.' },
+  { parts: ['A $52 meal with a 10% tip: total = $', { box: '57.2' }], why: '52 + 5.20 = 57.20.' },
+  { parts: ['8% commission on $5450 in sales: $', { box: '436' }], why: '0.08 × 5450 = 436.' },
+  { parts: ['A $120 jacket at 30% off: sale price = $', { box: '84' }], why: '0.70 × 120 = 84.' },
+];
+const BACK = [
+  { parts: ['A $40 shirt sells for $25. Percent off: ', { box: '37.5' }, '%'], why: 'Saved $15, and 15/40 = 0.375 = 37.5%.' },
+  { parts: ['After a 25% markup, a game costs $26.25. Cost before: $', { box: '21' }], why: '1.25 × cost = 26.25, so cost = 21.' },
+  { parts: ['$70.20 including 8% tax. Price before tax: $', { box: '65' }], why: '1.08 × price = 70.20, so price = 65.' },
+  { parts: ['20% off, sale price $36. Original price: $', { box: '45' }], why: '0.8 × original = 36, so original = 45.' },
+];
+const TFQ = [
+  { parts: ['A 20% discount means you pay 80% of the price.'], ans: ['t'], why: '100% − 20% = 80%.' },
+  { parts: ['To find the price before an 8% tax, subtract 8% of the total.'], ans: ['f'], why: 'Divide the total by 1.08.' },
+  { parts: ['A 50% markup on $30 gives a selling price of $45.'], ans: ['t'], why: '1.5 × 30 = 45.' },
+  { parts: ['A 15% tip on $60 is $6.'], ans: ['f'], why: '0.15 × 60 = 9.' },
+  { parts: ['Tax, tips, and markups make the amount larger.'], ans: ['t'], why: 'They are added on.' },
+];
+boot();
+</script>
+</body>
+</html>

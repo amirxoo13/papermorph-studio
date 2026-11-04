@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Fractions — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 7, title: 'Multiplying and dividing fractions', minutes: 7, next: '../ch08/' };
+const A = COL.whole, B = COL.nat, AB = COL.real;   // first factor, second factor, overlap
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'start') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Multiplying and dividing fractions', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 7', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and dividing fractions', { x: 800, y: 410, size: 70, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = fracRow(scene, ['−', { f: [2, 3], fill: NEG }, ' × ', { f: [3, 4], fill: POS }, '   ', '÷', ' ', { f: [5, 6] }], { y: 560, size: 56 });
+    show(r.g, m('q'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r.g, D - .9, .8);
+  }],
+  ['steps', 'Three steps', (m) => {
+    const p = panel(0);
+    [['1', 'Count the negative signs: odd → negative, even → positive.', 's1'],
+     ['2', 'Change mixed numbers into fractions.', 's2'],
+     ['3', 'Multiply or divide, then put the sign in front.', 's3']].forEach(([n, str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 150, o: 0 });
+      mk('circle', { cx: 230, cy: -12, r: 28, fill: COL.task }, g);
+      T(g, n, { x: 230, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 290, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['area', 'Two thirds of three quarters', (m) => {
+    const p = panel(0), x0 = 300, y0 = 190, s = 400;
+    const r = fracRow(p, [{ f: [2, 3], fill: B }, ' × ', { f: [3, 4], fill: A }], { x: 1150, y: 200, size: 64 });
+    show(r.g, .2);
+    rect(p, x0, y0, s, s, COL.board, 0, COL.chalk); show(p.lastChild, m('whole'));
+    const colsShade = rect(p, x0, y0, s * 3 / 4, s, A); tw(colsShade, { o: .45 }, m('cols'), .6);
+    const v = G(p, { o: 0 });
+    for (let i = 1; i < 4; i++) path(v, `M${x0 + i * s / 4} ${y0}V${y0 + s}`, { stroke: COL.chalk, 'stroke-width': 2 });
+    show(v, m('cols'));
+    bracketH(p, x0, x0 + s * 3 / 4, y0 + s + 24, '3/4', A, m('cols', .4));
+    const rowsShade = rect(p, x0, y0, s * 3 / 4, s * 2 / 3, B); tw(rowsShade, { o: .5 }, m('rows'), .6);
+    const h = G(p, { o: 0 });
+    for (let i = 1; i < 3; i++) path(h, `M${x0} ${y0 + i * s / 3}H${x0 + s}`, { stroke: COL.chalk, 'stroke-width': 2 });
+    show(h, m('rows'));
+    draw(path(p, `M${x0 - 20} ${y0}V${y0 + s * 2 / 3}`, { stroke: B, 'stroke-width': 3 }, { d: 0 }), m('rows', .4), .4);
+    show(T(p, '2/3 of it', { x: x0 - 30, y: y0 + s / 3 + 9, size: 26, fill: B, font: MATH, anchor: 'end', o: 0 }), m('rows', .6));
+    const ov = rect(p, x0, y0, s * 3 / 4, s * 2 / 3, 'none', 0, AB); put(ov, { 'a_stroke-width': 6 });
+    show(ov, m('overlap'));
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+      show(T(p, String(j * 3 + i + 1), { x: x0 + s / 8 + i * s / 4, y: y0 + s / 6 + j * s / 3 + 10, size: 30, fill: COL.chalk, font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('overlap', .3 + (j * 3 + i) * .15));
+    }
+    show(T(p, '6 of 12 pieces', { x: x0 + s / 2, y: y0 - 20, size: 26, fill: AB, weight: 600, anchor: 'middle', o: 0 }), m('overlap', 1.4));
+    mline(p, ['2 × 3 = 6'], 1150, 380, m('rule'), COL.chalk, 44, 'middle');
+    mline(p, ['3 × 4 = 12'], 1150, 450, m('rule2'), COL.chalk, 44, 'middle');
+    mline(p, [F(2, 3), ' × ', F(3, 4), ' = ', F(6, 12), ' = ', F(1, 2)], 1150, 580, m('simp'), COL.chalk, 52, 'middle');
+  }],
+  ['cancel', 'Cross-canceling', (m) => {
+    const p = panel(0);
+    const r = fracRow(p, [{ f: [8, 15] }, ' × ', { f: [5, 12] }], { x: 560, y: 320, size: 84 });
+    show(r.g, m('q'));
+    const l1 = put(mk('path', { d: `M${r[0].cx + 30} ${r.y - 60}L${r[2].cx - 30} ${r.y + 50}`, stroke: COL.task, 'stroke-width': 2, 'stroke-dasharray': '6 6', fill: 'none' }, p), { o: 0 });
+    tw(l1, { o: 1 }, m('c1'), .3); tw(l1, { o: 0 }, m('c2'), .3);
+    reduce(r, 0, 'num', 2, COL.task, m('c1', 1.5)); reduce(r, 2, 'den', 3, COL.task, m('c1', 2.4));
+    mline(p, ['8 ÷ 4 = 2,   12 ÷ 4 = 3'], 560, 520, m('c1', 1.5), COL.task, 36, 'middle');
+    const l2 = put(mk('path', { d: `M${r[2].cx - 30} ${r.y - 60}L${r[0].cx + 30} ${r.y + 50}`, stroke: COL.good, 'stroke-width': 2, 'stroke-dasharray': '6 6', fill: 'none' }, p), { o: 0 });
+    tw(l2, { o: 1 }, m('c2'), .3); tw(l2, { o: 0 }, m('res'), .3);
+    reduce(r, 2, 'num', 1, COL.good, m('c2', 1.2)); reduce(r, 0, 'den', 3, COL.good, m('c2', 2));
+    mline(p, ['5 ÷ 5 = 1,   15 ÷ 5 = 3'], 560, 580, m('c2', 1.2), COL.good, 36, 'middle');
+    mline(p, ['= ', F('2 × 1', '3 × 3'), ' = ', F(2, 9)], r.x0 + r.w + 20, r.y + 28, m('res'), COL.chalk, 72);
+    caption(p, 'This is called cross-canceling.', m('name'), 690, COL.chalk, 34, 800);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.q1 = fracRow(p, ['−', { f: [3, 4], fill: NEG }, ' × ', { f: [2, 9] }], { x: 800, y: 300, size: 90 });
+    show(S.q1.g, .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-mult', prompt: ['Multiply. Cross-cancel first if you can.'],
+    build: blanks([{ parts: ['−', F(3, 4), ' × ', F(2, 9), ' = ', { box: '-1/6' }],
+      why: ['3 and 9 share 3; 2 and 4 share 2. That leaves −', $m(F(1, 2)), ' × ', $m(F(1, 3)), ' = −', $m(F(1, 6)), '.'],
+      hint: 'One negative sign, so the answer is negative. Then multiply tops and bottoms.',
+      fx: () => { const r = S.q1; reduce(r, 1, 'num', 1, COL.task, 0, fx); reduce(r, 3, 'den', 3, COL.task, .3, fx); reduce(r, 3, 'num', 1, COL.good, .8, fx); reduce(r, 1, 'den', 2, COL.good, 1.1, fx); } }]),
+  }], done) }],
+  ['mixed', 'Mixed numbers', (m) => {
+    const p = panel(0);
+    mline(p, ['−2', F(1, 2), ' × 1', F(1, 5)], 800, 170, m('q'), COL.chalk, 60, 'middle');
+    show(T(p, 'one negative sign: the answer is negative', { x: 800, y: 240, size: 26, fill: NEG, anchor: 'middle', o: 0 }), m('sign'));
+    const u = 120, bx = 330, by = 330;
+    for (let k = 0; k < 3; k++) {
+      const g = G(p, { o: 0 });
+      mk('rect', { x: bx + k * (u + 16), y: by, width: u, height: 60, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, g);
+      for (let hh = 0; hh < 2; hh++) {
+        if (k === 2 && hh === 1) continue;
+        mk('rect', { x: bx + k * (u + 16) + hh * u / 2 + 3, y: by + 3, width: u / 2 - 6, height: 54, fill: NEG, 'fill-opacity': .45 }, g);
+      }
+      path(g, `M${bx + k * (u + 16) + u / 2} ${by}V${by + 60}`, { stroke: COL.dim, 'stroke-width': 2 });
+      show(g, m('m1', .3 + k * .4));
+    }
+    show(T(p, '2½ = 5 halves', { x: bx + 1.5 * (u + 16), y: by + 100, size: 28, fill: NEG, font: MATH, anchor: 'middle', o: 0 }), m('m1', 2));
+    const r = fracRow(p, ['−', { f: [5, 2], fill: NEG }, ' × ', { f: [6, 5], fill: POS }], { x: 1100, y: 380, size: 72 });
+    show(r.g, m('m2'));
+    caption(p, '−2½ means −(2 + ½), so it is −5/2, not −2 + ½', m('warn'), 530, COL.task, 28);
+    reduce(r, 1, 'num', 1, COL.good, m('canc')); reduce(r, 3, 'den', 1, COL.good, m('canc', .5));
+    reduce(r, 3, 'num', 3, COL.task, m('canc', 2)); reduce(r, 1, 'den', 1, COL.task, m('canc', 2.5));
+    mline(p, ['−', F(3, 1), ' = −3'], 800, 660, m('res'), COL.chalk, 64, 'middle');
+  }],
+  ['recip', 'Reciprocals', (m) => {
+    const p = panel(0);
+    caption(p, 'Reciprocals multiply to 1.', m('def'), 150, COL.chalk, 34);
+    mline(p, ['8 × ', F(1, 8), ' = 1'], 800, 280, m('ex1'), COL.chalk, 60, 'middle');
+    const r = fracRow(p, [{ f: [3, 5], fill: A }], { x: 600, y: 440, size: 90 });
+    show(r.g, m('flip'));
+    const n = r[0].num, d = r[0].den;
+    const nx = st(n).x, ny = st(n).y, dx = st(d).x, dy = st(d).y, gap = dy - ny;
+    prog(q => { const a = Math.PI * q, h = gap * (1 - Math.cos(a)) / 2; put(n, { x: nx - 60 * Math.sin(a), y: ny + h }); put(d, { x: dx + 60 * Math.sin(a), y: dy - h }); }, m('ex2'), 1.2);
+    mline(p, [F(3, 5), ' × ', F(5, 3), ' = 1'], 1180, 470, m('ex2', 1.8), COL.dim, 56, 'middle');
+    caption(p, '0 has no reciprocal: 0 × anything = 0', m('zero'), 660, COL.bad, 30);
+  }],
+  ['divMeaning', 'Dividing by a fraction', (m) => {
+    const p = panel(0), u = 260, x0 = 280, y0 = 300;
+    mline(p, ['3 ÷ ', F(3, 4), ' = ?'], 800, 170, m('q'), COL.chalk, 60, 'middle');
+    for (let k = 0; k < 3; k++) show(rect(p, x0 + k * (u + 10), y0, u, 90, 'none', 0, COL.chalk), m('bars', k * .25));
+    const cuts = G(p, { o: 0 });
+    for (let k = 0; k < 3; k++) for (let i = 1; i < 4; i++) path(cuts, `M${x0 + k * (u + 10) + i * u / 4} ${y0}V${y0 + 90}`, { stroke: COL.dim, 'stroke-width': 2 });
+    show(cuts, m('cut'));
+    const colors = [A, B, COL.int, COL.irr];
+    for (let gI = 0; gI < 4; gI++) for (let q = 0; q < 3; q++) {
+      const idx = gI * 3 + q, k = Math.floor(idx / 4), i = idx % 4;
+      show(rect(p, x0 + k * (u + 10) + i * u / 4 + 4, y0 + 4, u / 4 - 8, 82, colors[gI], 0), m('group', gI * .5 + q * .08), .3);
+      p.lastChild.setAttribute('fill-opacity', .55);
+    }
+    for (let gI = 0; gI < 4; gI++) show(T(p, String(gI + 1), { x: x0 + (gI * 3 + 1.5) / 4 * u + Math.floor((gI * 3 + 1.5) / 4) * 10, y: y0 + 150, size: 34, fill: colors[gI], font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('count', gI * .3));
+    mline(p, ['3 ÷ ', F(3, 4), ' = 4'], 560, 580, m('count', 1.6), COL.chalk, 56, 'middle');
+    mline(p, ['3 × ', F(4, 3), ' = 4'], 1080, 580, m('rule'), COL.chalk, 56, 'middle');
+    caption(p, 'Dividing by a fraction = multiplying by its reciprocal', m('sum'), 720, COL.task, 32);
+  }],
+  ['divEx', 'Keep, change, flip', (m) => {
+    const p = panel(0);
+    const r0 = fracRow(p, ['−', { f: [6, 7], fill: NEG }, ' ÷ ', { f: [8, 11], fill: POS }], { x: 800, y: 200, size: 72 });
+    show(r0.g, .2);
+    show(T(p, 'one negative sign: negative', { x: 800, y: 330, size: 26, fill: NEG, anchor: 'middle', o: 0 }), m('sign'));
+    ['keep', 'change', 'flip'].forEach((w, i) => show(T(p, w, { x: r0[i + 1].cx, y: i === 1 ? 258 : 118, size: 24, fill: COL.task, anchor: 'middle', o: 0 }), m('kcf', i * 1.2)));
+    const r = fracRow(p, ['−', { f: [6, 7], fill: NEG }, ' × ', { f: [11, 8], fill: POS }], { x: 800, y: 440, size: 72 });
+    show(r.g, m('kcf', 3));
+    reduce(r, 1, 'num', 3, COL.task, m('canc')); reduce(r, 3, 'den', 4, COL.task, m('canc', .6));
+    mline(p, ['= −', F(33, 28), ' = −1', F(5, 28)], 800, 660, m('res'), COL.chalk, 64, 'middle');
+  }],
+  ['q2', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-method', prompt: ['Which is the same as ', $m(F(2, 5), ' ÷ ', F(4, 7)), '?'],
+    build: choice([[$m(F(2, 5), ' × ', F(4, 7))], [$m(F(5, 2), ' × ', F(7, 4))], [$m(F(2, 5), ' × ', F(7, 4))]], 2,
+      'Keep the first fraction, change ÷ to ×, and flip only the second fraction.',
+      ['That keeps the ÷ problem’s numbers but multiplies them. The second fraction must be flipped.', 'Only the second fraction is flipped. Keep the first one as it is.', null]),
+  }, {
+    id: 'c-divide', prompt: ['Now find the quotient in simplest form.'],
+    build: blanks([{ parts: [F(2, 5), ' × ', F(7, 4), ' = ', { box: '7/10', lowest: true }], why: '2 and 4 share 2: ' + '1 × 7 over 5 × 2 = 7/10.',
+      hint: 'Cross-cancel 2 and 4 first, or simplify 14/20 at the end.' }]),
+  }], done) }],
+  ['story', 'Ribbon bows', (m) => {
+    const p = panel(0), u = 120, x0 = 250, y0 = 330;
+    show(M(p, ['7', F(1, 2), ' meters of ribbon, ', F(3, 4), ' meter per bow'], { x: 800, y: 170, size: 44, o: 0 }), .3);
+    const rib = rect(p, x0, y0, 7.5 * u, 60, mix(COL.board, COL.rat, .35), 0, COL.rat);
+    show(rib, m('bar'));
+    for (let v = 0; v <= 7; v++) show(T(p, String(v), { x: x0 + v * u, y: y0 + 100, size: 24, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 }), m('bar', .3));
+    for (let k = 1; k < 10; k++) draw(path(p, `M${x0 + k * .75 * u} ${y0 - 10}V${y0 + 70}`, { stroke: COL.chalk, 'stroke-width': 2.5 }, { d: 0 }), m('cut', k * .2), .2);
+    for (let k = 0; k < 10; k++) show(T(p, String(k + 1), { x: x0 + (k + .5) * .75 * u, y: y0 + 40, size: 26, fill: COL.chalk, font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('count', k * .15));
+    mline(p, [F(15, 2), ' ÷ ', F(3, 4), ' = ', F(15, 2), ' × ', F(4, 3)], 800, 560, m('calc'), COL.chalk, 52, 'middle');
+    mline(p, ['= ', F(60, 6), ' = 10 bows'], 800, 680, m('res'), COL.good, 52, 'middle');
+  }],
+  ['q3', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-recip', prompt: ['Divide.'],
+    build: blanks([{ parts: ['(−5) ÷ ', '(−', F(1, 3), ') = ', { box: '15' }], why: 'Two negative signs, and 5 × 3 = 15.', hint: 'Multiply −5 by the reciprocal of −1/3, which is −3.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Count the negative signs to find the sign.', 'w1'], ['Change mixed numbers into fractions.', 'w2'],
+     ['To divide, multiply by the reciprocal.', 'w3'], ['Cross-cancel, then multiply tops and bottoms.', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 230, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 230, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 290, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-calc', prompt: ['Find each answer in simplest form.'], build: blanks(CALC),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-recip', prompt: ['Write the reciprocal of each number.'], build: blanks(RECIP),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CALC = [
+  { parts: [F(4, 9), ' × ', F(3, 8), ' = ', { box: '1/6', lowest: true }], why: '4 and 8 share 4; 3 and 9 share 3: 1/3 × 1/2 = 1/6.' },
+  { parts: ['−1', F(1, 3), ' × ', F(3, 8), ' = ', { box: '-1/2', lowest: true }], why: '−4/3 × 3/8 = −12/24 = −1/2.' },
+  { parts: ['(−', F(5, 6), ') × (−', F(3, 10), ') = ', { box: '1/4', lowest: true }], why: 'Two negative signs; 5/6 × 3/10 = 15/60 = 1/4.' },
+  { parts: [F(3, 4), ' ÷ ', F(9, 10), ' = ', { box: '5/6', lowest: true }], why: '3/4 × 10/9 = 30/36 = 5/6.' },
+  { parts: ['(−', F(2, 3), ') ÷ 4 = ', { box: '-1/6', lowest: true }], why: '−2/3 × 1/4 = −2/12 = −1/6.' },
+  { parts: ['6 ÷ (−', F(3, 5), ') = ', { box: '-10' }], why: '6 × (−5/3) = −30/3 = −10.' },
+  { parts: ['2', F(1, 4), ' ÷ 1', F(1, 2), ' = ', { box: '3/2', lowest: true }], why: '9/4 × 2/3 = 18/12 = 3/2, or 1 1/2.' },
+];
+const RECIP = [
+  { parts: ['reciprocal of ', F(2, 7), ' = ', { box: '7/2' }], why: 'Flip it: 7/2.' },
+  { parts: ['reciprocal of −', F(3, 5), ' = ', { box: '-5/3' }], why: 'Flip it and keep the sign: −5/3.' },
+  { parts: ['reciprocal of 9 = ', { box: '1/9' }], why: '9 = 9/1, so its reciprocal is 1/9.' },
+  { parts: ['reciprocal of −1 = ', { box: '-1' }], why: '(−1) × (−1) = 1.' },
+  { parts: ['reciprocal of 1', F(1, 4), ' = ', { box: '4/5' }], why: '1 1/4 = 5/4, so its reciprocal is 4/5.' },
+];
+const TFQ = [
+  { parts: ['To divide by a fraction, multiply by its reciprocal.'], ans: ['t'], why: 'Keep, change, flip.' },
+  { parts: [$m(F(1, 2), ' × ', F(1, 3), ' = ', F(2, 5))], ans: ['f'], why: 'Multiply tops and bottoms: 1/6.' },
+  { parts: [$m('−2', F(1, 3)), ' is the same as ', $m('−', F(7, 3)), '.'], ans: ['t'], why: '2 1/3 = 7/3, and the sign stays.' },
+  { parts: ['Zero has a reciprocal.'], ans: ['f'], why: 'Nothing times 0 gives 1.' },
+  { parts: [$m('(−', F(1, 2), ') ÷ (−', F(1, 4), ') = 2')], ans: ['t'], why: 'Two negative signs; 1/2 × 4 = 2.' },
+  { parts: ['A product of two negative fractions is negative.'], ans: ['f'], why: 'Two negative signs make a positive product.' },
+];
+boot();
+</script>
+</body>
+</html>

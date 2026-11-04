@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding and Subtracting Fractions — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 8, title: 'Adding and subtracting fractions', minutes: 7, next: '../ch09/' };
+AXIS.o = 800; AXIS.u = 560;                      // number line −1…1
+const A = COL.whole, B = COL.nat;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// Number line from −1 to 1 with a tick at every 1/den.
+function fline(p, den, t0 = .1) {
+  const g = G(p, { o: 0 });
+  path(g, `M${X(-1.12)} ${Y0}H${X(1.12)}`, { stroke: COL.chalk, 'stroke-width': 3 });
+  for (const [x, d] of [[X(1.12), 1], [X(-1.12), -1]]) path(g, `M${x - 15 * d} ${Y0 - 10}L${x} ${Y0}L${x - 15 * d} ${Y0 + 10}`, { stroke: COL.chalk, 'stroke-width': 3 });
+  for (let k = -den; k <= den; k++) {
+    const whole = k % den === 0;
+    path(g, `M${X(k / den)} ${Y0 - (whole ? 14 : 9)}V${Y0 + (whole ? 14 : 9)}`, { stroke: whole ? COL.chalk : COL.dim, 'stroke-width': whole ? 3 : 2 });
+    if (whole) T(g, num(k / den), { x: X(k / den), y: Y0 + 52, size: 30, fill: COL.dim, font: MATH, anchor: 'middle' });
+  }
+  show(g, t0, .5);
+  return g;
+}
+// Move by n/den along the line, starting at a/den.
+function fmove(p, a, n, den, y, t0, run = tw) {
+  const x1 = X(a / den), x2 = X((a + n) / den), d = Math.sign(n), color = d > 0 ? POS : NEG, dur = .35 + Math.abs(n) * .08;
+  const ln = path(p, `M${x1} ${y}H${x2}`, { stroke: color, 'stroke-width': 5 }, { d: 0 });
+  const hd = path(p, `M${x2 - 15 * d} ${y - 11}L${x2} ${y}L${x2 - 15 * d} ${y + 11}`, { stroke: color, 'stroke-width': 5 }, { o: 0 });
+  const lab = M(p, [d > 0 ? '+' : '−', F(Math.abs(n), den)], { x: (x1 + x2) / 2, y: y - 18, size: 30, fill: color, o: 0 });
+  run(ln, { d: 1 }, t0, dur, lin); run(hd, { o: 1 }, t0 + dur - .1, .15); run(lab, { o: 1 }, t0 + .2, .3);
+}
+function fdot(p, v, t0, label, color = COL.chalk, run = tw) {
+  const g = G(p, { x: X(v), y: Y0, s: 0, o: 0 });
+  mk('circle', { r: 11, fill: color, stroke: COL.board, 'stroke-width': 2 }, g);
+  run(g, { s: 1, o: 1 }, t0, .45, back);
+  if (label) { const l = M(p, label, { x: X(v), y: Y0 + 110, size: 38, fill: color, o: 0 }); run(l, { o: 1 }, t0 + .2, .3); }
+}
+// A bar split into den equal cells; returns cell rects (hidden) for shading.
+function fbar(p, x, y, w, h, den, color, t0, stroke = COL.chalk) {
+  const g = G(p, { o: 0 });
+  const cells = [];
+  for (let k = 0; k < den; k++) cells.push(put(mk('rect', { x: x + k * w / den + 3, y: y + 3, width: w / den - 6, height: h - 6, fill: color, 'fill-opacity': .55 }, p), { o: 0 }));
+  mk('rect', { x, y, width: w, height: h, fill: 'none', stroke, 'stroke-width': 2.5 }, g);
+  for (let k = 1; k < den; k++) path(g, `M${x + k * w / den} ${y}V${y + h}`, { stroke, 'stroke-width': 1.8 });
+  show(g, t0);
+  return Object.assign(cells, { g });
+}
+const shade = (cells, from, n, t0, step = .15) => { for (let k = 0; k < n; k++) show(cells[from + k], t0 + k * step, .25); };
+// Multiples of n as a row of numbers, with the shared one ringed.
+function multiples(p, n, x, y, t0, hit, color) {
+  show(T(p, `${n}:`, { x, y, size: 32, fill: color, font: MATH, weight: 600, anchor: 'end', o: 0 }), t0);
+  for (let k = 1; k <= 8; k++) {
+    const v = n * k, cx = x + 30 + (k - 1) * 70;
+    show(T(p, String(v), { x: cx, y, size: 32, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }), t0 + k * .12);
+    if (v === hit) { const r = G(p, { x: cx, y: y - 10, o: 0 }); mk('circle', { r: 30, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, r); S.hits.push(r); }
+  }
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Adding and subtracting fractions', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 8', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Adding and subtracting fractions', { x: 800, y: 410, size: 70, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = fracRow(scene, [{ f: [1, 4], fill: A }, ' + ', { f: [1, 6], fill: B }, ' = ', { f: ['?', '?'] }], { y: 560, size: 60 });
+    show(r.g, m('q'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r.g, D - .9, .8);
+  }],
+  ['like', 'Same denominators', (m) => {
+    const p = panel(0);
+    mline(p, [F(3, 5), ' + ', F(4, 5)], 800, 170, .2, COL.chalk, 60);
+    const b1 = fbar(p, 260, 300, 500, 90, 5, A, m('bar')), b2 = fbar(p, 840, 300, 500, 90, 5, A, m('bar', .2));
+    shade(b1, 0, 3, m('a'));
+    const moreA = [b1[3], b1[4], b2[0], b2[1]];
+    moreA.forEach((c, i) => { c.setAttribute('fill', B); show(c, m('b', i * .25), .25); });
+    pulse(b2[0], m('spill'), 1.15); pulse(b2[1], m('spill', .2), 1.15);
+    [...b1, b2[0], b2[1]].forEach((c, i) => show(T(p, String(i + 1), { x: +c.getAttribute('x') + (+c.getAttribute('width')) / 2, y: 356, size: 30, fill: COL.chalk, font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('count', i * .15)));
+    mline(p, [F('3 + 4', 5), ' = ', F(7, 5)], 800, 540, m('rule'), COL.chalk, 56);
+    caption(p, 'Same bottoms: add the tops, keep the bottom.', m('rule', .5), 630, COL.task);
+    mline(p, [F(7, 5), ' = 1', F(2, 5)], 800, 730, m('mix'), COL.chalk, 56);
+  }],
+  ['likeNeg', 'Negative fractions', (m) => {
+    const p = panel(0);
+    mline(p, ['−', F(7, 9), ' + ', F(2, 9)], 800, 170, m('q'), COL.chalk, 60);
+    fline(p, 9, m('line'));
+    fmove(p, 0, -7, 9, Y0 - 90, m('m1')); fmove(p, -7, 2, 9, Y0 - 190, m('m2'));
+    fdot(p, -5 / 9, m('land'), ['−', F(5, 9)]);
+    mline(p, ['7 − 2 = 5,  keep the −'], 800, 300, m('rule', 1.5), COL.dim, 36);
+  }],
+  ['likeSub', 'Subtracting', (m) => {
+    const p = panel(0);
+    const e1 = mline(p, ['−', F(5, 7), ' − (−', F(1, 7), ')'], 800, 170, m('q'), COL.chalk, 60);
+    hide(e1, m('rw'), .3);
+    mline(p, ['−', F(5, 7), ' + ', F(1, 7)], 800, 170, m('rw', .3), COL.chalk, 60);
+    fline(p, 7, .2);
+    fmove(p, 0, -5, 7, Y0 - 90, m('m1')); fmove(p, -5, 1, 7, Y0 - 190, m('m2'));
+    fdot(p, -4 / 7, m('land'), ['−', F(4, 7)]);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    fline(p, 6, .1);
+    mline(p, ['−', F(4, 6), ' + ', F(5, 6)], 800, 200, .2, COL.chalk, 64);
+  }, { ask: done => quiz(TOPR, [{
+    id: 'c-line', prompt: ['Tap the point where ', $m('−', F(4, 6), ' + ', F(5, 6)), ' lands.'],
+    build: tap(Array.from({ length: 13 }, (_, i) => (i - 6) / 6), 1 / 6, 'Four sixths left, then five sixths right: you stop at one sixth.',
+      v => `Start at 0, move 4 sixths to the left, then 5 sixths to the right.`,
+      () => { fmove(S.q, 0, -4, 6, Y0 - 90, 0, fx); fmove(S.q, -4, 5, 6, Y0 - 180, .6, fx); }),
+  }], done) }],
+  ['unlike', 'Different denominators', (m) => {
+    const p = panel(0), w = 480;
+    mline(p, [F(1, 4), ' + ', F(1, 6)], 800, 150, .2, COL.chalk, 60);
+    const q = fbar(p, 180, 240, w, 80, 4, A, .3), s = fbar(p, 180, 380, w, 80, 6, B, .5);
+    shade(q, 0, 1, .6); shade(s, 0, 1, .7);
+    show(T(p, '≠', { x: 420, y: 364, size: 44, fill: COL.bad, font: MATH, anchor: 'middle', o: 0 }), m('prob'));
+    const q12 = fbar(p, 900, 240, w, 80, 12, A, m('cut'), COL.dim), s12 = fbar(p, 900, 380, w, 80, 12, B, m('cut', .3), COL.dim);
+    shade(q12, 0, 3, m('a'));
+    mline(p, [F(1, 4), ' = ', F(3, 12)], 1140, 215, m('a', .5), A, 40);
+    shade(s12, 0, 2, m('b'));
+    mline(p, [F(1, 6), ' = ', F(2, 12)], 1140, 520, m('b', .5), B, 40);
+    mline(p, [F(3, 12), ' + ', F(2, 12), ' = ', F(5, 12)], 800, 680, m('sum'), COL.chalk, 60);
+    caption(p, '12 is a multiple of both 4 and 6.', m('why'), 790, COL.task);
+  }],
+  ['lcm', 'Least common multiple', (m) => {
+    const p = panel(0);
+    S.hits = [];
+    caption(p, 'least common multiple (LCM): the smallest shared multiple', .2, 120, COL.chalk);
+    mline(p, [F(2, 5), ' + ', F(1, 4)], 800, 210, m('q'), COL.chalk, 56);
+    multiples(p, 5, 420, 320, m('m5'), 20, A);
+    multiples(p, 4, 420, 400, m('m4'), 20, B);
+    S.hits.forEach(r => show(r, m('hit'), .3));
+    const r1 = fracRow(p, [{ f: [2, 5], fill: A }, ' = ', { f: ['2 × 4', '5 × 4'], fill: A }, ' = ', { f: [8, 20], fill: A }], { x: 480, y: 530, size: 50 });
+    show(r1.g, m('r1'));
+    const r2 = fracRow(p, [{ f: [1, 4], fill: B }, ' = ', { f: ['1 × 5', '4 × 5'], fill: B }, ' = ', { f: [5, 20], fill: B }], { x: 1120, y: 530, size: 50 });
+    show(r2.g, m('r2'));
+    mline(p, [F(8, 20), ' + ', F(5, 20), ' = ', F(13, 20)], 800, 720, m('add'), COL.chalk, 60);
+  }],
+  ['unlikeSub', 'Subtracting with different denominators', (m) => {
+    const p = panel(0);
+    const rows = [[[F(1, 4), ' − ', F(5, 6)], 'q'], [['= ', F(3, 12), ' − ', F(10, 12)], 'ren'], [['= ', F(3, 12), ' + (−', F(10, 12), ')'], 'rw'], [['= −', F(7, 12)], 'ans']];
+    rows.forEach(([parts, mark], i) => mline(p, parts, 560, 190 + i * 130, m(mark), i === 3 ? NEG : COL.chalk, 56, 'start'));
+    show(T(p, 'LCM of 4 and 6 is 12', { x: 1080, y: 330, size: 28, fill: COL.task, o: 0 }), m('lcm'));
+    show(T(p, 'add the opposite', { x: 1080, y: 460, size: 28, fill: COL.task, o: 0 }), m('rw'));
+    show(T(p, '10 − 3 = 7; the negative is farther from 0', { x: 1080, y: 590, size: 26, fill: COL.task, o: 0 }), m('ans'));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-lcm', prompt: ['What is the least common multiple of 3 and 4?'],
+    build: blanks([{ parts: ['LCM = ', { box: '12' }], why: 'Multiples of 3: 3, 6, 9, 12. Multiples of 4: 4, 8, 12. The first shared one is 12.', hint: 'List multiples of 3 and of 4 until you find one in both lists.' }]),
+  }, {
+    id: 'c-add', prompt: ['Now add. Give the answer in simplest form.'],
+    build: blanks([{ parts: [F(2, 3), ' + ', F(1, 4), ' = ', F(8, 12), ' + ', F(3, 12), ' = ', { box: '11/12', lowest: true }], why: '8 + 3 = 11, so 11/12.', hint: 'Add the tops and keep the bottom 12.' }]),
+  }], done) }],
+  ['mixed', 'Mixed numbers', (m) => {
+    const p = panel(0);
+    const rows = [[['2', F(1, 4), ' − (−3', F(1, 6), ')'], 'q'], [['= 2', F(1, 4), ' + 3', F(1, 6)], 'rw'], [['= ', F(9, 4), ' + ', F(19, 6)], 'imp'],
+      [['= ', F(27, 12), ' + ', F(38, 12)], 'ren'], [['= ', F(65, 12), ' = 5', F(5, 12)], 'ans']];
+    rows.forEach(([parts, mark], i) => mline(p, parts, 560, 150 + i * 120, m(mark), COL.chalk, 52, 'start'));
+    show(T(p, 'add the opposite', { x: 1080, y: 285, size: 28, fill: COL.task, o: 0 }), m('rw'));
+    show(T(p, '2¼ = 9/4,   3⅙ = 19/6', { x: 1080, y: 405, size: 28, fill: COL.task, font: MATH, o: 0 }), m('imp'));
+    show(T(p, 'LCM of 4 and 6 is 12', { x: 1080, y: 525, size: 28, fill: COL.task, o: 0 }), m('ren'));
+  }],
+  ['story', 'A hiking trail', (m) => {
+    const p = panel(0), u = 180, x0 = 300, y0 = 320;
+    mline(p, ['trail: 5', F(1, 2), ' kilometers,   walked: 2', F(3, 4), ' kilometers'], 800, 170, .2, COL.chalk, 42);
+    const trail = fbar(p, x0, y0, 5.5 * u, 70, 22, A, .4, COL.dim);
+    for (let v = 0; v <= 5; v++) show(T(p, String(v), { x: x0 + v * u, y: y0 + 110, size: 26, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 }), .5);
+    shade(trail, 0, 11, m('walk'), .08);
+    const hk = G(p, { x: x0, y: y0 - 30, o: 0 });
+    mk('circle', { r: 14, fill: COL.task }, hk);
+    show(hk, m('walk')); tw(hk, { x: x0 + 2.75 * u }, m('walk'), 1.2);
+    bracketH(p, x0 + 2.75 * u, x0 + 5.5 * u, y0 + 150, '?', COL.task, m('q'));
+    mline(p, ['5', F(1, 2), ' − 2', F(3, 4), ' = ', F(22, 4), ' − ', F(11, 4)], 800, 620, m('expr'), COL.chalk, 50);
+    mline(p, ['= ', F(11, 4), ' = 2', F(3, 4), ' kilometers'], 800, 730, m('ans'), COL.good, 50);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-sub', prompt: ['Subtract. A mixed number or a fraction is fine.'],
+    build: blanks([{ parts: ['−3 − (−', F(5, 6), ') = ', { box: '-2 1/6', lowest: true }], why: '−3 + 5/6 = −18/6 + 5/6 = −13/6 = −2 1/6.', hint: 'Add the opposite: −3 + 5/6. Write −3 as −18/6.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Change mixed numbers into fractions.', 'w1'], ['Rename with the least common multiple.', 'w2'],
+     ['Add or subtract the tops; keep the bottom.', 'w3'], ['Simplify.', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 230, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 230, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 290, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-calc', prompt: ['Calculate. Give each answer in simplest form.'], build: blanks(CALC),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-lcm', prompt: ['Find the least common multiple.'], build: blanks(LCMQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CALC = [
+  { parts: [F(3, 8), ' + ', F(7, 8), ' = ', { box: '5/4', lowest: true }], why: '10/8 = 5/4, or 1 1/4.' },
+  { parts: [F(4, 9), ' − ', F(7, 9), ' = ', { box: '-1/3', lowest: true }], why: '−3/9 = −1/3.' },
+  { parts: ['−', F(2, 5), ' + (−', F(1, 5), ') = ', { box: '-3/5', lowest: true }], why: 'Same signs: −3/5.' },
+  { parts: ['−', F(3, 4), ' + ', F(5, 6), ' = ', { box: '1/12', lowest: true }], why: '−9/12 + 10/12 = 1/12.' },
+  { parts: [F(1, 3), ' − ', F(1, 2), ' = ', { box: '-1/6', lowest: true }], why: '2/6 − 3/6 = −1/6.' },
+  { parts: ['3', F(1, 5), ' − 1', F(3, 5), ' = ', { box: '8/5', lowest: true }], why: '16/5 − 8/5 = 8/5 = 1 3/5.' },
+  { parts: ['−2', F(1, 2), ' + (−1', F(2, 3), ') = ', { box: '-25/6', lowest: true }], why: '−15/6 − 10/6 = −25/6 = −4 1/6.' },
+];
+const LCMQ = [
+  { parts: ['LCM of 2 and 3 = ', { box: '6' }], why: '6 is the first multiple of both.' },
+  { parts: ['LCM of 4 and 10 = ', { box: '20' }], why: 'Multiples of 10: 10, 20. 20 is also a multiple of 4.' },
+  { parts: ['LCM of 6 and 9 = ', { box: '18' }], why: 'Multiples of 9: 9, 18. 18 is also a multiple of 6.' },
+  { parts: ['LCM of 5 and 7 = ', { box: '35' }], why: '5 and 7 share no factors, so multiply them: 35.' },
+  { parts: ['LCM of 8 and 12 = ', { box: '24' }], why: 'Multiples of 12: 12, 24. 24 is also a multiple of 8.' },
+];
+const TFQ = [
+  { parts: [$m(F(1, 3), ' + ', F(1, 4), ' = ', F(2, 7))], ans: ['f'], why: 'Rename first: 4/12 + 3/12 = 7/12.' },
+  { parts: ['When the denominators match, add the numerators and keep the denominator.'], ans: ['t'], why: 'The pieces are the same size.' },
+  { parts: ['The LCM of 4 and 6 is 24.'], ans: ['f'], why: '24 is a common multiple, but 12 is the least one.' },
+  { parts: [$m('−', F(1, 2), ' − ', F(1, 2), ' = −1')], ans: ['t'], why: '−1/2 + (−1/2) = −2/2 = −1.' },
+  { parts: [$m(F(5, 8), ' − (−', F(1, 8), ') = ', F(1, 2))], ans: ['f'], why: 'Add the opposite: 5/8 + 1/8 = 6/8 = 3/4.' },
+  { parts: [$m(F(2, 3)), ' and ', $m(F(8, 12)), ' are equal.'], ans: ['t'], why: 'Multiply top and bottom of 2/3 by 4.' },
+];
+boot();
+</script>
+</body>
+</html>

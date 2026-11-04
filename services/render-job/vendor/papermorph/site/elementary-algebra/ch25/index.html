@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving One-Variable Equations — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 25, title: 'Solving one-variable equations', minutes: 7, next: '../ch26/' };
+const OP = COL.task, SOL = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// Operation written on both sides, under a line: "−13 | −13".
+function bothSides(p, l, r, y, t0, xEq = 760) {
+  const g = G(p, { o: 0 });
+  M(g, [l], { x: xEq - 100, y, size: 36, fill: OP });
+  M(g, [r], { x: xEq + 100, y, size: 36, fill: OP });
+  show(g, t0);
+}
+const oneTiles = (pan, n, x0, y = 93, cols = 3) => Array.from({ length: n }, (_, i) => atile(pan, 'one', x0 + (i % cols) * 36, y - Math.floor(i / cols) * 36));
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Solving equations', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 5, Chapter 25', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving one-variable equations', { x: 800, y: 420, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['x = ?'], 800, 590, m('q'), COL.dim, 60);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['balance', 'Keep it balanced', (m) => {
+    const p = panel(0);
+    mline(p, ['x + 2 = 6'], 800, 130, .2, COL.chalk, 56);
+    const B = balance(p, { y: 300, L: 300 });
+    show(B.g, .2);
+    const xb = atile(B.L, 'x', -40, 48), lt = oneTiles(B.L, 2, 10), rt = oneTiles(B.R, 6, -36);
+    popIn([xb, ...lt], m('tiles')); popIn(rt, m('tiles', 1.5), .06);
+    caption(p, 'goal: get the x bar alone', m('goal'), 720, COL.dim);
+    lt.forEach((t, i) => tw(t, { y: -120, o: 0 }, m('one', i * .2), .6));
+    B.tilt(-10, m('tip', -.5));
+    rt.slice(4).forEach((t, i) => tw(t, { y: -120, o: 0 }, m('both', i * .2), .6));   // the top row
+    B.tilt(0, m('level', -.4));
+    mline(p, ['x + 2 − 2 = 6 − 2'], 800, 780, m('both', .5), OP, 44);
+    mline(p, ['x = 4'], 800, 860 - 70, m('ans'), SOL, 56);
+    hide(p.children[p.children.length - 2], m('ans'), .3);
+    caption(p, 'Do the same thing to both sides.', m('rule'), 200, OP, 32);
+  }],
+  ['inverse', 'Inverse operations', (m) => {
+    const p = panel(0);
+    [['add', '+', '−'], ['sub', '−', '+'], ['mul', '×', '÷'], ['div', '÷', '×']].forEach(([mark, a, b], i) => {
+      const y = 200 + i * 70;
+      mline(p, [a], 330, y, m(mark), COL.chalk, 48);
+      draw(path(p, `M380 ${y - 14}H520M505 ${y - 24}L520 ${y - 14}L505 ${y - 4}`, { stroke: OP, 'stroke-width': 3 }, { d: 0 }), m(mark, .2), .4);
+      mline(p, [b], 570, y, m(mark, .4), OP, 48);
+    });
+    caption(p, 'undo with the inverse', .2, 130, COL.dim, 28, 450);
+    eqLine(p, ['x − 7'], ['12'], 240, m('ex'), { xEq: 1100 });
+    bothSides(p, '+ 7', '+ 7', 310, m('ex', 3), 1100);
+    eqLine(p, ['x'], ['19'], 400, m('ans'), { xEq: 1100, fill: SOL });
+    mline(p, ['check:  19 − 7 = 12 ✓'], 1100, 500, m('check'), COL.dim, 38);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-add', prompt: ['Solve ', $m('x + 9 = 4'), '.'],
+    build: blanks([{ parts: ['x = ', { box: '-5' }], why: 'Subtract 9 from both sides: x = 4 − 9 = −5.', hint: 'The inverse of adding 9 is subtracting 9.' }]),
+  }], done) }],
+  ['divide', 'Dividing both sides', (m) => {
+    const p = panel(0);
+    eqLine(p, ['−6t'], ['138'], 220, .2);
+    show(T(p, 't is multiplied by −6', { x: 1180, y: 212, size: 26, fill: COL.dim, weight: 600, o: 0 }), m('what'));
+    eqLine(p, [F('−6t', '−6')], [F(138, '−6')], 370, m('inv'), { note: '÷ (−6) on both sides' });
+    eqLine(p, ['t'], ['−23'], 510, m('ans'), { fill: SOL });
+    mline(p, ['check:  −6(−23) = 138 ✓'], 760, 630, m('check'), COL.dim, 38);
+  }],
+  ['twoStep', 'Two steps', (m) => {
+    const p = panel(0);
+    eqLine(p, ['3x + 13'], ['7'], 190, m('q'));
+    const build = G(p, { o: 0 });
+    M(build, ['x  →  × 3  →  + 13'], { x: 800, y: 300, size: 36, fill: COL.dim });
+    M(build, ['undo:   − 13  →  ÷ 3'], { x: 800, y: 360, size: 36, fill: OP });
+    show(build, m('order'), .5); hide(build, m('s1', -.3), .3);
+    bothSides(p, '− 13', '− 13', 260, m('s1'));
+    eqLine(p, ['3x'], ['−6'], 370, m('s1', 1.2), { note: 'subtract 13' });
+    eqLine(p, [F('3x', 3)], [F('−6', 3)], 500, m('s2'), { note: 'divide by 3' });
+    eqLine(p, ['x'], ['−2'], 640, m('s2', 2), { fill: SOL });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-two', prompt: ['Solve ', $m('−2y − 3 = −29'), '.'],
+    build: blanks([{ parts: ['−2y = ', { box: '-26' }, ',   y = ', { box: '13' }], why: 'Add 3: −2y = −26. Divide by −2: y = 13.', hint: 'Undo the −3 first, then divide by −2.' }]),
+  }], done) }],
+  ['dist', 'Parentheses', (m) => {
+    const p = panel(0);
+    eqLine(p, ['4(m − 3)'], ['20'], 180, m('q'), { xEq: 600 });
+    eqLine(p, ['4m − 12'], ['20'], 300, m('d'), { xEq: 600, note: 'distribute' });
+    eqLine(p, ['4m'], ['32'], 420, m('s1'), { xEq: 600, note: 'add 12' });
+    eqLine(p, ['m'], ['8'], 540, m('s2'), { xEq: 600, fill: SOL, note: 'divide by 4' });
+    show(T(p, 'or: ÷ 4 first →  m − 3 = 5  →  m = 8', { x: 800, y: 700, size: 30, fill: COL.dim, anchor: 'middle', o: 0 }), m('alt'));
+  }],
+  ['both', 'Variables on both sides', (m) => {
+    const p = panel(0);
+    eqLine(p, ['5m − 2'], ['12m − 16'], 180, m('q'));
+    eqLine(p, ['−2'], ['7m − 16'], 310, m('move', 1), { note: 'subtract 5m' });
+    eqLine(p, ['14'], ['7m'], 440, m('s1'), { note: 'add 16' });
+    eqLine(p, ['2'], ['m'], 570, m('s2'), { fill: SOL, note: 'divide by 7' });
+    mline(p, ['check:  5(2) − 2 = 8,   12(2) − 16 = 8 ✓'], 800, 700, m('check'), COL.dim, 36);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-dist', prompt: ['Solve ', $m('2(x − 3) = 18'), '.'],
+    build: blanks([{ parts: ['x = ', { box: '12' }], why: '2x − 6 = 18, so 2x = 24 and x = 12. (Or divide by 2 first: x − 3 = 9.)', hint: 'Distribute the 2, or divide both sides by 2.' }]),
+  }], done) }],
+  ['story', 'Selling cookies', (m) => {
+    const p = panel(0);
+    caption(p, '$120 to start, $8 per box.  Goal: $400', m('q'), 140, COL.chalk, 32);
+    eqLine(p, ['8b + 120'], ['400'], 300, m('eq'));
+    eqLine(p, ['8b'], ['280'], 430, m('s1'), { note: 'subtract 120' });
+    eqLine(p, ['b'], ['35'], 560, m('s2'), { fill: SOL, note: 'divide by 8' });
+    caption(p, '35 boxes', m('s2', 2), 680, SOL, 34);
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Simplify each side: distribute, combine like terms.', 'w1'], ['Use inverse operations: undo + and − first, then × and ÷.', 'w2'],
+     ['Do the same to both sides. Check by substituting.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: ['Solve each equation.'], build: blanks(SOLVE),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-more', prompt: ['Solve each equation. Fractions are fine.'], build: blanks(MORE),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-first', prompt: ['What is a good first step?'],
+    build: grid(FIRSTQ, [['s', 'Add or subtract', COL.whole], ['d', 'Multiply or divide', COL.nat], ['p', 'Distribute', COL.real]], { multi: false }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SOLVE = [
+  { parts: ['6x + 25 = 7:   x = ', { box: '-3' }], why: '6x = −18, x = −3.' },
+  { parts: ['a − 3a + 8a = 54:   a = ', { box: '9' }], why: '6a = 54, a = 9.' },
+  { parts: [F('k', 4), ' − 5 = 2:   k = ', { box: '28' }], why: 'k/4 = 7, k = 28.' },
+  { parts: ['−3(n + 5) = −26 + 2:   n = ', { box: '3' }], why: '−3n − 15 = −24, −3n = −9, n = 3.' },
+  { parts: ['16p + 90 = 538:   p = ', { box: '28' }], why: '16p = 448, p = 28.' },
+];
+const MORE = [
+  { parts: ['5m − 2 = 12m − 16:   m = ', { box: '2' }], why: '−2 = 7m − 16, 14 = 7m.' },
+  { parts: ['3x − 5 = x + 2 − 10 − 7x:   x = ', { box: '-1/3' }], why: 'Right side: −6x − 8. So 9x = −3, x = −1/3.' },
+  { parts: ['2p − 13 = 5p − (p − 7):   p = ', { box: '-10' }], why: 'Right side: 4p + 7. So −2p = 20.' },
+  { parts: ['−4(x − 3) = 3(x + 2):   x = ', { box: '6/7' }], why: '−4x + 12 = 3x + 6, so 6 = 7x.' },
+];
+const FIRSTQ = [
+  { parts: ['x + 8 = 15'], ans: ['s'], why: 'Subtract 8 from both sides.' },
+  { parts: ['7x = 42'], ans: ['d'], why: 'Divide both sides by 7.' },
+  { parts: ['3(x + 2) = 21'], ans: ['p'], why: 'Distribute the 3 (or divide both sides by 3).' },
+  { parts: ['4x − 9 = 11'], ans: ['s'], why: 'Undo the − 9 first: add 9.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+/* Time of the Magicians: the paper map of the pandemic film (site/pandemic) as a page you explore. */
+@font-face { font-family: 'Oswald'; font-weight: 500; font-display: swap; src: url(fonts/Oswald-normal-500-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Oswald'; font-weight: 600; font-display: swap; src: url(fonts/Oswald-normal-600-latin.woff2) format('woff2'); }
+@font-face { font-family: 'EB Garamond'; font-weight: 400; font-display: swap; src: url(fonts/EBGaramond-normal-400-latin.woff2) format('woff2'); }
+@font-face { font-family: 'EB Garamond'; font-weight: 500; font-display: swap; src: url(fonts/EBGaramond-normal-500-latin.woff2) format('woff2'); }
+@font-face { font-family: 'EB Garamond'; font-style: italic; font-weight: 400; font-display: swap; src: url(fonts/EBGaramond-italic-400-latin.woff2) format('woff2'); }
+
+:root {
+  --land: #ece3cd; --sea: #bfcac6; --ink: #2b2520; --line: #9a8a70; --red: #c8281e; --paper: #f6f0e2;
+  --sans: 'Oswald', 'Arial Narrow', sans-serif; --serif: 'EB Garamond', Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--sea); color: var(--ink); overflow: hidden; }
+body { font: 18px/1.4 var(--serif); }
+button { font: inherit; color: inherit; }
+#stage { position: fixed; inset: 0; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; user-select: none; -webkit-user-select: none; }
+#map.to-next { cursor: e-resize; }
+#map.to-prev { cursor: w-resize; }
+
+/* the map */
+.sea { fill: var(--sea); }
+.state { fill: var(--land); stroke: var(--line); stroke-width: 1.1; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: opacity .6s, fill .6s; }
+.state.glow { fill: #edc29c; }
+.state.off { opacity: 0; }
+.grain { pointer-events: none; mix-blend-mode: multiply; opacity: .5; }
+.country { font: 600 calc(15px * var(--kc, 1)) var(--sans); letter-spacing: .22em; fill: var(--line); text-anchor: middle; text-transform: uppercase; transition: opacity .3s .3s; pointer-events: none; }
+/* last year's names fade out first, then this year's fade in; app.js opens the Europe card after both */
+.country.off, .country.yield { opacity: 0; transition-delay: 0s; }
+.seaname { font: italic calc(17px * var(--kc, 1)) var(--serif); fill: #7c8f8a; text-anchor: middle; letter-spacing: .08em; pointer-events: none; }
+.place circle { fill: var(--ink); }
+.place text { font: 500 calc(14px * var(--k, 1)) var(--sans); fill: var(--ink); paint-order: stroke; stroke: var(--land); stroke-width: calc(3.5px * var(--k, 1)); stroke-linejoin: round; }
+.place { transition: opacity .5s; pointer-events: none; }
+.place text.drop { opacity: 0; }
+.place.off { opacity: 0; }
+.route { pointer-events: none; }
+.route path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.route .case { stroke: var(--paper); stroke-width: calc(8px * var(--k, 1)); opacity: .9; }
+.trail { stroke-width: calc(4px * var(--k, 1)); stroke-dasharray: calc(11px * var(--k, 1)) calc(7px * var(--k, 1)); }
+.route.old { opacity: .3; }
+
+/* the film: the four step aside while the year's events play, a pin for each */
+#figs, #trails, #people, #hint, #replay { transition: opacity .6s; }
+body.film #figs, body.film #trails, body.film .place, body.film #people, body.film #hint { opacity: 0; pointer-events: none; }
+/* then each of the four who travels walks in a close-up, a line at the foot naming him and his stops */
+body.moves #figs { pointer-events: none; }
+.fig { transition: opacity .5s; }
+.fig.aside { opacity: .45; }
+body.moves #people, body.moves #hint { opacity: 0; pointer-events: none; }
+#move { position: absolute; z-index: 3; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: calc(100% - 32px); width: max-content;
+  background: var(--paper); border: 2px solid var(--ink); border-left: 10px solid var(--c, var(--ink)); padding: 6px 16px 8px;
+  font: 500 21px/1.2 var(--sans); letter-spacing: .04em; text-transform: uppercase; box-shadow: 4px 5px 0 rgba(43, 37, 32, .25); }
+#move[hidden] { display: none; }
+#move:not([hidden]) { animation: evin .45s cubic-bezier(.2, .8, .2, 1); }
+#move b { font-weight: 600; color: var(--c); margin-right: .5em; }
+#move.meet { border-left-color: var(--red); }
+#move.meet b { display: none; }
+.pin { pointer-events: none; transition: opacity .6s; }
+.pin .drop { animation: drop .5s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes drop { from { transform: translateY(-40px); opacity: 0; } }
+.pin .dot { fill: var(--red); stroke: var(--paper); stroke-width: 2; }
+.pin .pulse { fill: none; stroke: var(--red); stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(3.4); opacity: 0; } }
+.pin text { font: 600 17px var(--sans); letter-spacing: .06em; text-transform: uppercase; fill: var(--ink); text-anchor: middle; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+.pin.past .pulse, .pin.past text { display: none; }
+.pin.past .dot { opacity: .55; }
+.pin.gone { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .pin .drop, .pin .pulse { animation: none; } }
+
+/* the figures */
+.fig { cursor: pointer; outline: none; }
+.fig .bob { transition: none; }
+.fig .shadow { fill: rgba(43, 37, 32, .22); }
+.fig .tag rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fig .tag text { font: 600 calc(11px * var(--k, 1)) var(--sans); letter-spacing: .08em; text-anchor: middle; dominant-baseline: central; text-transform: uppercase; }
+.fig:hover .tag rect, .fig:focus-visible .tag rect { fill: #fff; stroke-width: 2.5; }
+.fig:focus-visible .ring { opacity: 1; }
+.fig .ring { fill: none; stroke: var(--red); stroke-width: 2.5; vector-effect: non-scaling-stroke; opacity: 0; }
+.fig.idle .sway { animation: sway 3.2s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
+@media (prefers-reduced-motion: reduce) { .fig.idle .sway { animation: none; } }
+
+/* the year, top middle; the title top left; music and credits top right */
+/* a paper wash under the year, so it reads over the names of a close-up */
+#stage::before { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 0; height: 130px; pointer-events: none;
+  background: linear-gradient(rgba(246, 240, 226, .8), rgba(246, 240, 226, .45) 55%, rgba(246, 240, 226, 0)); }
+#top { position: absolute; z-index: 1; left: 50%; transform: translateX(-50%); top: 8px; text-align: center; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+#top > * { pointer-events: auto; }
+#yearbar { display: flex; align-items: center; justify-content: center; gap: 14px; }
+#year { font: 600 84px/1 var(--sans); margin: 0; letter-spacing: .02em; min-width: 3.2ch; text-align: center; text-shadow: 0 2px 0 var(--paper); }
+#year.pop { animation: pop .7s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes pop { from { transform: scale(1.35); color: var(--red); } }
+.step { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); font: 600 32px/1 var(--sans); cursor: pointer; padding: 0 0 4px; }
+.step:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.step:disabled { opacity: .3; cursor: default; }
+#hint { margin: 2px auto 0; font-style: italic; font-size: 16px; color: #4b4136; }
+#replay { margin-top: 6px; }
+#replay[hidden] { display: none; }
+#title { position: absolute; z-index: 1; left: max(16px, env(safe-area-inset-left)); top: 14px; margin: 0; font: 500 18px/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; max-width: 14em; }
+#title span { display: block; color: #6d6150; }
+#corner { position: absolute; z-index: 1; right: max(16px, env(safe-area-inset-right)); top: 12px; display: flex; gap: 6px; }
+.link { background: var(--paper); border: 1.5px solid var(--ink); padding: 3px 10px 4px; font: 500 14px/1.3 var(--sans); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+#music[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+
+/* the four in a row, a second way to reach them */
+#people { position: absolute; z-index: 1; left: max(16px, env(safe-area-inset-left)); bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+#people button { border: 1.5px solid var(--ink); background: var(--paper); border-radius: 16px; padding: 2px 10px 3px; font: 500 14px/1.3 var(--sans); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+#people button::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 1px; }
+#people button:hover { background: #fff; }
+
+/* cards */
+.card { position: absolute; z-index: 2; background: var(--paper); border: 2px solid var(--ink); box-shadow: 5px 6px 0 rgba(43, 37, 32, .25); padding: 18px 20px 16px; max-height: calc(100% - 24px); overflow: auto; }
+.card[hidden] { display: none; }
+.card:focus { outline: none; }
+.card h2 { font: 600 26px/1.1 var(--sans); margin: 0 26px 8px 0; letter-spacing: .02em; }
+.card .close { position: absolute; right: 6px; top: 4px; width: 40px; height: 40px; border: 0; background: none; font: 400 30px/1 var(--sans); cursor: pointer; }
+.card .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.card .row button { border: 2px solid var(--ink); background: var(--paper); padding: 4px 14px 6px; font: 500 16px/1.2 var(--sans); letter-spacing: .04em; cursor: pointer; }
+.card .row button:hover, .card .row .go { background: var(--ink); color: var(--paper); }
+.card .row .go:hover { background: var(--red); border-color: var(--red); }
+/* an event, after the history events of a grand-strategy game: a title bar, a framed period photograph, the line */
+#event { width: min(440px, 40vw); top: 52%; transform: translateY(-50%); padding: 0; background: #e9ddc1; border: 3px solid #2f2a22;
+  box-shadow: 0 0 0 4px #b49a68, 0 0 0 7px #2f2a22, 10px 14px 26px rgba(30, 24, 18, .4); overflow: auto; cursor: pointer; }
+#event.left { left: max(4vw, 16px); }
+#event.right { right: max(4vw, 16px); }
+#event.mid { left: 50%; transform: translate(-50%, -50%); }
+#event.bottom { left: 12px; right: 12px; bottom: 16px; top: auto; transform: none; width: auto; max-height: 52%; }
+#event:not([hidden]) { animation: evin .55s cubic-bezier(.2, .8, .2, 1); }
+@keyframes evin { from { opacity: 0; translate: 0 22px; } }
+#event h2 { background: #2f2a22; color: #f1e6c8; margin: 0; padding: 10px 16px 11px; text-align: center; font: 600 23px/1.15 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+#event figure { margin: 14px 14px 0; position: relative; border: 3px solid #2f2a22; background: #2f2a22; }
+#event figure[hidden] { display: none; }
+#event img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; filter: sepia(.5) contrast(1.06) brightness(.96); }
+#event figcaption { position: absolute; left: 0; bottom: 0; background: rgba(47, 42, 34, .86); color: #f1e6c8; font: 500 13px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; padding: 5px 9px 6px; }
+#event .text { margin: 12px 18px 16px; font-size: 19px; line-height: 1.38; }
+#filmbar { position: absolute; z-index: 3; left: 50%; bottom: 14px; transform: translateX(-50%); }
+#filmbar[hidden] { display: none; }
+#skip { background: rgba(246, 240, 226, .92); border: 1.5px solid var(--ink); padding: 4px 14px 5px; font: 500 14px/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+#skip:hover { background: var(--ink); color: var(--paper); }
+#intro { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 32px)); border-top: 8px solid var(--red); }
+#intro h2 { font-size: 34px; text-transform: uppercase; letter-spacing: .05em; }
+#intro p { margin: 0 0 6px; }
+#intro .go { font-size: 19px; padding: 6px 18px 8px; }
+#person { right: max(16px, env(safe-area-inset-right)); bottom: 12px; width: min(420px, 46vw); border-top: 8px solid var(--c, var(--ink)); }
+#person .head { display: flex; gap: 12px; align-items: flex-end; }
+#person .head img { height: 92px; width: auto; flex: none; }
+#person .head img.two { margin-left: -14px; }
+#person .head img[hidden] { display: none; }
+#person .where { margin: 0; font: 500 16px/1.25 var(--sans); letter-spacing: .04em; color: #5b5042; text-transform: uppercase; }
+#person figure { margin: 12px 0 0; border: 3px solid #2f2a22; background: #2f2a22; }
+#person figure[hidden] { display: none; }
+#person figure img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; filter: sepia(.5) contrast(1.06) brightness(.96); }
+#person .text { margin: 10px 0 0; }
+#credits { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, calc(100% - 32px)); font-size: 17px; }
+#credits p { margin: 0 0 10px; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+
+/* a phone held sideways, and other short screens */
+@media (max-height: 520px) {
+  body { font-size: 15px; line-height: 1.32; }
+  #year { font-size: 46px; }
+  .step { width: 36px; height: 36px; font-size: 24px; }
+  #title { font-size: 12px; top: 8px; }
+  #corner { top: 8px; }
+  #replay { margin-top: 2px; font-size: 12px; padding: 1px 7px 2px; }
+  #event { width: min(360px, 44vw); top: 54%; }
+  #event h2 { font-size: 17px; padding: 6px 10px 7px; }
+  #event figure { margin: 8px 8px 0; }
+  #event img { max-height: 34vh; }
+  #event .text { margin: 8px 12px 10px; font-size: 15px; }
+  #intro h2 { font-size: 24px; }
+  #move { font-size: 15px; bottom: 50px; padding: 3px 10px 5px; }
+  #hint { display: none; }
+  #people { bottom: 8px; gap: 4px; }
+  #people button { font-size: 12px; padding: 1px 7px 2px; }
+  .card { padding: 10px 14px 10px; max-height: calc(100% - 16px); }
+  .card h2 { font-size: 20px; margin-bottom: 4px; }
+  .card .row { margin-top: 6px; }
+  .card .row button { font-size: 14px; padding: 2px 10px 4px; }
+  #person { top: 8px; bottom: auto; right: max(8px, env(safe-area-inset-right)); width: min(380px, 48vw); }
+  #person .head img { height: 60px; }
+  #person figure { margin-top: 6px; }
+  #person figure img { max-height: 34vh; }
+  #person .where { font-size: 13px; }
+  .link { font-size: 12px; padding: 1px 7px 2px; }
+}
+@media (max-width: 700px) and (min-height: 521px) {
+  #person { left: 12px; right: 12px; width: auto; bottom: 12px; top: auto; max-height: 55%; }
+  #year { font-size: 56px; }
+  #top { top: 52px; }
+  #title { font-size: 14px; max-width: 9em; }
+  #title span { display: none; }
+  #filmbar { top: 150px; bottom: auto; }
+}

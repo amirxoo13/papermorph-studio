@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Positive and Negative Numbers — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 6, title: 'Multiplying and dividing positive and negative numbers', minutes: 6, next: '../ch07/' };
+AXIS.o = 800; AXIS.u = 82;                      // number line −8…8
+
+/* ---------- chapter drawing helpers ---------- */
+const showAll = (els, t0, step = 0) => els.forEach((e, i) => show(e, t0 + i * step, .45));
+const row = (p, items, y = 230, size = 64, x = 800) => tokens(p, items, { x, y, size, anchor: 'middle', o: 0 });
+const caption = (p, str, t0, y = 150, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const line = (p, str, x, y, t0, fill = COL.chalk, size = 44, anchor = 'start') => { const e = M(p, [str], { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A side card's grid keeps its labels in 170 px; '7 × (−2) × (−2)' needs about 210.
+const wideLabels = build => (body, api) => {
+  const q = build(body, api);
+  body.querySelectorAll('.grid .row').forEach(r => { r.style.gridTemplateColumns = '230px minmax(0, 1fr) 34px'; });
+  body.querySelectorAll('.grid .why').forEach(w => { w.style.paddingLeft = '246px'; });
+  return q;
+};
+// A big arrow that a negative sign flips around. Pointing right = positive, left = negative.
+function signArrow(p, x, y, len = 220) {
+  const g = G(p, { x, y, o: 0 }), inner = G(g);
+  g.shaft = path(inner, `M${-len / 2} 0H${len / 2}M${len / 2 - 28} -22L${len / 2} 0L${len / 2 - 28} 22`, { stroke: POS, 'stroke-width': 10 }, { c_stroke: POS });
+  g.inner = inner;
+  return g;
+}
+// Circle every token whose text starts with a minus sign; returns the rings.
+function ringNegatives(p, E, t0, color = NEG) {
+  return E.filter(e => /^\(?−/.test(e.textContent.trim())).map((e, i) => {
+    const r = put(mk('ellipse', { fill: 'none', stroke: color, 'stroke-width': 3 }, p),
+      { o: 0, a_cx: e._px, a_cy: E.y - E.size * .3, a_rx: e._w / 2 + 10, a_ry: E.size * .62 });
+    tw(r, { o: 1 }, t0 + i * .35, .3);
+    return r;
+  });
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Multiplying and dividing', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 6', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and dividing', { x: 800, y: 390, size: 68, weight: 600, anchor: 'middle' });
+    T(g, 'positive and negative numbers', { x: 800, y: 460, size: 44, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const q = M(scene, ['(−3) × (−4) = ?'], { x: 800, y: 620, size: 56, fill: NEG, o: 0 });
+    show(q, m('teaser'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(q, D - .9, .8);
+  }],
+  ['posNeg', 'Positive times negative', (m) => {
+    const p = panel(0);
+    numberLine(.1);
+    caption(p, 'Multiplication is repeated addition', .3, 140, COL.chalk);
+    const E = row(p, [{ t: '3', fill: POS }, ' × ', { t: '(−2)', fill: NEG }, ' = ', { t: '−6', fill: NEG }]);
+    showAll(E.slice(0, 3), m('ex'));
+    move(p, 0, -2, Y0 - 90, m('j1')); move(p, -2, -4, Y0 - 90, m('j2')); move(p, -4, -6, Y0 - 90, m('j3'));
+    landDot(p, -6, m('land'));
+    show(E[3], m('land')); show(E[4], m('land'));
+    caption(p, 'positive × negative = negative', m('rule'), 360, NEG);
+  }],
+  ['pattern', 'A pattern', (m) => {
+    const p = panel(0);
+    const rows = [['3', '−6', 'r1'], ['2', '−4', 'r2'], ['1', '−2', 'r3'], ['0', '0', 'r4'], ['−1', '2', 'r5'], ['−2', '4', 'r6']];
+    const pts = [];
+    rows.forEach(([a, prod, mark], i) => {
+      const y = 110 + i * 64, neg = a.startsWith('−'), c = neg ? NEG : POS;
+      const R = tokens(p, [{ t: a, fill: c }, ' × ', { t: '(−2)', fill: NEG }, ' = '], { x: 300, y, size: 46, anchor: 'end', o: 0 });
+      showAll(R, m(mark));
+      const v = +prod.replace('−', '-');
+      const ans = M(p, [prod], { x: 318, y, size: 46, fill: v < 0 ? NEG : v > 0 ? POS : COL.chalk, anchor: 'start', o: 0 });
+      show(ans, m(mark, i >= 4 ? 1.2 : .6));
+      pts.push(landDot(p, v, m(mark, i >= 4 ? 1.2 : .6), v < 0 ? NEG : v > 0 ? POS : COL.chalk));
+      if (i) {
+        const x1 = X(v - 2), x2 = X(v);
+        draw(path(p, `M${x1} ${Y0 - 16}Q${(x1 + x2) / 2} ${Y0 - 80} ${x2} ${Y0 - 16}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }),
+          i >= 4 ? m(mark, .4) : m('step', (i - 1) * .4), .5);
+        if (i < 4) show(T(p, '+2', { x: (x1 + x2) / 2, y: Y0 - 72, size: 24, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('step', (i - 1) * .4 + .3));
+      }
+    });
+    const q = T(p, '?', { x: 330, y: 110 + 4 * 64, size: 46, fill: COL.task, font: MATH, weight: 600, o: 0 });
+    show(q, m('r5')); hide(q, m('r5', 1.1), .2);
+    show(T(p, 'first number − 1', { x: 470, y: 290, size: 24, fill: COL.dim, o: 0 }), m('step'));
+    show(T(p, 'answer + 2', { x: 470, y: 326, size: 24, fill: COL.task, o: 0 }), m('step', .6));
+    caption(p, 'negative × negative = positive', m('rule'), 470, POS, 32, 1150);
+  }],
+  ['signRule', 'Count the negative signs', (m) => {
+    hide(S.line, 0, .4);
+    const p = panel(0);
+    caption(p, 'A negative sign flips the direction', m('flip'), 150, COL.chalk);
+    const A = signArrow(p, 800, 330);
+    show(A, m('flip', .4));
+    [['one', '(−)', 'negative'], ['two', '(−)(−)', 'positive'], ['three', '(−)(−)(−)', 'negative']].forEach(([mark, signs, res], i) => {
+      tw(A.inner, { r: 180 * (i + 1) }, m(mark), .6, back);
+      tw(A.shaft, { c_stroke: i % 2 ? POS : NEG }, m(mark), .4);
+      const lab = M(p, [`${signs}  →  ${res}`], { x: 800, y: 470 + i * 60, size: 40, fill: res === 'positive' ? POS : NEG, o: 0 });
+      show(lab, m(mark, .3));
+    });
+    caption(p, 'odd number of − signs  →  negative', m('odd'), 700, NEG);
+    caption(p, 'even number of − signs  →  positive', m('even'), 750, POS);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.qa = signArrow(p, 440, 420, 300);
+    show(S.qa, .2);
+  }, { ask: done => quiz({ ...TOPR, x: 880, w: 704, maxH: 810 }, [{   // wide and tall: long products, four rows and their answers
+    id: 'c-sign', prompt: ['Is each product positive or negative?'],
+    build: wideLabels(grid([
+      { parts: ['(−4) × 6'], ans: ['n'], why: 'One negative sign: negative.', fx: () => fx(S.qa.inner, { r: 180 }, 0, .5, back) },
+      { parts: ['(−3) × (−5)'], ans: ['p'], why: 'Two negative signs: positive.', fx: () => fx(S.qa.inner, { r: 360 }, 0, .5, back) },
+      { parts: ['(−1)(−2)(−3)'], ans: ['n'], why: 'Three negative signs: negative.', fx: () => fx(S.qa.inner, { r: 540 }, 0, .5, back) },
+      { parts: ['7 × (−2) × (−2)'], ans: ['p'], why: 'Two negative signs: positive.', fx: () => fx(S.qa.inner, { r: 720 }, 0, .5, back) },
+    ], [['p', 'Positive', POS], ['n', 'Negative', NEG]], { multi: false })),
+  }], done) }],
+  ['divide', 'Dividing', (m) => {
+    const p = panel(0);
+    caption(p, 'Division undoes multiplication, so the same sign rule works.', .3, 140, COL.chalk);
+    line(p, '−12 ÷ 3 = ?', 200, 280, m('q'));
+    line(p, '3 × ? = −12', 200, 360, m('ask'), COL.dim, 40);
+    line(p, '3 × (−4) = −12', 200, 440, m('ans'), COL.dim, 40);
+    line(p, '−12 ÷ 3 = −4', 200, 540, m('ans', 1.4), NEG);
+    const E = row(p, ['(−91)', ' ÷ ', '(−7)'], 320, 56, 1150);
+    showAll(E, m('q2'));
+    ringNegatives(p, E, m('count'));
+    show(T(p, '2 negative signs: positive', { x: 1150, y: 410, size: 26, fill: POS, anchor: 'middle', o: 0 }), m('count', .8));
+    line(p, '91 ÷ 7 = 13', 1150, 500, m('ans2'), COL.dim, 40, 'middle');
+    line(p, '(−91) ÷ (−7) = 13', 1150, 580, m('ans2', 1.2), POS, 44, 'middle');
+  }],
+  ['mixed', 'Multiplying and dividing together', (m) => {
+    const p = panel(0);
+    caption(p, '1. Count the negative signs.', m('sign'), 140, COL.chalk);
+    const E = row(p, ['20', ' ÷ ', '(−5)', ' × ', '(−2)'], 280, 64);
+    showAll(E, m('sign', .4));
+    ringNegatives(p, E, m('ex', 1));
+    show(T(p, '2 negative signs: the answer is positive', { x: 800, y: 370, size: 28, fill: POS, anchor: 'middle', o: 0 }), m('ex', 2.5));
+    caption(p, '2. Work left to right with the numbers.', m('work'), 460, COL.chalk);
+    let N = row(p, ['20', ' ÷ ', '5', ' × ', '2'], 570, 56);
+    showAll(N, m('work', .4));
+    N = collapse(N, 0, 2, ['4'], m('s1'), { color: COL.real });
+    N = collapse(N, 0, 2, ['8'], m('s2'), { color: COL.real });
+    line(p, '20 ÷ (−5) × (−2) = 8', 800, 690, m('s2', 1.6), POS, 44, 'middle');
+  }],
+  ['zero', 'When zero is a factor', (m) => {
+    const p = panel(0);
+    const E = row(p, ['(−5)', '(−2)', '(−3)', { t: '(0)', fill: COL.task }, '(−8)', ' = ', { t: '0', fill: COL.task }], 330, 64);
+    showAll(E.slice(0, 5), m('ex'), .15);
+    const ring = put(mk('ellipse', { fill: 'none', stroke: COL.task, 'stroke-width': 3.5 }, p),
+      { o: 0, a_cx: E[3]._px, a_cy: 310, a_rx: E[3]._w / 2 + 12, a_ry: 44 });
+    show(ring, m('ex', 2)); show(E[5], m('ex', 3)); show(E[6], m('ex', 3));
+    caption(p, 'Zero times anything is zero.', m('ex', 3.5), 470, COL.chalk);
+    caption(p, 'Zero is neither positive nor negative.', m('why'), 530, COL.dim);
+  }],
+  ['q2', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-zero', prompt: ['Is ', $m('(−6) × 4 × 0 × (−9)'), ' positive, negative, or zero?'],
+    build: choice([['Positive'], ['Negative'], ['Zero']], 2, 'One factor is 0, so the product is 0.',
+      ['Look for a factor of 0 before you count signs.', 'Look for a factor of 0 before you count signs.', null]),
+  }, {
+    id: 'c-div', prompt: ['Find the quotient.'],
+    build: blanks([{ parts: ['−36 ÷ 4 = ', { box: '-9' }], why: 'One negative sign, so the answer is negative: −9.', hint: '36 ÷ 4 = 9. Now count the negative signs.' }]),
+  }], done) }],
+  ['story', 'A diving submarine', (m) => {
+    const p = panel(0), x = 440, Yf = v => 170 - 24 * v;
+    mk('rect', { x: x - 120, y: Yf(0), width: 420, height: Yf(-22) - Yf(0), fill: POS, 'fill-opacity': .1 }, G(p));
+    vAxis(p, { x, Yf, lo: -21, hi: 0, step: 3 });
+    const sub = G(p, { x: x + 150, y: Yf(0), o: 0 });
+    mk('rect', { x: -46, y: -16, width: 92, height: 32, rx: 16, fill: mix(COL.board, COL.int, .5), stroke: COL.int, 'stroke-width': 2.5 }, sub);
+    mk('rect', { x: -10, y: -30, width: 22, height: 16, rx: 4, fill: mix(COL.board, COL.int, .5), stroke: COL.int, 'stroke-width': 2.5 }, sub);
+    show(sub, .6);
+    show(T(p, 'start', { x: x + 220, y: Yf(0) + 9, size: 22, fill: COL.dim, o: 0 }), .8);
+    for (let k = 1; k <= 6; k++) {
+      const t0 = m('q', .4 + k * .45);
+      tw(sub, { y: Yf(-3 * k) }, t0, .4);
+      show(T(p, `${k} min`, { x: x + 220, y: Yf(-3 * k) + 9, size: 20, fill: COL.dim, o: 0 }), t0 + .3);
+    }
+    const E = row(p, [{ t: '6', fill: POS }, ' × ', { t: '(−3)', fill: NEG }, ' = ', { t: '−18', fill: NEG }], 320, 60, 1150);
+    showAll(E.slice(0, 3), m('expr', 2));
+    show(E[3], m('ans')); show(E[4], m('ans'));
+    caption(p, '18 meters lower than the start', m('ans', 1), 420, COL.good, 30, 1150);
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Find the size of the answer as usual.', '(−24) ÷ 6:  24 ÷ 6 = 4', 'w1'],
+     ['Count the negative signs: odd → negative, even → positive.', '(−24) ÷ 6 = −4,   (−24) ÷ (−6) = 4', 'w2'],
+     ['If zero is a factor, the product is zero.', '(−7) × 0 × (−3) = 0', 'w3']].forEach(([str, ex, mark], i) => {
+      const g = G(p, { x: -16, y: 220 + i * 170, o: 0 });
+      T(g, str, { x: 200, size: 34, weight: 600 });
+      M(g, [ex], { x: 200, y: 60, size: 40, fill: COL.dim, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simplify', prompt: ['Simplify each expression.'], build: blanks(SIMPLIFY),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-sign', prompt: ['Is each answer positive, negative, or zero?'],
+    build: grid(SIGNQ, [['p', 'Positive', POS], ['n', 'Negative', NEG], ['z', 'Zero', COL.chalk]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIMPLIFY = [
+  { parts: ['8 × (−11) = ', { box: '-88' }], why: 'One negative sign: −88.' },
+  { parts: ['(−72) ÷ (−9) = ', { box: '8' }], why: 'Two negative signs: 8.' },
+  { parts: ['3 × (−1) × (−6) = ', { box: '18' }], why: 'Two negative signs: 18.' },
+  { parts: ['(−54) ÷ 6 = ', { box: '-9' }], why: 'One negative sign: −9.' },
+  { parts: ['(−60) ÷ (−5) ÷ (−3) = ', { box: '-4' }], why: 'Three negative signs: 60 ÷ 5 ÷ 3 = 4, so −4.' },
+  { parts: ['24 ÷ (−4) × (−3) = ', { box: '18' }], why: 'Two negative signs: 24 ÷ 4 × 3 = 18.' },
+  { parts: ['(−2)(−2)(−2)(−2) = ', { box: '16' }], why: 'Four negative signs: 16.' },
+];
+const SIGNQ = [
+  { parts: [$m('(−7) × (−7) × (−7)')], ans: ['n'], why: 'Three negative signs.' },
+  { parts: [$m('(−100) ÷ (−25)')], ans: ['p'], why: 'Two negative signs.' },
+  { parts: [$m('(−3)(5)(0)(−1)')], ans: ['z'], why: 'One factor is 0.' },
+  { parts: [$m('(−1)(−1)(−1)(−1)(−1)(−1)')], ans: ['p'], why: 'Six negative signs: an even number.' },
+  { parts: [$m('45 ÷ (−9)')], ans: ['n'], why: 'One negative sign.' },
+  { parts: [$m('(−8) × 2 ÷ (−4) ÷ (−1)')], ans: ['n'], why: 'Three negative signs.' },
+];
+const TFQ = [
+  { parts: ['A negative times a negative is positive.'], ans: ['t'], why: 'Two negative signs: an even number.' },
+  { parts: [$m('(−5) × 3 = 15')], ans: ['f'], why: 'One negative sign: the product is −15.' },
+  { parts: [$m('(−48) ÷ (−6) = 8')], ans: ['t'], why: 'Two negative signs, and 48 ÷ 6 = 8.' },
+  { parts: ['The product of three negative numbers is positive.'], ans: ['f'], why: 'Three is odd, so the product is negative.' },
+  { parts: [$m('(−9) × 0 = −9')], ans: ['f'], why: 'Anything times 0 is 0.' },
+  { parts: ['Division uses the same sign rule as multiplication.'], ans: ['t'], why: 'Division undoes multiplication.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Types of Numbers and the Number Line — Elementary Mathematics</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+<style>
+  .screen .grid .row { grid-template-columns: 260px minmax(0, 1fr) 40px; }
+  .screen .grid .why { padding-left: 276px; }
+  .screen .grid.text .row { grid-template-columns: minmax(0, 1fr) auto 40px; }
+  .screen .grid.text .why { padding-left: 0; }
+  .side .grid .row { grid-template-columns: 70px minmax(0, 1fr) 34px; }
+  .side .grid .why { padding-left: 86px; }
+</style>
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 1, title: 'Types of Numbers and the Number Line', minutes: 9, language: 'en', next: '../ch02/' };
+AXIS.u = 160;   // number line −4…4 across the stage
+
+/* ---------- chapter drawing helpers ---------- */
+const SX = 1290;   // left edge of the notes beside the number map
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500, font = UI } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, font, o: 0 }); show(e, t0); return e; };
+// Notes beside the map: a family name and a short line under it.
+// The title opens the beat; the lines follow the words.
+function note(p, title, k, lines, t0) {
+  text(p, title, SX, 230, .3, { size: 32, fill: COL[k], weight: 700 });
+  lines.forEach((l, i) => text(p, l, SX, 276 + i * 36, t0 + i * .3, { size: 26, fill: COL.dim }));
+}
+// Draw one ring of the number map: outline, then its fill and name.
+function ringIn(k, t0) {
+  const r = S.ring[k];
+  draw(r.stroke, t0, 1.1); show(r.fill, t0 + .5, .7); show(r.lab, t0 + .8, .5);
+}
+// A number that lives in the map, in its family's colour.
+function vnum(parts, k, x, y, t0, size = 36) {
+  const e = M(S.vnums, [].concat(parts), { x, y, size, fill: COL[k], o: 0, s: .6 });
+  pop(e, t0);
+  return e;
+}
+// The map starts close on the first ring and pulls back as rings are added; identity once Rational arrives.
+const cam = (s, cx) => ({ s, x: cx - s * 500, y: 480 - s * 540 });
+// A copy of a number flies from the notes into its ring.
+function fly(parts, k, from, to, t0, size = 36) {
+  const e = M(S.vnums, [].concat(parts), { x: from[0], y: from[1], size, fill: COL[k], o: 0 });
+  show(e, t0, .2); tw(e, { x: to[0], y: to[1] }, t0 + .25, 1, io);
+  return e;
+}
+// "left = right" in the notes, aligned on '='. Returns the centre of the left side.
+const XE = 1420;
+function sideEq(p, L, R, y, t0, fill = COL.chalk, size = 38) {
+  mline(p, L, XE - 24, y, t0, fill, size, 'end');
+  mline(p, ['='], XE, y, t0, COL.dim, size);
+  mline(p, R, XE + 24, y, t0 + .25, COL.chalk, size, 'start');
+  return [XE - 24 - mathW(L, size) / 2, y];
+}
+// A labelled point on the number line: dot, leader, label above (or below).
+function mark(p, v, label, t0, col = COL.rat, below = false) {
+  const x = X(v), d = below ? 1 : -1;
+  landDot(p, v, t0, col);
+  draw(path(p, `M${x} ${Y0 + d * 18}V${Y0 + d * 64}`, { stroke: col, 'stroke-width': 3 }, { d: 0 }), t0 + .2, .3);
+  return mline(p, label, x, below ? Y0 + 112 : Y0 - 102, t0 + .35, col, 36);
+}
+// Arrow along y from x1 to x2 with a word over it.
+function dirArrow(p, x1, x2, y, word, t0) {
+  const d = Math.sign(x2 - x1);
+  draw(path(p, `M${x1} ${y}H${x2}M${x2 - 14 * d} ${y - 10}L${x2} ${y}L${x2 - 14 * d} ${y + 10}`, { stroke: COL.dim, 'stroke-width': 3 }, { d: 0 }), t0, .6);
+  text(p, word, (x1 + x2) / 2, y - 22, t0 + .2, { size: 28, fill: COL.dim, anchor: 'middle', weight: 600 });
+}
+// Tap points on the line, with visible dots at the candidates.
+const tapDots = (vals, ...rest) => (body, api) => {
+  const ctl = tap(vals, ...rest)(body, api);
+  for (const v of vals) {
+    const g = landDot(S.q, v, 0, COL.task, fx);
+    g.style.pointerEvents = 'none';
+    S.dots[v] = g;
+  }
+  return ctl;
+};
+const RING3 = FAM_COLS.slice(0, 3);
+const Q1POS = { x: 900, y: 110, w: 680, cls: 'side', maxH: 640 };
+
+/* ---------- beats: [id, title, run(m, D), { ask }?] ---------- */
+const BEATS = [
+  ['intro', 'Types of numbers', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1 · The Number System · Chapter 1', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Types of Numbers', { x: 800, y: 410, size: 84, weight: 600, anchor: 'middle' });
+    T(g, 'and the Number Line', { x: 800, y: 510, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const fam = G(scene, { o: 0 });
+    ['nat', 'whole', 'int', 'rat', 'irr', 'real'].forEach((k, i) => mk('circle', { cx: 650 + i * 60, cy: 580, r: 10, fill: COL[k] }, fam));
+    show(fam, .9, .8);
+    const r = text(scene, 'Every number belongs to a family — sometimes to several.', 800, 680, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8); hide(fam, D - .9, .8);
+  }],
+  ['natural', 'Natural numbers', (m) => {
+    const p = panel(0);
+    S.ring = buildVenn(S.venn, true);
+    S.vnums = G(S.venn);
+    put(S.venn, cam(1.6, 640));
+    S.n = {};
+    // counting: one number per word, then the ring closes around them
+    [['1', 440, 592], ['2', 500, 592], ['3', 560, 592], ['4', 460, 646], ['5', 510, 646]].forEach(([v, x, y], i) => { S.n[v] = vnum(v, 'nat', x, y, i ? m('one', i * .55) : .3); });
+    pulse(S.n['1'], m('one'), 1.3);
+    mline(S.vnums, '…', 555, 646, m('one', 2.8), COL.nat, 36);
+    ringIn('nat', m('ring'));
+    note(p, 'Natural numbers', 'nat', ['the counting numbers'], m('ring', .4));
+    mline(p, '1, 2, 3, 4, 5, …', SX, 360, m('ring', 1.4), COL.nat, 36, 'start');
+    text(p, 'no 0, no fractions,', SX, 430, m('nofrac'), { size: 26, fill: COL.dim });
+    text(p, 'no negatives', SX, 466, m('nofrac', .3), { size: 26, fill: COL.dim });
+  }],
+  ['whole', 'Whole numbers', (m) => {
+    const p = panel(0);
+    tw(S.venn, cam(1.35, 620), .2, 1.2);
+    S.n['0'] = vnum('0', 'whole', 333, 582, m('zero'), 40);
+    ringIn('whole', m('ring'));
+    note(p, 'Whole numbers', 'whole', ['natural numbers and 0'], m('ring', .4));
+    mline(p, '0, 1, 2, 3, 4, …', SX, 360, m('ring', 1.4), COL.whole, 36, 'start');
+    glow('nat', m('around', .3)); glow('whole', m('around', .7));
+    text(p, 'still no fractions,', SX, 430, m('still'), { size: 26, fill: COL.dim });
+    text(p, 'decimals or negatives', SX, 466, m('still', .3), { size: 26, fill: COL.dim });
+  }],
+  ['integers', 'Integers', (m) => {
+    const p = panel(0);
+    tw(S.venn, cam(1.1, 540), .2, 1.2);
+    [['−1', 263, 466], ['−2', 258, 530], ['−3', 258, 594]].forEach(([v, x, y], i) => { S.n[v] = vnum(v, 'int', x, y, m('neg', i * .75)); });
+    mline(S.vnums, '…', 280, 648, m('neg', 2.4), COL.int, 36);
+    ringIn('int', m('ring'));
+    note(p, 'Integers', 'int', ['whole numbers', 'and their negatives'], m('ring', .4));
+    mline(p, '…, −2, −1, 0, 1, 2, …', SX, 396, m('ring', 1.6), COL.int, 32, 'start');
+    glow('whole', m('around', .3)); glow('int', m('around', .7));
+    text(p, 'whole steps only:', SX, 466, m('note'), { size: 26, fill: COL.dim });
+    text(p, 'no fractions or decimals', SX, 502, m('note', .3), { size: 26, fill: COL.dim });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(Q1POS, [{
+    id: 'c-families', prompt: ['Pick ', h('b', '', 'every'), ' family each number belongs to.'],
+    build: grid([
+      { parts: ['−4'], ans: ['int'], why: '−4 is negative, so it is not whole or natural. It is an integer.', fx: () => glowFx('int') },
+      { parts: ['0'], ans: ['whole', 'int'], why: '0 is whole (and so an integer), but counting starts at 1, so it is not natural.', fx: () => glowFx('whole') },
+      { parts: ['9'], ans: ['nat', 'whole', 'int'], why: '9 is a counting number, so it is in every ring around Natural.', fx: () => glowFx('nat') },
+    ], RING3),
+  }], done) }],
+  ['rational', 'Rational numbers', (m) => {
+    const p = panel(0);
+    tw(S.venn, { s: 1, x: 0, y: 0 }, .2, 1.2);
+    note(p, 'Rational numbers', 'rat', ['one integer over another'], m('ratio'));
+    text(p, 'think: ratio', SX, 318, m('ratio', 2.6), { size: 26, fill: COL.task, weight: 600 });
+    const a = sideEq(p, [F(1, 2)], ['0.5'], 400, m('half'), COL.rat);
+    fly([F(1, 2)], 'rat', a, [150, 468], m('half', .9));
+    const b = sideEq(p, ['0.25'], [F(1, 4)], 480, m('quarter'), COL.rat);
+    fly(['0.25'], 'rat', b, [150, 566], m('quarter', 1.6));
+    const c = sideEq(p, ['4.12'], [F(412, 100)], 560, m('d412'), COL.rat);
+    fly(['4.12'], 'rat', c, [850, 470], m('d412', 1.4));
+    const d = sideEq(p, ['−7'], [F('−7', 1)], 640, m('seven', .9), COL.int);
+    S.n['−7'] = fly(['−7'], 'int', d, [755, 540], m('seven', 2.4));
+    ringIn('rat', m('ring', .2));
+    glow('int', m('ring', 1.4)); glow('rat', m('ring', 1.8));
+  }],
+  ['repeat', 'Repeating decimals', (m) => {
+    const p = panel(0);
+    mline(p, [F(1, 3), ' = 1 ÷ 3'], SX, 260, .3, COL.chalk, 40, 'start');
+    const t = T(p, '', { x: SX, y: 350, size: 40, font: MATH, fill: COL.chalk });
+    stream(t, '0.33333333333…', m('div'), 3.2);
+    hide(t, m('bar'), .4);
+    const bar = M(S.vnums, ['0.', OV('3')], { x: SX + mathW(['0.', OV('3')], 40) / 2, y: 350, size: 40, fill: COL.rat, o: 0 });
+    show(bar, m('bar', .3));
+    text(p, 'the bar: repeats forever', SX, 410, m('bar', .9), { size: 24, fill: COL.dim });
+    text(p, 'decimal ends or repeats', SX, 490, m('rule'), { size: 26, fill: COL.rat, weight: 600 });
+    text(p, '→ rational', SX, 526, m('rule', .5), { size: 26, fill: COL.rat, weight: 600 });
+    mline(p, ['0.', OV('3')], SX, 350, m('fly'), COL.rat, 40, 'start');   // stays in the notes while its copy flies
+    tw(bar, { x: 850, y: 560, s: .9 }, m('fly'), 1);
+    pulse(S.ring.rat.lab, m('fly', 1.1), 1.15);
+  }],
+  ['irrational', 'Irrational numbers', (m) => {
+    const p = panel(0);
+    const pi = T(p, 'π = ', { x: SX, y: 260, size: 40, font: MATH, fill: COL.irr, o: 0 });
+    show(pi, .3);
+    stream(T(p, '', { x: SX + textW('π = ', 40), y: 260, size: 40, font: MATH, fill: COL.chalk }), '3.14159265…', m('pi'), 3.4);
+    mline(p, [R(2), ' = '], SX, 340, m('root'), COL.irr, 40, 'start');
+    stream(T(p, '', { x: SX + mathW([R(2), ' = '], 40), y: 340, size: 40, font: MATH, fill: COL.chalk }), '1.414213…', m('root', .4), 3);
+    ringIn('irr', m('ring'));
+    text(p, 'never ends,', SX, 430, m('ring', 1.6), { size: 28, fill: COL.irr, weight: 600 });
+    text(p, 'never repeats', SX, 468, m('ring', 2.6), { size: 28, fill: COL.irr, weight: 600 });
+    fly(['π'], 'irr', [SX + 14, 260], [1060, 456], m('sep'));
+    fly([R(2)], 'irr', [SX + 22, 340], [1060, 540], m('sep', .5));
+    glow('irr', m('sep', 1.6));
+    text(p, 'A few digits are not proof:', SX, 560, m('proof'), { size: 22, fill: COL.dim });
+    text(p, 'π and √2 were proved', SX, 592, m('proof', .3), { size: 22, fill: COL.dim });
+    text(p, 'irrational by mathematicians.', SX, 624, m('proof', .6), { size: 22, fill: COL.dim });
+  }],
+  ['real', 'Real numbers', (m) => {
+    const p = panel(0);
+    ringIn('real', m('ring'));
+    note(p, 'Real numbers', 'real', ['rational + irrational:', 'every number on', 'the number line'], m('ring', .6));
+    pulse(S.n['−2'], m('ex'), 1.4);
+    mline(p, ['−2 is'], SX, 470, m('ex'), COL.chalk, 34, 'start');
+    [['int', 'an integer', 'int'], ['rat', 'rational', 'rat'], ['real', 'real', 'real']].forEach(([k, w, mk_], i) => {
+      text(p, w, SX + 24, 516 + i * 40, m(mk_), { size: 30, fill: COL[k], weight: 600 });
+      glow(k, m(mk_));
+    });
+    glowRun('nat', m('nest', .2));
+  }],
+  ['q2', 'Quick check', () => { panel(0); hide(S.vnums, 0, .4); }, { ask: done => quiz(SORT_SCREEN, [{
+    id: 'c-sort', prompt: ['Put each number in its ', h('b', '', 'smallest'), ' ring.'],
+    build: sorter([
+      [['46'], 'nat', '46 is a counting number: Natural.'],
+      [['0'], 'whole', '0 is whole but not natural (counting starts at 1).'],
+      [['−12'], 'int', '−12 is a negative whole step: Integers.'],
+      [['6.675'], 'rat', '6.675 ends, so it is a fraction (6675/1000): Rational.'],
+      [[F(2, 3)], 'rat', '2/3 is one integer over another: Rational.'],
+      [[R(5)], 'irr', '√5 = 2.2360679… never ends and never repeats: Irrational.'],
+    ], i => [140 + i * 190, 44]),
+  }], done) }],
+  ['line', 'The number line', (m) => {
+    const p = panel(0);
+    hide(S.venn, 0, .5);
+    numberLine(.4, -4, 4);
+    dirArrow(p, X(-2.2), X(-3.8), 470, 'smaller', m('dir'));
+    dirArrow(p, X(2.2), X(3.8), 470, 'larger', m('dir', 1.6));
+    landDot(p, 2, m('two'), COL.task);
+    text(p, '2 is right of 1 and 0', X(1), 544, m('two', 1), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+    landDot(p, -3, m('three'), COL.task);
+    text(p, '−3 is left of −2 and −1', X(-2), 544, m('three', 1), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['place', 'Rational numbers on the line', (m) => {
+    const p = panel(0);
+    const all = path(p, `M${X(-4.7)} ${Y0}H${X(4.7)}`, { stroke: COL.real, 'stroke-width': 9, opacity: .55 }, { d: 0 });   // under the dots
+    const sub = G(p, { o: 0 });   // quarter steps: room between the integers
+    for (let v = -4; v < 4; v += .25) if (v % 1) path(sub, `M${X(v)} ${Y0 - 6}V${Y0 + 6}`, { stroke: COL.faint, 'stroke-width': 2 });
+    show(sub, m('f1'), .6);
+    mark(p, -2.38, ['−2.38'], m('a'));
+    mark(p, -.75, ['−', F(3, 4)], m('b'));
+    mark(p, .5, [F(1, 2)], m('c'));
+    mark(p, 2, [R(4)], m('d'));
+    mline(p, ['= 2'], X(2) + 34, Y0 - 102, m('d', 2.4), COL.task, 36, 'start');
+    mark(p, 3.125, ['3', F(1, 8)], m('e'));
+    mark(p, Math.SQRT2, [R(2), ' ≈ 1.41…'], m('irr', 1.2), COL.irr, true);
+    draw(all, m('all'), 1.4);
+    text(p, 'The real numbers fill the whole line.', 800, 812, m('all', .6), { size: 32, fill: COL.real, anchor: 'middle', weight: 600 });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [
+    { id: 'c-half', prompt: ['Tap the point at ', $m('−', F(1, 2)), '.'],
+      build: tapDots([-1.5, -.5, .5, 1.5], -.5, 'Half a step left of 0.',
+        v => v === .5 ? 'That one is positive one half. Negative numbers sit left of 0.'
+          : v === -1.5 ? ['That is ', $m('−1', F(1, 2)), ': one and a half steps left of 0.'] : ['That is ', $m('1', F(1, 2)), ', to the right of 0.'],
+        () => floatText('−1/2', X(-.5), Y0 - 40, COL.good)) },
+    { id: 'c-greater', prompt: ['Tap the ', h('b', '', 'greater'), ' number: ', $m('−3'), ' or ', $m('−1'), '.'],
+      build: tapDots([-3, -1], -1, '−1 is farther right, so it is greater.',
+        () => '−3 is farther left, so it is the smaller one. Greater means farther right.',
+        () => floatText('greater: farther right', X(-1), Y0 - 40, COL.good)) },
+  ], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    hide(S.line, 0, .4);
+    [['Each family adds numbers: 0, then negatives, then fractions.', 'w1'],
+     ['Rational: one integer over another. Its decimal ends or repeats.', 'w2'],
+     ['Irrational: never ends, never repeats. Together they make the reals.', 'w3'],
+     ['On a number line, smaller is left and larger is right.', 'w4']].forEach(([str, mk_], i) => {
+      const g = G(p, { x: -16, y: 250 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mk_), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-classify1', prompt: ['Pick every family each number belongs to.'],
+    build: grid(PRACTICE1, FAM_COLS),
+  }], done, 'Chapter practice · set 1 of 3') }],
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-classify2', prompt: ['Pick every family each number belongs to. In ', $m('0.1010010001…'), ' each run of zeros is one longer.'],
+    build: grid(PRACTICE2, FAM_COLS),
+  }], done, 'Chapter practice · set 2 of 3') }],
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-side', prompt: ['Is each number left or right of 0 on a number line?'],
+    build: grid(PRACTICE3, [['l', 'Left of 0', COL.nat, 'L'], ['r', 'Right of 0', COL.whole, 'R']], { multi: false }),
+  }], done, 'Chapter practice · set 3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- practice data ---------- */
+const PRACTICE1 = [
+  { parts: ['−3'], ans: ['int', 'rat', 'real'], why: ['A negative whole step: an integer, so also rational (', $m(F('−3', 1)), ') and real.'] },
+  { parts: ['4.', OV('5')], ans: ['rat', 'real'], why: ['4.555… repeats, so it is a fraction (', $m(F(41, 9)), '): rational and real.'] },
+  { parts: ['1'], ans: ['nat', 'whole', 'int', 'rat', 'real'], why: '1 is a counting number, so it is in every ring around Natural: natural, whole, integer, rational, real.' },
+  { parts: ['−', F(9, 3)], ans: ['int', 'rat', 'real'], why: [$m('−', F(9, 3), ' = −3'), ', an integer, so also rational and real.'] },
+];
+const PRACTICE2 = [
+  { parts: ['−9.7654321'], ans: ['rat', 'real'], why: 'The decimal ends, so it is a fraction (−97654321/10000000): rational and real.' },
+  { parts: [R(2)], ans: ['irr', 'real'], why: [$m(R(2), ' = 1.414213…'), ' never ends and never repeats: irrational and real.'] },
+  { parts: ['5.', OV('678')], ans: ['rat', 'real'], why: 'The bar means 678 repeats forever, so it is rational (and real).' },
+  { parts: ['0.1010010001…'], ans: ['irr', 'real'], why: 'The runs of zeros keep growing, so no block of digits ever repeats: irrational and real.' },
+];
+const PRACTICE3 = [
+  { parts: [F(1, 45)], ans: ['r'], why: [$m(F(1, 45)), ' is tiny, but positive: right of 0.'] },
+  { parts: ['−0.001'], ans: ['l'], why: 'Every negative number is left of 0, however close it is.' },
+  { parts: ['−3', F(1, 8)], ans: ['l'], why: ['Negative: left of 0, just past −3.'] },
+  { parts: [R(2)], ans: ['r'], why: [$m(R(2), ' ≈ 1.41'), ' is positive: right of 0.'] },
+];
+boot();
+</script>
+</body>
+</html>

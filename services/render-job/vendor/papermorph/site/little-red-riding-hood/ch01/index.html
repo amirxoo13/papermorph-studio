@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Red Riding Hood</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render">
+</head>
+<body>
+<!-- Little Red Riding Hood: one beat per scene. Order matters: engine, sets and baked pieces, kit, cast, the audio
+     data, shared helpers, then the scenes. -->
+<script src="../lib/engine.js"></script>
+<script src="../img/sets/sets.js"></script>
+<script src="../img/puppets/baked.js" onerror="0"></script>
+<script src="../lib/paper.js"></script>
+<script src="../lib/cast.js"></script>
+<script src="audio/en/timings.js"></script>
+<script src="audio/en/mouths.js"></script>
+<script src="audio/en/shots.js"></script>
+<script src="../lib/shared.js"></script>
+<script src="scene1.js"></script>
+<script src="scene2.js"></script>
+<script src="scene3.js"></script>
+<script src="scene4.js"></script>
+<script src="scene4w.js"></script>
+<script src="scene5.js"></script>
+<script src="scene6.js"></script>
+<script src="scene7.js"></script>
+<script src="scene8.js"></script>
+<script src="scene9.js"></script>
+<script src="scene10.js"></script>
+<script src="scene11.js"></script>
+<script>
+'use strict';
+// film: the meadow stop is its only question, so music and effects play and the help leaves out question keys.
+const CHAPTER = { number: 1, title: 'Little Red Riding Hood', minutes: 4, language: 'en', film: true, questionKeys: false };
+// A picture book: captions are on unless the reader turned them off.
+try { if (localStorage.getItem('captions') === null) setCaptions(true, false); } catch {}
+
+// The meadow stop is "listen and find" (the engine's findWords): Red asks for one thing at a time; every thing in the picture
+// answers a tap with its name. Only things that move are asked for; a found flower flies into her bouquet.
+const FIND_MEADOW = ['flower', 'butterfly', 'bird'].map((w, i) => ({ word: w, clip: 'q-' + w + (i ? '' : '1') }));
+/* ---------- beats: [id, title, run(m, D), extra] ---------- */
+const BEATS = [
+  ['scene1', 'Home', (m, D) => scene1(panel(0), D), { lead: false, pre: PRE1 }],
+  ['scene2', 'Into the woods', (m, D) => scene2(panel(0), D), { lead: false, pre: PRE2 }],
+  ['scene3', 'Good morning', (m, D) => scene3(panel(0), D), { lead: false, pre: PRE3 }],
+  ['scene4', 'Flowers', (m, D) => scene4(panel(0), D), { lead: false, pre: PRE4 }],
+  ['scene4w', 'In the meadow', (m, D) => scene4w(panel(0), D), { lead: false, pre: PRE4W, ask: done => findWords(MEADOW_THINGS, FIND_MEADOW, done), video: PRE4W + TIMINGS.scene4w.dur }],
+  ['scene5', 'Knock, knock', (m, D) => scene5(panel(0), D), { lead: false, pre: PRE5 }],
+  ['scene6', 'The wardrobe', (m, D) => scene6(panel(0), D), { lead: false, pre: PRE6 }],
+  ['scene7', 'The open door', (m, D) => scene7(panel(0), D), { lead: false, pre: PRE7 }],
+  ['scene8', 'What big ears', (m, D) => scene8(panel(0), D), { lead: false, pre: PRE8 }],
+  ['scene9', 'Out!', (m, D) => scene9(panel(0), D), { lead: false, pre: PRE9 }],
+  ['scene10', 'Away', (m, D) => scene10(panel(0), D), { lead: false, pre: PRE10 }],
+  ['scene11', 'Cake', (m, D) => scene11(panel(0), D), { lead: false, pre: PRE11 }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+// music: the Three Little Pigs' score (Lyria), one track per part of the story, crossfading at part changes; through
+// the engine (music()), which keeps it at 30 % of its gain under the whole beat (70 % while the meadow stop waits).
+// The page's own player had it at 0.16 under a voice and 0.3 between: 0.6 gives the same level on average (about
+// 89 % of the film is under a voice). ?bgm= sets it by ear.
+[['m1-home', ['scene1', 'scene2']], ['m2-wolf', ['scene3', 'scene4', 'scene4w', 'scene5']],
+  ['m3-chimney', ['scene6', 'scene7', 'scene8', 'scene9']], ['m4-ending', ['scene10', 'scene11']]]
+  .forEach(([n, beats]) => music(`audio/bgm/${n}.mp3`, beats, +(new URLSearchParams(location.search).get('bgm') || .6)));
+// The hush before "EAT you with!": the music fades out just before it and comes back with the rescue (scene 9).
+window.MUSIC_OFF = { scene8: t => t >= PRE8 + TIMINGS.scene8.parts.hush8 - .3 };
+paperWarm(g => { redPuppet(g); motherPuppet(g); wolfPuppet(g); grandmaPuppet(g); woodcutterPuppet(g); door(g); smoke(g, 0, 0);
+  birdProp(g); butterflyProp(g); FLOWER_COLS.forEach(c => flowerProp(g, c)); cloudProp(g); sunProp(g); granCapProp(g); basketProp(g); });
+boot();
+</script>
+</body>
+</html>

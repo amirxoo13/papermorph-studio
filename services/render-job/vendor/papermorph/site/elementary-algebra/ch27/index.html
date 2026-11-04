@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Compound Inequalities — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 27, title: 'Solving compound inequalities', minutes: 7, next: '../ch28/' };
+AXIS.o = 800; AXIS.u = 110;                     // main number line −5…5
+const G1 = COL.nat, G2 = COL.whole, SOL = COL.task;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A small number line at height y (own scale −10…10) with a solution set drawn on it.
+// pieces: [{ a, b, ca, cb }] where a or b may be ±Infinity.
+const MX = v => 800 + 52 * Math.max(-10.8, Math.min(10.8, v));
+function mini(p, y, pieces, { color = SOL, label, o = 0, ticks = [-10, -5, 0, 5, 10] } = {}) {
+  const g = G(p, { o });
+  path(g, `M${MX(-10.8)} ${y}H${MX(10.8)}`, { stroke: COL.chalk, 'stroke-width': 2.5 });
+  for (let v = -10; v <= 10; v++) path(g, `M${MX(v)} ${y - 6}V${y + 6}`, { stroke: COL.dim, 'stroke-width': 1.5 });
+  for (const v of ticks) T(g, num(v), { x: MX(v), y: y + 34, size: 22, fill: COL.dim, font: MATH, anchor: 'middle' });
+  for (const { a, b, ca, cb } of pieces) {
+    path(g, `M${MX(a)} ${y}H${MX(b)}`, { stroke: color, 'stroke-width': 6 });
+    for (const [v, c, d] of [[a, ca, -1], [b, cb, 1]]) {
+      if (!isFinite(v)) path(g, `M${MX(v) - 14 * d} ${y - 11}L${MX(v)} ${y}L${MX(v) - 14 * d} ${y + 11}`, { stroke: color, 'stroke-width': 5 });
+      else mk('circle', { cx: MX(v), cy: y, r: 10, fill: c ? color : COL.board, stroke: color, 'stroke-width': 3.5 }, g);
+    }
+  }
+  if (label) M(g, [label], { x: 150, y: y + 12, size: 30, fill: color, anchor: 'end' });
+  return g;
+}
+const I = Infinity;
+// Question: pick which of three mini number lines shows the solution. opts: [pieces] × 3.
+const pickGraph = (opts, right, yes, no, y0 = 250) => (body, api) => {
+  const L = qlayer();
+  let locked = false, cur = -1;
+  const hits = opts.map((pieces, i) => {
+    const y = y0 + i * 150, g = G(L);
+    g.classList.add('hit');
+    g.setAttribute('tabindex', 0);
+    g.setAttribute('role', 'button');
+    g.setAttribute('aria-label', `Graph ${i + 1}`);
+    mk('rect', { class: 'ring', x: 80, y: y - 55, width: 1440, height: 110, rx: 16 }, g);
+    mini(g, y, pieces, { o: 1 });
+    T(g, String(i + 1), { x: 110, y: y + 12, size: 34, fill: COL.dim, weight: 700, anchor: 'middle' });
+    const act = () => {
+      if (locked) return;
+      if (i === right) { g.classList.add('good'); api.grade(true, yes); }
+      else { g.classList.add('bad'); shakeFx(g); api.grade(false, no[i]); }
+    };
+    g.addEventListener('click', act);
+    keyAct(g, act);
+    return g;
+  });
+  return {
+    reveal() { hits[right].classList.add('good'); return yes; },
+    lock() { locked = true; },
+    hint: [kbd('1'), '–', kbd('3'), ' choose a graph'],
+    key(e) { const i = +e.key - 1; if (!(i >= 0 && i < hits.length) || locked) return false; hits[i].dispatchEvent(new Event('click')); return true; },
+  };
+};
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Compound inequalities', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 5, Chapter 27', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving compound inequalities', { x: 800, y: 420, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['120 ≤ height ≤ 190'], 800, 590, m('q'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['and', 'And: the overlap', (m) => {
+    const p = panel(0);
+    numberLine(.1, -5, 5);
+    mline(p, ['x ≥ −1   and   x ≤ 4'], 800, 140, m('q'), COL.chalk, 52);
+    const up = G(p, { y: -150 }), dn = G(p, { y: -90 });
+    ray(up, -1, true, 1, m('g1'), G1); ray(dn, 4, true, -1, m('g2'), G2);
+    show(T(p, 'x ≥ −1', { x: X(-1) - 20, y: Y0 - 142, size: 28, fill: G1, font: MATH, anchor: 'end', o: 0 }), m('g1'));
+    show(T(p, 'x ≤ 4', { x: X(4) + 20, y: Y0 - 82, size: 28, fill: G2, font: MATH, o: 0 }), m('g2'));
+    const band = put(mk('rect', { x: X(-1), y: Y0 - 180, width: X(4) - X(-1), height: 200, rx: 12, fill: SOL, 'fill-opacity': .12 }, p), { o: 0 });
+    show(band, m('over'), .5);
+    show(T(p, 'overlap', { x: X(1.5), y: Y0 - 190, size: 26, fill: SOL, weight: 600, anchor: 'middle', o: 0 }), m('over', .3));
+    segment(p, -1, 4, true, true, m('seg'));
+    mline(p, ['−1 ≤ x ≤ 4'], 800, 780, m('write'), SOL, 56);
+  }],
+  ['andEdge', 'Inside, or no overlap', (m) => {
+    hide(S.line, 0, .4);
+    const p = panel(0);
+    mline(p, ['x > 0   and   x ≥ −3'], 800, 150, m('q'), COL.chalk, 44);
+    const a = mini(p, 250, [{ a: 0, b: I, ca: false }], { color: G1 }), b = mini(p, 330, [{ a: -3, b: I, ca: true }], { color: G2 });
+    show(a, m('q', .8)); show(b, m('q', 1.3));
+    const r = mini(p, 410, [{ a: 0, b: I, ca: false }]); show(r, m('inside'));
+    show(T(p, 'x > 0', { x: 1380, y: 420, size: 30, fill: SOL, font: MATH, weight: 600, o: 0 }), m('inside', .5));
+    mline(p, ['x > 2   and   x < −4'], 800, 540, m('q2'), COL.chalk, 44);
+    show(mini(p, 620, [{ a: 2, b: I, ca: false }], { color: G1 }), m('q2', .8));
+    show(mini(p, 700, [{ a: -I, b: -4, cb: false }], { color: G2 }), m('q2', 1.3));
+    caption(p, 'no overlap: no solution', m('ans'), 790, COL.bad, 32);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(TOPR, [{
+    id: 'c-and', prompt: ['Which graph shows ', $m('x < −1'), ' and ', $m('x ≥ −5'), '?'],
+    build: pickGraph([
+      [{ a: -I, b: -1, cb: false }],
+      [{ a: -5, b: -1, ca: true, cb: false }],
+      [{ a: -5, b: -1, ca: false, cb: true }],
+    ], 1, 'The overlap runs from −5 (included) up to −1 (not included): [−5, −1).',
+      ['That is only x < −1. With and, both must be true, so x ≥ −5 cuts it off.', null, 'Check the circles: −5 is included (≥), −1 is not (<).'], 400),
+  }], done) }],
+  ['or', 'Or: everything shaded', (m) => {
+    const p = panel(0);
+    mline(p, ['x < −2   or   x ≤ −1'], 800, 140, m('q'), COL.chalk, 44);
+    show(mini(p, 240, [{ a: -I, b: -2, cb: false }], { color: G1 }), m('g1'));
+    show(mini(p, 320, [{ a: -I, b: -1, cb: true }], { color: G2 }), m('g1', .5));
+    show(mini(p, 400, [{ a: -I, b: -1, cb: true }]), m('union'));
+    show(T(p, 'x ≤ −1', { x: 1380, y: 410, size: 30, fill: SOL, font: MATH, weight: 600, o: 0 }), m('ans'));
+    mline(p, ['x > 0   or   x < 2'], 800, 540, m('q2'), COL.chalk, 44);
+    show(mini(p, 620, [{ a: 0, b: I, ca: false }], { color: G1 }), m('q2', .8));
+    show(mini(p, 700, [{ a: -I, b: 2, cb: false }], { color: G2 }), m('q2', 1.3));
+    show(mini(p, 780, [{ a: -I, b: I }]), m('all'));
+    show(T(p, 'all real numbers', { x: 1380, y: 790, size: 26, fill: SOL, weight: 600, o: 0 }), m('all', .5));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(TOPR, [{
+    id: 'c-or', prompt: ['Which graph shows ', $m('x < 10'), ' or ', $m('x ≤ 4'), '?'],
+    build: pickGraph([
+      [{ a: -I, b: 4, cb: true }],
+      [{ a: 4, b: 10, ca: true, cb: false }],
+      [{ a: -I, b: 10, cb: false }],
+    ], 2, 'Anything less than 10 already makes one of them true: x < 10.',
+      ['That is the overlap. With or, keep everything shaded in either graph.', 'That is between the two. With or, every number less than 10 works.', null], 400),
+  }], done) }],
+  ['interval', 'Interval notation', (m) => {
+    const p = panel(0);
+    mline(p, ['[  ]  included:  ●'], 480, 170, m('br'), COL.chalk, 44);
+    mline(p, ['(  )  not included:  ○'], 1120, 170, m('pa'), COL.chalk, 44);
+    const s1 = mini(p, 300, [{ a: -3, b: 2, ca: true, cb: false }]); show(s1, m('ex'));
+    mline(p, ['−3 ≤ x < 2'], 480, 400, m('ex', 2), COL.dim, 40);
+    mline(p, ['[−3, 2)'], 1120, 400, m('ex', 4), SOL, 50);
+    const s2 = mini(p, 510, [{ a: -3, b: I, ca: true }]); show(s2, m('inf'));
+    mline(p, ['x ≥ −3'], 480, 610, m('inf', 2), COL.dim, 40);
+    mline(p, ['[−3, ∞)'], 1120, 610, m('inf', 9), SOL, 50);
+    mline(p, ['all real numbers:  (−∞, ∞)'], 480, 740, m('all'), COL.dim, 38);
+    mline(p, ['no solution:  ∅'], 1120, 740, m('empty'), COL.dim, 38);
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0);
+    show(mini(p, 300, [{ a: -2, b: 4, ca: false, cb: true }]), .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-int', prompt: ['Which interval notation matches the graph?'],
+    build: choice([['[−2, 4)'], ['(−2, 4]'], ['(−2, 4)']], 1, '−2 is open, so (; 4 is closed, so ].',
+      ['The brackets are swapped: −2 has an open circle.', null, '4 has a closed circle, so it needs a square bracket.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['And: keep only the overlap (it can be empty).', 'w1'], ['Or: keep everything shaded (it can be all numbers).', 'w2'],
+     ['[ ] includes, ( ) does not; ∞ always gets ( ).', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); hide(S.line, 0, .3); }, { ask: done => quiz(SCREEN, [
+    { id: 'p-g1', prompt: ['Graph ', $m('x ≥ 2'), ' and ', $m('x < 8'), '.'], build: pickGraph([[{ a: 2, b: 8, ca: true, cb: false }], [{ a: 2, b: I, ca: true }], [{ a: 2, b: 8, ca: false, cb: true }]], 0,
+      '[2, 8): 2 included, 8 not.', [null, 'With and, x < 8 stops the ray at 8.', 'The circles are swapped.']) },
+    { id: 'p-g2', prompt: ['Graph ', $m('x ≤ 1'), ' and ', $m('x ≤ −6'), '.'], build: pickGraph([[{ a: -I, b: 1, cb: true }], [{ a: -6, b: 1, ca: true, cb: true }], [{ a: -I, b: -6, cb: true }]], 2,
+      'Both must hold, so x ≤ −6.', ['That also includes −5, which fails x ≤ −6.', 'Numbers between −6 and 1 fail x ≤ −6.', null]) },
+    { id: 'p-g3', prompt: ['Graph ', $m('x ≥ −7'), ' or ', $m('x < 2'), '.'], build: pickGraph([[{ a: -7, b: 2, ca: true, cb: false }], [{ a: -I, b: I }], [{ a: -7, b: I, ca: true }]], 1,
+      'Every number is either at least −7 or less than 2: all real numbers.', ['That is the overlap. With or, take everything shaded.', null, 'Numbers below −7 are less than 2, so they count too.']) },
+  ], done, 'Chapter practice 1 of 3,  graph') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-int', prompt: ['Choose the interval notation.'],
+    build: grid(INTQ, [['a', 'A'], ['b', 'B'], ['c', 'C']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const INTQ = [
+  { parts: [$m('x < −1'), ' and ', $m('x ≥ −5'), ':   A ', $m('[−5, −1)'), '   B ', $m('(−5, −1]'), '   C ', $m('(−∞, −1)')], ans: ['a'], why: '−5 is included, −1 is not.' },
+  { parts: [$m('x < 3'), ':   A ', $m('(3, ∞)'), '   B ', $m('(−∞, 3]'), '   C ', $m('(−∞, 3)')], ans: ['c'], why: 'Everything below 3, not including 3.' },
+  { parts: [$m('x ≥ 3'), ' and ', $m('x < −1'), ':   A ', $m('[−1, 3)'), '   B ', $m('∅'), '   C ', $m('(−∞, ∞)')], ans: ['b'], why: 'No number is both at least 3 and below −1.' },
+  { parts: [$m('x > −9'), ' or ', $m('x < 4'), ':   A ', $m('(−9, 4)'), '   B ', $m('(−∞, ∞)'), '   C ', $m('∅')], ans: ['b'], why: 'Every number satisfies at least one.' },
+  { parts: [$m('−2 < x ≤ 4'), ':   A ', $m('(−2, 4]'), '   B ', $m('[−2, 4)'), '   C ', $m('[−2, 4]')], ans: ['a'], why: '−2 excluded, 4 included.' },
+];
+const TFQ = [
+  { parts: ['With ', $m('and'), ', a solution must make both inequalities true.'], ans: ['t'], why: 'And means the overlap.' },
+  { parts: ['An ', $m('or'), ' compound inequality can never have all real numbers as its solution.'], ans: ['f'], why: 'x > 0 or x < 2 covers every number.' },
+  { parts: [$m('[4, ∞)'), ' includes 4.'], ans: ['t'], why: 'A square bracket includes the endpoint.' },
+  { parts: ['Infinity can be written with a square bracket.'], ans: ['f'], why: 'Infinity is never reached, so it always gets a parenthesis.' },
+  { parts: [$m('x > 5'), ' and ', $m('x < 1'), ' has no solution.'], ans: ['t'], why: 'No number is both above 5 and below 1.' },
+];
+boot();
+</script>
+</body>
+</html>

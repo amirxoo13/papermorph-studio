@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy &amp; Change</title>
+<meta name="description" content="An animated notebook about energy: Blip, a little bundle of energy, changes form but never disappears.">
+<link rel="canonical" href="https://papermorph.diamonddoge.org/physics-notebook/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Papermorph">
+<meta property="og:title" content="Energy &amp; Change">
+<meta property="og:description" content="An animated notebook about energy: Blip, a little bundle of energy, changes form but never disappears.">
+<meta property="og:url" content="https://papermorph.diamonddoge.org/physics-notebook/">
+<meta property="og:image" content="https://papermorph.diamonddoge.org/assets/bookshelf.webp">
+<meta property="og:image:alt" content="A wooden bookshelf of animated books">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d2b27'/%3E%3Ctext x='32' y='45' text-anchor='middle' font-size='48' fill='%23f0b45a'%3E∞%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="lib/units.css">
+<link rel="stylesheet" href="lib/contents.css">
+<link rel="stylesheet" href="../lib/books.css">
+<script src="lib/units.js"></script>
+<script src="lib/contents.js"></script>
+<script src="unit-art.js"></script>
+<link rel="expect" href="#ch13" blocking="render">
+<style>
+/* The notebook look of the lessons (lib/book.css): ink on lined paper, hand fonts. */
+:root {
+  --page: #d9d3c4; --board: #fcfaf3; --panel: #fffdf8; --edge: #d4ccb8;
+  --chalk: #26241f; --dim: #6c665a; --faint: #a39b8a; --task: #e5398a; --quiz: #2d8fd0; --good: #2f9a5c;
+  --ui: "Patrick Hand", "Avenir Next", "Segoe UI", sans-serif;
+  --book: "Luckiest Guy", "Patrick Hand", sans-serif;
+  --top-bg: rgba(252, 250, 243, .9); --top-line: #ddd5c3; --lift: rgba(60, 50, 30, .18);
+  color-scheme: light;
+}
+@font-face { font-family: "Patrick Hand"; src: url(lib/fonts/PatrickHand-Regular.ttf) format("truetype"); font-display: swap; }
+@font-face { font-family: "Luckiest Guy"; src: url(lib/fonts/LuckiestGuy-Regular.ttf) format("truetype"); font-display: swap; }
+/* Notebook paper: blue rules and a red margin, like the lesson stage. */
+body::before { background: linear-gradient(90deg, transparent 56px, #f2a7b5 56px 58px, transparent 58px),
+    repeating-linear-gradient(180deg, transparent 0 34px, #bfe0ef 34px 35px); }
+h1 i { font-style: normal; }
+/* The marker colours are too light for small text on paper: darken them toward the ink. */
+.kicker, .unit h2 .label { color: color-mix(in srgb, var(--c, var(--quiz)) 78%, var(--chalk)); }
+</style>
+</head>
+<body>
+<section id="cover">
+  <div class="chalk" aria-hidden="true"><!-- a few faint formulas or phrases from the book, drawn in chalk -->
+    <span style="left:7%;top:13%;--d:1.6">energy is never used up</span>
+    <span style="right:8%;top:17%;--d:1.9">kinetic = motion</span>
+    <span style="left:5%;bottom:20%;--d:2.2">potential = stored</span>
+    <span style="right:6%;bottom:15%;--d:2.5">we're solar-powered!</span>
+  </div>
+  <svg class="mascot draw" id="guide" width="210" height="147" aria-hidden="true"></svg>
+  <h1>Energy &amp; Change</h1>
+  <p class="kicker">An animated notebook</p>
+  <p class="lede">Follow Blip, a little bundle of energy, from sunlight to salad to a sprint. Watch balls roll, pens drop and bumper cars collide, and see why energy never disappears.</p>
+  <div class="acts">
+    <a class="btn go" href="#contents" data-t="open">Open the book<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5 11.5 8 6 13.5 4.6 12.1 8.7 8 4.6 3.9z"/></svg></a>
+    <a class="btn quiet" id="resume" hidden></a>
+  </div>
+  <p class="meta" id="meta"></p>
+  <a class="back-shelf cover-back" href="../">← Back to the bookshelf</a>
+</section>
+
+<main id="contents">
+  <header class="top">
+    <a class="home" href="#book" aria-label="Back to the cover" data-t-label="toCover"><svg class="mascot" id="guideSmall" width="52" height="36" aria-hidden="true"></svg><strong>Energy &amp; Change</strong></a>
+    <span class="prog" id="prog"></span>
+    <a class="back-shelf contents-back" href="../">← Bookshelf</a>
+  </header>
+  <div id="units"></div>
+</main>
+
+<script>
+// Add a chapter here when its lesson is ready; chapters are numbered in order from start.
+Contents.book({
+  start: { unit: 2, chapter: 13, label: 5 },
+  units: [   // [unit title, [[chapter title, minutes], ...], { unit, chapter, sample }?]
+    ['Energy', [['Forms of Energy', 9]]],
+  ],
+  hues: ['#e5398a', '#2d8fd0', '#e89a00', '#2f9a5c', '#7b55c9'],   // marker colours that read on paper
+});
+</script>
+</body>
+</html>

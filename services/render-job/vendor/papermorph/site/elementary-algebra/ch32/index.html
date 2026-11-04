@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphing a Line From a Table — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 32, title: 'Graphing a line from a table', minutes: 5, next: '../ch33/' };
+const XC = COL.whole, YC = COL.nat, PT = COL.task, LN = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// An x | y table at (x, y). rows: [[x, y]]; each row can be revealed at its own time.
+function xyTable(p, x, y, rows, t0s, { cw = 120, rh = 54 } = {}) {
+  const g = G(p);
+  const head = G(g, { o: 0 });
+  mk('rect', { x, y, width: 2 * cw, height: rh, fill: mix(COL.board, COL.chalk, .07), stroke: COL.dim, 'stroke-width': 2 }, head);
+  path(head, `M${x + cw} ${y}V${y + rh}`, { stroke: COL.dim, 'stroke-width': 2 });
+  M(head, ['x'], { x: x + cw / 2, y: y + 38, size: 32, fill: XC }); M(head, ['y'], { x: x + 1.5 * cw, y: y + 38, size: 32, fill: YC });
+  show(head, t0s[0]);
+  const els = rows.map(([a, b], i) => {
+    const r = G(g, { o: 0 }), yy = y + (i + 1) * rh;
+    mk('rect', { x, y: yy, width: 2 * cw, height: rh, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, r);
+    path(r, `M${x + cw} ${yy}V${yy + rh}`, { stroke: COL.dim, 'stroke-width': 2 });
+    M(r, [num(a)], { x: x + cw / 2, y: yy + 38, size: 30 }); M(r, [num(b)], { x: x + 1.5 * cw, y: yy + 38, size: 30 });
+    show(r, t0s[Math.min(i + 1, t0s.length - 1)]);
+    return r;
+  });
+  return { g, els, rowY: i => y + (i + 1) * rh + rh / 2, x, cw };
+}
+function makePlane(t0, o = {}) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 460, u: 38, x0: -8, x1: 8, y0: -8, y1: 9, t0, ...o }); return S.P; }
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Graphing a line from a table', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 32', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Graphing a line from a table', { x: 800, y: 430, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    tw(g, { o: 0, y: -24 }, D - .9, .8);
+  }],
+  ['table', 'Table to points', (m) => {
+    const P = makePlane(.3), p = panel(0); P.layer = p;
+    const rows = [[0, 1], [1, 4], [2, 7]];
+    xyTable(p, 1080, 180, rows, [.2, m('r1'), m('r2'), m('r3')]);
+    rows.forEach(([x, y], i) => P.dot(x, y, PT, m('plot', i * .3), { label: `(${x}, ${y})` }));
+    P.line(0, 1, 2, 7, LN, m('line'));
+  }],
+  ['step', 'Equal steps', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    [[0, 1], [1, 4], [2, 7]].forEach(([x, y]) => P.dot(x, y, PT, 0, { r: 9 }));
+    P.line(0, 1, 2, 7, LN, 0);
+    for (let i = 0; i < 2; i++) {
+      const x = i, y = 1 + 3 * i;
+      draw(path(p, `M${P.PX(x)} ${P.PY(y)}H${P.PX(x + 1)}`, { stroke: XC, 'stroke-width': 4 }, { d: 0 }), m('dx', i * .6), .4);
+      draw(path(p, `M${P.PX(x + 1)} ${P.PY(y)}V${P.PY(y + 3)}`, { stroke: YC, 'stroke-width': 4 }, { d: 0 }), m('dy', i * .6), .5);
+      show(T(p, '+1', { x: P.PX(x + .5), y: P.PY(y) + 24, size: 22, fill: XC, font: MATH, anchor: 'middle', o: 0 }), m('dx', i * .6));
+      show(T(p, '+3', { x: P.PX(x + 1) + 10, y: P.PY(y + 1.5) + 8, size: 22, fill: YC, font: MATH, o: 0 }), m('dy', i * .6));
+    }
+    mline(p, ['x + 1  →  y + 3'], 1200, 250, m('same'), COL.chalk, 44);
+    caption(p, 'equal steps: a straight line', m('rule'), 330, LN, 30, 1200);
+    P.dot(-1, -2, COL.good, m('more'), { label: '(−1, −2)', dx: -14, dy: 8, anchor: 'end' });
+    caption(p, 'on the line, not in the table', m('more', .5), 420, COL.good, 26, 1200);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0), P = S.P; P.layer = p;
+    xyTable(p, 1300, 150, [[0, 2], [1, 5], [2, 8]], [.1, .1]);
+    [[0, 2], [1, 5], [2, 8]].forEach(([x, y]) => P.dot(x, y, PT, .2, { r: 9 }));
+  }, { ask: done => quiz({ x: 1000, y: 420, w: 580, cls: 'side' }, [{
+    id: 'c-next', prompt: ['The pattern continues. Plot the point where x = −1.'],
+    build: pickPoint(S.P, [-1, -1], 'Going back one step in x takes 3 off y: 2 − 3 = −1.',
+      (x, y) => x !== -1 ? 'Find x = −1 first: one step left of the y-axis.' : 'Each step of 1 in x changes y by 3. From (0, 2), go back one step.',
+      () => S.P.line(0, 2, 2, 8, LN, 0, { run: fx, into: S.q })),
+  }], done) }],
+  ['flat', 'Horizontal and vertical', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    const t = xyTable(p, 1080, 150, [[-4, 3], [-2, 3], [4, 3], [6, 3]], [.2, .5]);
+    [[-4, 3], [-2, 3], [4, 3], [6, 3]].forEach(([x, y], i) => P.dot(x, y, PT, m('plot', i * .2), { r: 9 }));
+    P.line(-4, 3, 6, 3, LN, m('line'));
+    show(T(p, 'y = 3 every time: horizontal', { x: 1200, y: 460, size: 26, fill: LN, weight: 600, anchor: 'middle', o: 0 }), m('line', .5));
+    hide(t.g, m('q2'), .3);
+    const t2 = xyTable(p, 1080, 540, [[-2, -3], [-2, 2], [-2, 8]], [m('q2'), m('q2')]);
+    [[-2, -3], [-2, 2], [-2, 8]].forEach(([x, y], i) => P.dot(x, y, COL.real, m('q2', 1 + i * .2), { r: 9 }));
+    P.line(-2, -3, -2, 8, COL.real, m('vert'));
+  }],
+  ['notLine', 'Not a line', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    const pts = [[-5, -4], [-3, -1], [-1, 2], [1, 5], [3, 6]];
+    xyTable(p, 1080, 150, pts, [m('q'), m('q', 1)]);
+    pts.forEach(([x, y], i) => P.dot(x, y, PT, m('plot', i * .15), { r: 9 }));
+    pts.slice(0, 4).forEach(([x, y], i) => i < 3 && show(T(p, '+3', { x: 1330, y: 150 + (i + 2) * 54 + 8, size: 24, fill: COL.good, font: MATH, weight: 600, o: 0 }), m('steps', i * .3)));
+    show(T(p, '+1', { x: 1330, y: 150 + 5 * 54 + 8, size: 24, fill: COL.bad, font: MATH, weight: 600, o: 0 }), m('break'));
+    P.line(-5, -4, 1, 5, COL.dim, m('break', .5), { dash: '8 8', w: 3 });
+    caption(p, 'unequal steps: not a line', m('ans'), 520, COL.bad, 30, 1200);
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0); S.P.layer = p;
+    xyTable(p, 1080, 180, [[1, 2], [2, 4], [3, 7], [4, 8]], [.1, .1]);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-line', prompt: ['Do these points form a line?'],
+    build: choice([['Yes'], ['No']], 1, 'y goes up 2, then 3, then 1: the steps are not equal.',
+      ['Look at how y changes: +2, +3, +1.', null],
+      () => [[1, 2], [2, 4], [3, 7], [4, 8]].forEach(([x, y], i) => S.P.dot(x, y, COL.bad, i * .15, { run: fx, into: S.q || qlayer(), r: 9 }))),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['Each row of the table is an ordered pair.', 'w1'], ['Plot, then connect with arrows at both ends.', 'w2'], ['Equal steps in y for equal steps in x: a line.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-line', prompt: ['Do the points in each table form a line?'], build: grid(LINEQ, [['y', 'Line', COL.good], ['n', 'Not a line', COL.bad]], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => { show(S.pg, 0, .4); S.P.layer = panel(0); }, { ask: done => quiz(SORT_SCREEN, [
+    { id: 'p-p1', prompt: ['Table: (0, 2), (1, 5). Plot the next point, x = 2.'], build: pickPoint(S.P, [2, 8], 'y goes up 3: 5 + 3 = 8.', (x, y) => `You picked (${num(x)}, ${num(y)}). y goes up 3 for each step of 1 in x.`) },
+    { id: 'p-p2', prompt: ['Table: (−6, 5), (−3, 1), (0, −3). Plot the next point, x = 3.'], build: pickPoint(S.P, [3, -7], 'y goes down 4 for each step of 3: −3 − 4 = −7.', (x, y) => `You picked (${num(x)}, ${num(y)}). Each step of 3 in x takes 4 off y.`) },
+    { id: 'p-p3', prompt: ['Table: (−2, −3), (−2, 2), (−2, 8). Plot another point on the line with y = 5.'], build: pickPoint(S.P, [-2, 5], 'x is always −2: (−2, 5).', (x, y) => `You picked (${num(x)}, ${num(y)}). Every point on this line has x = −2.`) },
+  ], done, 'Chapter practice 2 of 3,  point') }],
+  ['final3', 'Chapter practice', () => { hide(S.pg, 0, .4); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-fill', prompt: ['Each table forms a line. Fill in the missing values.'], build: blanks(FILLQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const LINEQ = [
+  { parts: ['(0, 2), (1, 5), (2, 8)'], ans: ['y'], why: 'y goes up 3 each time.' },
+  { parts: ['(2, 4), (4, −1), (6, −6)'], ans: ['y'], why: 'y goes down 5 each time x goes up 2.' },
+  { parts: ['(−2, −3), (−2, 2), (−2, 8)'], ans: ['y'], why: 'x is always −2: a vertical line.' },
+  { parts: ['(−5, −4), (−3, −1), (−1, 2), (1, 5), (3, 6)'], ans: ['n'], why: 'The last step is +1, not +3.' },
+  { parts: ['(0, 0), (1, 1), (2, 4), (3, 9)'], ans: ['n'], why: 'y goes up 1, then 3, then 5.' },
+];
+const FILLQ = [
+  { parts: ['(0, 2), (1, 5), (2, 8), (3, ', { box: '11' }, ')'], why: 'y goes up 3 each time.' },
+  { parts: ['(−6, 5), (−3, 1), (0, −3), (3, ', { box: '-7' }, ')'], why: 'y goes down 4 for each step of 3 in x.' },
+  { parts: ['(−4, 3), (0, 3), (4, ', { box: '3' }, ')'], why: 'A horizontal line: y is always 3.' },
+];
+boot();
+</script>
+</body>
+</html>

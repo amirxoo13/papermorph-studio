@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permutations and Combinations — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 44, title: 'Permutations and Combinations', minutes: 9, next: '../ch45/' };
+const PERM = COL.whole, COMB = COL.rat, PEOPLE = [COL.nat, COL.int, COL.irr, COL.whole, COL.real, COL.rat];
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A round token with a letter, centred on (x, y).
+function token(p, ch, color, x, y, t0, r = 40) {
+  const g = G(p, { x, y, s: 0, o: 0 });
+  mk('circle', { r, fill: mix(COL.board, color, .55), stroke: color, 'stroke-width': 3 }, g);
+  T(g, ch, { y: r * .36, size: r, fill: COL.chalk, weight: 700, anchor: 'middle' });
+  pop(g, t0);
+  return g;
+}
+// An empty slot with a label under it and a choice count above it.
+function spot(p, x, y, label, t0, w = 120, h = 120) {
+  const g = G(p, { o: 0 });
+  mk('rect', { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 16, fill: 'none', stroke: COL.dim, 'stroke-width': 3, 'stroke-dasharray': '9 7' }, g);
+  if (label) T(g, label, { x, y: y + h / 2 + 34, size: 22, fill: COL.dim, anchor: 'middle' });
+  show(g, t0);
+  return g;
+}
+function count(p, n, x, y, t0, color = COL.task) {
+  const e = M(p, [String(n)], { x, y, size: 48, fill: color, s: .5, o: 0 });
+  pop(e, t0);
+  return e;
+}
+function flyTo(e, x, y, t0, dur = .7, lift = 90) {
+  const { x: x0, y: y0 } = st(e);
+  prog(q => put(e, { x: x0 + (x - x0) * q, y: y0 + (y - y0) * q - Math.sin(Math.PI * q) * lift }), t0, dur);
+}
+function book(p, color, x, y, t0) {
+  const g = G(p, { x, y, s: .6, o: 0 });
+  mk('rect', { x: -32, y: -80, width: 64, height: 160, rx: 6, fill: mix(COL.board, color, .65), stroke: color, 'stroke-width': 3 }, g);
+  path(g, 'M-20 -50H20M-20 50H20', { stroke: COL.chalk, 'stroke-width': 3, 'stroke-opacity': .6 });
+  pop(g, t0);
+  return g;
+}
+const strikeTok = (p, e, t0, color = COL.bad) => {
+  const x = e._px, w = e._w, y = st(e).y;
+  draw(path(p, `M${x - w / 2 - 2} ${y + 8}L${x + w / 2 + 2} ${y - 38}`, { stroke: color, 'stroke-width': 4 }, { d: 0 }), t0, .3);
+};
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Permutations and combinations', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 7, Chapter 44', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Permutations and', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Combinations', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'does order matter?', 800, 620, m('sub'), { size: 36, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['order', 'Does order matter?', (m) => {
+    const p = panel(0);
+    ['A', 'B', 'C'].forEach((c, i) => token(p, c, PEOPLE[i], 680 + i * 120, 150, .3 + i * .15));
+    text(p, 'Ana, Ben, Cal', 800, 230, .4, { size: 24, fill: COL.dim, anchor: 'middle' });
+    // Permutation: two labelled posts; then swap.
+    text(p, 'permutation: order matters', 400, 330, m('perm'), { size: 30, fill: PERM, anchor: 'middle', weight: 600 });
+    spot(p, 300, 440, 'president', m('perm')); spot(p, 500, 440, 'vice president', m('perm'));
+    token(p, 'A', PEOPLE[0], 300, 440, m('perm', .5)); token(p, 'B', PEOPLE[1], 500, 440, m('perm', .7));
+    token(p, 'B', PEOPLE[1], 300, 650, m('perm', 3)); token(p, 'A', PEOPLE[0], 500, 650, m('perm', 3.2));
+    spot(p, 300, 650, '', m('perm', 2.8)); spot(p, 500, 650, '', m('perm', 2.8));
+    mline(p, '≠', 400, 565, m('perm', 3.6), COL.bad, 64);
+    text(p, '2 different results', 400, 790, m('perm', 4.2), { size: 26, fill: PERM, anchor: 'middle' });
+    // Combination: one committee bubble, contents swap but stay equal.
+    text(p, 'combination: order doesn’t matter', 1200, 330, m('comb'), { size: 30, fill: COMB, anchor: 'middle', weight: 600 });
+    [440, 650].forEach((y, k) => {
+      const e = put(mk('ellipse', { rx: 170, ry: 80, fill: 'none', stroke: COL.dim, 'stroke-width': 3, 'stroke-dasharray': '9 7' }, p), { x: 1200, y, o: 0 });
+      show(e, m('comb', .3 + k * 2.5));
+      token(p, k ? 'B' : 'A', PEOPLE[k ? 1 : 0], 1140, y, m('comb', .6 + k * 2.5));
+      token(p, k ? 'A' : 'B', PEOPLE[k ? 0 : 1], 1260, y, m('comb', .8 + k * 2.5));
+    });
+    text(p, 'committee', 1200, 380, m('comb', .3), { size: 22, fill: COL.dim, anchor: 'middle' });
+    mline(p, '=', 1200, 565, m('comb', 3.6), COL.good, 64);
+    text(p, 'the same group', 1200, 790, m('comb', 4.2), { size: 26, fill: COMB, anchor: 'middle' });
+  }],
+  ['repeat', 'With repetition', (m) => {
+    const p = panel(0);
+    text(p, 'lock code: 3 digits, 0 to 9, repeats allowed', 800, 140, m('code'), { size: 30, fill: COL.dim, anchor: 'middle' });
+    const xs = [600, 800, 1000], marks = ['s1', 's2', 's3'], fin = ['7', '7', '2'];
+    xs.forEach((x, i) => {
+      spot(p, x, 360, `digit ${i + 1}`, m('code', .4));
+      count(p, 10, x, 250, m(marks[i]));
+      const d = T(p, '0', { x, y: 382, size: 64, font: MATH, anchor: 'middle', o: 0 });
+      show(d, m(marks[i]));
+      prog(q => { d.textContent = q < 1 ? String(Math.floor(q * 23) % 10) : fin[i]; }, m(marks[i]), 1.2, lin);
+    });
+    mline(p, ['10 × 10 × 10 = 10', E(3), ' = 1,000'], 800, 580, m('mult'), COL.good, 56);
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 500, y: 650, width: 600, height: 110, rx: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, g);
+    M(g, ['n', E('r'), ':  ', 'n choices, r times'], { x: 800, y: 722, size: 40, fill: COL.task });
+    show(g, m('gen'));
+  }],
+  ['norep', 'Without repetition', (m) => {
+    const p = panel(0), cols = [COL.nat, COL.int, COL.irr, COL.whole];
+    text(p, 'arrange 4 different books', 800, 120, m('books'), { size: 30, fill: COL.dim, anchor: 'middle' });
+    const bs = cols.map((c, i) => book(p, c, 260 + i * 100, 400, m('books', .3 + i * .12)));
+    path(p, 'M180 488H560', { stroke: COL.dim, 'stroke-width': 4 });
+    path(p, 'M760 488H1340', { stroke: COL.chalk, 'stroke-width': 6 });
+    const xs = [850, 990, 1130, 1270], marks = ['s1', 's2', 's3', 's4'];
+    xs.forEach((x, i) => {
+      spot(p, x, 400, `spot ${i + 1}`, m('books', .5), 100, 170);
+      count(p, 4 - i, x, 270, m(marks[i]));
+      flyTo(bs[[2, 0, 3, 1][i]], x, 400, m(marks[i], .4));
+    });
+    mline(p, '4 × 3 × 2 × 1 = 24', 800, 650, m('mult'), COL.chalk, 52);
+    mline(p, '4! = 24', 800, 740, m('fact'), COL.good, 56);
+    text(p, '“four factorial”', 990, 732, m('fact', .5), { size: 26, fill: COL.dim });
+    mline(p, '0! = 1', 1330, 740, m('zero'), COL.task, 44);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 220, w: 1080, cls: 'side' }, [{
+    id: 'c-arr', prompt: ['Count the arrangements.'],
+    build: blanks([
+      { parts: ['5 runners finish the race, no ties:  ', { box: '120' }, ' orders'], why: '5! = 5 × 4 × 3 × 2 × 1 = 120.', hint: 'No repeats: 5 choices, then 4, then 3, …' },
+      { parts: ['4-digit code, digits 0 to 9, repeats allowed:  ', { box: '10000' }, ' codes'], why: '10 × 10 × 10 × 10 = 10,000.', hint: 'Every digit has 10 choices.' },
+    ]),
+  }], done) }],
+  ['npr', 'Taking some of the items', (m) => {
+    const p = panel(0);
+    text(p, '6 members; choose a president, a vice president and a secretary', 800, 80, m('club'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    const tk = 'ABCDEF'.split('').map((c, i) => token(p, c, PEOPLE[i], 300 + i * 90, 260, m('club', .4 + i * .1), 34));
+    const xs = [900, 1060, 1220];
+    ['president', 'vice pres.', 'secretary'].forEach((l, i) => {
+      spot(p, xs[i], 260, l, m('club', 1));
+      count(p, 6 - i, xs[i], 165, m('s', i * .5));
+      flyTo(tk[[3, 0, 5][i]], xs[i], 260, m('s', i * .5 + .2));
+    });
+    mline(p, '6 × 5 × 4 = 120', 1060, 430, m('s', 1.8), COL.chalk, 44);
+    const pl = mline(p, 'P(6, 3)', 200, 600, m('name'), PERM, 52, 'start');
+    text(p, 'permutations of 6 things taken 3 at a time', 200, 650, m('name', .3), { size: 24, fill: COL.dim });
+    const fx1 = mline(p, [' = ', F('6!', '3!'), ' = '], 200 + pl._w, 600, m('form'), COL.chalk, 52, 'start');
+    const num = tokens(p, ['6', ' × ', '5', ' × ', '4', ' × ', '3', ' × ', '2', ' × ', '1'], { x: 200 + pl._w + fx1._w + 10, y: 570, size: 44, o: 0 });
+    const den = tokens(p, ['3', ' × ', '2', ' × ', '1'], { x: num[6]._px - num[6]._w / 2, y: 650, size: 44, o: 0 });
+    const bar = path(p, `M${num[0]._px - 20} 588H${num[10]._px + 20}`, { stroke: COL.chalk, 'stroke-width': 3 }, { o: 0 });
+    [...num, ...den, bar].forEach(e => show(e, m('form', 1.2)));
+    [6, 8, 10].forEach((k, i) => strikeTok(p, num[k], m('cancel', i * .25)));
+    [0, 2, 4].forEach((k, i) => strikeTok(p, den[k], m('cancel', i * .25)));
+    mline(p, '= 6 × 5 × 4 = 120', num[10]._px + 40, 600, m('left'), COL.good, 48, 'start');
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 520, y: 720, width: 560, height: 120, rx: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, g);
+    M(g, ['P(n, r) = ', F('n!', '(n − r)!')], { x: 800, y: 795, size: 46, fill: COL.task });
+    show(g, m('gen'));
+  }],
+  ['qp', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-npr', prompt: ['Eight runners race. How many ways can the gold, silver and bronze medals be awarded?'],
+    build: blanks([{ parts: ['P(8, 3) = ', { box: '336' }], why: '8 × 7 × 6 = 336.', hint: '8 choices for gold, then 7 for silver, then 6 for bronze.' }]),
+  }], done) }],
+  ['comb', 'Combinations', (m) => {
+    const p = panel(0), names = ['A', 'B', 'C', 'D'], words = ['apple', 'berry', 'cake', 'donut'];
+    text(p, 'choose 2 of 4 desserts', 800, 110, m('menu'), { size: 30, fill: COL.dim, anchor: 'middle' });
+    names.forEach((c, i) => { token(p, c, PEOPLE[i], 560 + i * 160, 190, m('menu', .3 + i * .1), 34); text(p, words[i], 560 + i * 160, 255, m('menu', .3 + i * .1), { size: 20, fill: COL.dim, anchor: 'middle' }); });
+    const cells = {}, pairCol = {}, hue = [COL.nat, COL.int, COL.irr, COL.whole, COL.real, COL.rat];
+    let h = 0;
+    names.forEach((a, i) => names.filter(b => b !== a).forEach((b, j) => {
+      const key = a + b, x = 520 + j * 200, y = 330 + i * 90, t = m('ordered', (i * 3 + j) * .2);
+      const g = G(p, { x, y, o: 0 });
+      g._r = mk('rect', { x: -70, y: -34, width: 140, height: 68, rx: 14, fill: mix(COL.board, COL.chalk, .05), stroke: COL.faint, 'stroke-width': 2.5 }, g);
+      T(g, `${a} then ${b}`, { y: 9, size: 24, anchor: 'middle', weight: 600 });
+      show(g, t, .3);
+      cells[key] = g;
+      const u = [a, b].sort().join('');
+      if (!(u in pairCol)) pairCol[u] = hue[h++];
+    }));
+    mline(p, '4 × 3 = 12 ordered picks', 1230, 380, m('ordered', 2.6), COL.chalk, 36, 'start');
+    Object.entries(pairCol).forEach(([u, c], k) => {
+      const [a, b] = u;
+      [cells[a + b], cells[b + a]].forEach(g => tw(g._r, { c_stroke: c, 'a_stroke-width': 4 }, m('pairs', k * .35), .3));
+    });
+    Object.keys(pairCol).forEach((u, k) => tw(cells[u[1] + u[0]], { o: .25 }, m('twice', k * .15), .4));
+    text(p, 'each plate counted twice', 1230, 460, m('twice'), { size: 26, fill: COL.dim });
+    mline(p, '12 ÷ 2 = 6 plates', 1230, 560, m('div'), COL.good, 44, 'start');
+  }],
+  ['groups', 'Divide by r!', (m) => {
+    const p = panel(0);
+    const g2 = G(p, { o: 0 });
+    mk('ellipse', { cx: 300, cy: 260, rx: 120, ry: 60, fill: 'none', stroke: COL.dim, 'stroke-width': 3, 'stroke-dasharray': '8 6' }, g2);
+    T(g2, 'A  B', { x: 300, y: 272, size: 34, anchor: 'middle', weight: 700 });
+    show(g2, m('pick'));
+    ['A B', 'B A'].forEach((s, i) => { draw(path(p, `M420 260L600 ${220 + i * 80}`, { stroke: COL.dim, 'stroke-width': 2.5 }, { d: 0 }), m('pick', .4 + i * .2), .4); text(p, s, 660, 230 + i * 80, m('pick', .7 + i * .2), { size: 30, weight: 600 }); });
+    mline(p, '2! = 2 orders', 900, 270, m('pick', 1.2), COL.chalk, 40, 'start');
+    const g3 = G(p, { o: 0 });
+    mk('ellipse', { cx: 300, cy: 600, rx: 140, ry: 66, fill: 'none', stroke: COL.dim, 'stroke-width': 3, 'stroke-dasharray': '8 6' }, g3);
+    T(g3, 'A  B  C', { x: 300, y: 612, size: 34, anchor: 'middle', weight: 700 });
+    show(g3, m('three'));
+    ['A B C', 'A C B', 'B A C', 'B C A', 'C A B', 'C B A'].forEach((s, i) => {
+      const y = 470 + i * 52;
+      draw(path(p, `M440 600L600 ${y - 10}`, { stroke: COL.dim, 'stroke-width': 2.5 }, { d: 0 }), m('three', .4 + i * .15), .4);
+      text(p, s, 660, y, m('three', .6 + i * .15), { size: 28, weight: 600 });
+    });
+    mline(p, '3! = 6 orders', 900, 610, m('three', 1.8), COL.chalk, 40, 'start');
+    text(p, 'one group appears 3! times among the permutations', 900, 680, m('each'), { size: 24, fill: COL.dim });
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 880, y: 340, width: 600, height: 130, rx: 18, fill: 'none', stroke: COMB, 'stroke-width': 3 }, r);
+    M(r, ['C(n, r) = ', F('P(n, r)', 'r!')], { x: 1180, y: 420, size: 48, fill: COMB });
+    show(r, m('rule'));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 220, w: 1080, cls: 'side' }, [{
+    id: 'c-pc', prompt: ['Nia has 5 different T-shirts and won’t repeat one.'],
+    build: blanks([
+      { parts: ['wear one on Mon, Tue, Wed:  ', { box: '60' }, ' ways'], why: 'Order matters: P(5, 3) = 5 × 4 × 3 = 60.', hint: 'Which shirt goes on which day matters.' },
+      { parts: ['pack 3 for the trip:  ', { box: '10' }, ' ways'], why: 'Order doesn’t matter: 60 ÷ 3! = 60 ÷ 6 = 10.', hint: 'Same 3 shirts in any order is the same packing: divide by 3!.' },
+    ]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Order matters: permutation. Order doesn’t: combination.', 'w1', COL.task], ['With repetition: n choices, r times, gives nʳ.', 'w2', COL.irr],
+     ['Without: P(n, r) = n! ÷ (n − r)!', 'w3', PERM], ['C(n, r) = P(n, r) ÷ r!', 'w4', COMB]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['Does order matter? Choose permutation or combination.'],
+    build: grid(KINDQ, [['p', 'Permutation', PERM, 'P'], ['c', 'Combination', COMB, 'C']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [
+    { id: 'p-p1', prompt: ['How many ways can 6 photos be arranged in a row?'], build: blanks([{ parts: [{ box: '720' }, ' ways'], why: '6! = 720.', hint: '6 × 5 × 4 × 3 × 2 × 1.' }]) },
+    { id: 'p-p2', prompt: ['Nine students are on a debate team. How many ways can the coach choose the first, second and third speakers?'], build: blanks([{ parts: [{ box: '504' }, ' ways'], why: 'P(9, 3) = 9 × 8 × 7 = 504.', hint: '9 choices, then 8, then 7.' }]) },
+    { id: 'p-p3', prompt: ['How many 4-digit codes use the digits 0 to 9 with no digit repeated?'], build: blanks([{ parts: [{ box: '5040' }, ' codes'], why: '10 × 9 × 8 × 7 = 5,040.', hint: 'No repeats: 10, then 9, then 8, then 7.' }]) },
+    { id: 'p-p4', prompt: ['A license tag has 3 letters, and letters may repeat. How many tags are possible?'], build: blanks([{ parts: [{ box: '17576' }, ' tags'], why: '26 × 26 × 26 = 26³ = 17,576.', hint: '26 letters for each of 3 places.' }]) },
+  ], done, 'Chapter practice 2 of 3,  question') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [
+    { id: 'p-c1', prompt: ['How many ways can you choose 2 beach balls from 20?'], build: blanks([{ parts: [{ box: '190' }, ' ways'], why: '(20 × 19) ÷ 2! = 380 ÷ 2 = 190.', hint: 'P(20, 2) ÷ 2!.' }]) },
+    { id: 'p-c2', prompt: ['A team picks 2 uniform colors from red, gold, black, green, purple, silver, blue, orange and white. How many pairs of colors?'], build: blanks([{ parts: [{ box: '36' }, ' pairs'], why: '9 colors: (9 × 8) ÷ 2 = 36.', hint: 'Count the colors first.' }]) },
+    { id: 'p-c3', prompt: ['A pizza comes with 3 different toppings chosen from 6. How many choices of toppings?'], build: blanks([{ parts: [{ box: '20' }, ' choices'], why: '(6 × 5 × 4) ÷ 3! = 120 ÷ 6 = 20.', hint: 'P(6, 3) ÷ 3!.' }]) },
+    { id: 'p-c4', prompt: ['How many committees of 4 can be chosen from 7 people?'], build: blanks([{ parts: [{ box: '35' }, ' committees'], why: '(7 × 6 × 5 × 4) ÷ 4! = 840 ÷ 24 = 35.', hint: 'P(7, 4) ÷ 4!.' }]) },
+  ], done, 'Chapter practice 3 of 3,  question') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: ['award 1st, 2nd and 3rd place among 10 runners'], ans: ['p'], why: 'Gold then silver is different from silver then gold.' },
+  { parts: ['choose 3 toppings for a pizza'], ans: ['c'], why: 'The same toppings in any order make the same pizza.' },
+  { parts: ['make a 4-digit PIN'], ans: ['p'], why: '1234 and 4321 are different PINs.' },
+  { parts: ['pick 5 students to clean up after lunch'], ans: ['c'], why: 'The same 5 students form the same group.' },
+  { parts: ['arrange 6 photos in a row'], ans: ['p'], why: 'Positions in the row matter.' },
+  { parts: ['choose 2 books to borrow from a shelf of 12'], ans: ['c'], why: 'You take the same two books either way.' },
+];
+boot();
+</script>
+</body>
+</html>

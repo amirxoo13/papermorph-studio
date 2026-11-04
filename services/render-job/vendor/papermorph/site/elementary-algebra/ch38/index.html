@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Systems of Inequalities — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 38, title: 'Solving Systems of Linear Inequalities by Graphing', minutes: 6, next: '../ch39/' };
+const L1 = COL.whole, L2 = COL.rat, OVERLAP = COL.real, DASH = '14 10';
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 38) => mline(p, parts, 1000, y, t0, fill, size, 'start');
+const note = (p, str, y, t0, fill = COL.dim, x = 1000) => show(T(p, str, { x, y, size: 26, fill, o: 0 }), t0);
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 450, u: 40, x0: -8, x1: 8, y0: -8, y1: 8, t0 }); return S.P; }
+function stage() { const p = panel(0), P = S.P; P.layer = p; S.qp = p; return [p, P]; }
+const now = (e, to) => tw(e, to, 0, .01);
+// pickPoint's cursor starts at the origin; when the origin is itself a right answer, start it at (x, y) instead,
+// so pressing Enter straight away is not a free answer
+const cursorAt = (build, x, y) => (body, api) => {
+  const q = build(body, api);
+  for (let i = 0; i < Math.abs(x); i++) q.key({ key: x > 0 ? 'ArrowRight' : 'ArrowLeft' });
+  for (let i = 0; i < Math.abs(y); i++) q.key({ key: y > 0 ? 'ArrowUp' : 'ArrowDown' });
+  return q;
+};
+function system(p, a, b, x, y, t0, size = 38, gap = 60) {
+  const g = G(p, { o: 0 }), y1 = y - size * .85, y2 = y + gap + size * .3, ym = (y1 + y2) / 2;
+  path(g, `M${x + 14} ${y1}Q${x} ${y1} ${x} ${y1 + 14}V${ym - 10}Q${x} ${ym} ${x - 12} ${ym}Q${x} ${ym} ${x} ${ym + 10}V${y2 - 14}Q${x} ${y2} ${x + 14} ${y2}`, { stroke: COL.dim, 'stroke-width': 3 });
+  M(g, [].concat(a), { x: x + 28, y, size, fill: L1, anchor: 'start' });
+  M(g, [].concat(b), { x: x + 28, y: y + gap, size, fill: L2, anchor: 'start' });
+  show(g, t0);
+  return g;
+}
+// 3x + y > −5 and −x + y ≤ −1, with its overlap. t = [dashed line, solid line, shade 1, shade 2, overlap].
+function mixed(P, t, run = tw) {
+  P.line(0, -5, -1, -2, L1, t[0], { dash: DASH, run });
+  P.line(0, -1, 1, 0, L2, t[1], { run });
+  P.half(3, 1, -5, L1, t[2], { run });
+  P.half(1, -1, 1, L2, t[3], { run });
+  P.region([[3, 1, -5], [1, -1, 1]], OVERLAP, t[4], { run, o: .5 });
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Systems of inequalities', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 38', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving Systems of Linear', { x: 800, y: 400, size: 76, weight: 600, anchor: 'middle' });
+    T(g, 'Inequalities by Graphing', { x: 800, y: 490, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['the solution is where the shading overlaps'], 800, 620, m('q'), COL.dim, 40);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['ex1', 'Two boundaries', (m) => {
+    makePlane(.1);
+    const [p, P] = stage();
+    system(p, 'x + y < 2', '2x − y > 10', 1000, 140, .3);
+    side(p, ['y < −x + 2'], 290, m('r'), L1);
+    side(p, ['y < 2x − 10'], 350, m('r2'), L2);
+    P.line(0, 2, 1, 1, L1, m('r', 1), { dash: DASH }); P.line(0, -10, 6, 2, L2, m('r2', 1), { dash: DASH });
+    note(p, '< and >: both lines dashed', 410, m('dash'));
+    P.dot(0, 0, COL.task, m('t1'), { r: 8 });
+    side(p, ['0 + 0 < 2  ✓'], 480, m('t1', .5), L1, 34);
+    P.half(-1, -1, -2, L1, m('s1'));
+  }],
+  ['ex2', 'Where they overlap', (m) => {
+    const p = S.qp, P = S.P;
+    side(p, ['2(0) − 0 > 10  ✗'], 540, m('t2'), L2, 34);
+    P.half(2, -1, 10, L2, m('s2'));
+    P.region([[-1, -1, -2], [2, -1, 10]], OVERLAP, m('both'), { o: .5 });
+    note(p, 'solution: the overlap', 610, m('both', 1), OVERLAP);
+    P.dot(4, -2, OVERLAP, m('corner'), { open: true, label: '(4, −2)', dx: 16, dy: -8 });
+    note(p, 'corner on dashed lines: not included', 660, m('corner', 2), COL.dim);
+  }],
+  ['q1', 'Quick check', () => {
+    const [p, P] = stage();
+    system(p, 'y ≤ −x + 3', 'y ≥ x − 3', 1000, 140, .2);
+    P.line(0, 3, 1, 2, L1, .2); P.line(0, -3, 1, -2, L2, .3);
+    P.half(-1, -1, -3, L1, .5); P.half(-1, 1, -3, L2, .6);
+  }, { ask: done => quiz({ x: 1000, y: 280, w: 580, cls: 'side' }, [{
+    id: 'c-both', prompt: ['Pick any point that is a solution of both inequalities.'],
+    build: cursorAt(pickPoint(S.P, [0, 0], (x, y) => `(${num(x)}, ${num(y)}) is in both shaded regions.`,
+      (x, y) => y <= -x + 3 ? 'That point satisfies y ≤ −x + 3 only. It must be in both shaded regions.' : y >= x - 3 ? 'That point satisfies y ≥ x − 3 only. It must be in both shaded regions.' : 'That point satisfies neither inequality.',
+      () => S.P.region([[-1, -1, -3], [-1, 1, -3]], OVERLAP, 0, { run: fx, into: S.qp, o: .5 }), (x, y) => y <= -x + 3 && y >= x - 3), 5, 3),
+  }], done) }],
+  ['mixed', 'Solid and dashed', (m) => {
+    const [p, P] = stage();
+    system(p, '3x + y > −5', '−x + y ≤ −1', 1000, 140, m('eqs'));
+    side(p, ['y > −3x − 5'], 290, m('r'), L1); note(p, 'dashed', 290, m('r', 1), COL.dim, 1300);
+    side(p, ['y ≤ x − 1'], 350, m('r2'), L2); note(p, 'solid', 350, m('r2', 1), COL.dim, 1300);
+    mixed(P, [m('r', .5), m('r2', .5), m('t'), m('t2'), m('ov')]);
+    P.dot(0, 0, COL.task, m('t'), { r: 8 });
+    side(p, ['0 > −5  ✓'], 430, m('t', .5), L1, 34);
+    side(p, ['0 ≤ −1  ✗'], 490, m('t2', .5), L2, 34);
+    note(p, 'solid edge: included.  dashed edge: not.', 570, m('edge'));
+    P.dot(-1, -2, OVERLAP, m('corner'), { open: true, label: '(−1, −2)', dx: -16, dy: -10, anchor: 'end' });
+    note(p, 'corner on the dashed line: not included', 620, m('corner', 1.5));
+  }],
+  ['q2', 'Quick check', () => {
+    const [p, P] = stage();
+    system(p, '3x + y > −5', '−x + y ≤ −1', 1000, 140, 0);
+    mixed(P, [0, 0, 0, 0, 0], now);
+    S.pt = P.dot(2, 1, COL.task, .3, { label: '(2, 1)', dx: -14, dy: -10, anchor: 'end' });
+  }, { ask: done => quiz({ x: 1000, y: 280, w: 580, cls: 'side' }, [{
+    id: 'c-edge', prompt: ['Is (2, 1) a solution of the system?'],
+    build: choice([['Yes'], ['No']], 0, '3(2) + 1 = 7 > −5, and −2 + 1 = −1 ≤ −1. It lies on the solid edge, which is included.',
+      [null, 'Test it: 7 > −5 is true, and −1 ≤ −1 is true too. Points on a solid boundary count.'],
+      () => pulseFx(S.pt)),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['Graph each inequality: boundary line and shaded side.', 'w1'], ['The solution is where the shadings overlap.', 'w2'], ['A corner counts only if it is on solid lines.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      M(g, [str], { x: 260, size: 36, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-yes', prompt: ['Is the point a solution of the system?'],
+    build: grid(YESQ, YN, { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-corner', prompt: ['Find the corner: the point where the two boundary lines meet.'], build: blanks(CORNERQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-incl', prompt: ['Is the corner point part of the solution?'],
+    build: grid(INCLQ, YN, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const YN = [['y', 'Yes', null, 'Y'], ['n', 'No', null, 'N']];
+const sys = (a, b) => [$m(a), '   and   ', $m(b)];
+const YESQ = [
+  { parts: ['(0, 0):   ', ...sys('x + y < 1', 'x − y > −5')], ans: ['y'], why: '0 < 1 and 0 > −5.' },
+  { parts: ['(−2, 3):   ', ...sys('x + y < 1', 'x − y > −5')], ans: ['n'], why: '−2 + 3 = 1, and 1 < 1 is false.' },
+  { parts: ['(3, −5):   ', ...sys('x + y ≥ −2', '4x + y ≤ 7')], ans: ['y'], why: '−2 ≥ −2 and 7 ≤ 7: both true.' },
+  { parts: ['(2, 2):   ', ...sys('3x − y < 4', '2x + y ≤ 6')], ans: ['n'], why: '3(2) − 2 = 4, and 4 < 4 is false.' },
+  { parts: ['(0, 5):   ', ...sys('y > 3', 'x ≥ −5')], ans: ['y'], why: '5 > 3 and 0 ≥ −5.' },
+];
+const CORNERQ = [
+  { parts: ['x + y < 1  and  x − y > −5:      (', { box: '-2' }, ', ', { box: '3' }, ')'], why: 'Adding x + y = 1 and x − y = −5 gives 2x = −4.' },
+  { parts: ['x + y ≥ −2  and  4x + y ≤ 7:      (', { box: '3' }, ', ', { box: '-5' }, ')'], why: '−x − 2 = −4x + 7 gives x = 3.' },
+  { parts: ['x + 2y > −7  and  −x + 3y < −3:      (', { box: '-3' }, ', ', { box: '-2' }, ')'], why: 'Adding the equations gives 5y = −10.' },
+  { parts: ['−2x + y > 3  and  3x + y < −7:      (', { box: '-2' }, ', ', { box: '-1' }, ')'], why: '2x + 3 = −3x − 7 gives x = −2.' },
+];
+const INCLQ = [
+  { parts: sys('x + y < 1', 'x − y > −5'), ans: ['n'], why: 'Both boundaries are dashed.' },
+  { parts: sys('x + y ≥ −2', '4x + y ≤ 7'), ans: ['y'], why: 'Both boundaries are solid.' },
+  { parts: sys('3x − y < 4', '2x + y ≤ 6'), ans: ['n'], why: 'The corner is on the dashed line 3x − y = 4.' },
+  { parts: sys('y > 3', 'x ≥ −5'), ans: ['n'], why: 'The corner (−5, 3) is on the dashed line y = 3.' },
+  { parts: sys('y ≥ 2x', 'y ≤ 4'), ans: ['y'], why: 'Both boundaries are solid.' },
+];
+boot();
+</script>
+</body>
+</html>

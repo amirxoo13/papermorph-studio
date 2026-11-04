@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Monomials — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 50, title: 'Multiplying and Dividing Monomials', minutes: 9, next: '../ch51/' };
+const LANE = [COL.int, COL.whole, COL.nat], LX = [420, 800, 1180], KEEP = COL.task;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A row of math items laid out as tokens; returns { row, items } so pieces can be copied out later.
+function mrow(p, items, x, y, t0, size = 64) {
+  const row = tokens(p, items, { x, y, size, anchor: 'middle', o: 0 });
+  row.forEach(e => show(e, t0));
+  return { row, items, y, size };
+}
+// Copy item k of a row and fly the copy to (x, y), recoloured; the original dims.
+function fly(p, R, k, x, y, t0, color, size = 56) {
+  const c = M(p, [].concat(R.items[k]), { x: R.row[k]._px, y: R.y, size: R.size, fill: color, o: 0 });
+  show(c, t0, .1);
+  tw(c, { x, y, s: size / R.size }, t0, .8);
+  tw(R.row[k], { o: .3 }, t0, .4);
+  return c;
+}
+const laneHeads = (p, names, t0, y = 300) => names.forEach((n, i) => text(p, n, LX[i], y, t0 + i * .15, { size: 26, fill: LANE[i], anchor: 'middle', weight: 600 }));
+const laneBox = (p, t0, y = 330, h = 380) => LX.forEach((x, i) => { const r = put(mk('rect', { x: x - 160, y, width: 320, height: h, rx: 18, fill: mix(COL.board, LANE[i], .08), stroke: mix(COL.board, LANE[i], .5), 'stroke-width': 2 }, p), { o: 0 }); p.insertBefore(r, p.firstChild); show(r, t0); });
+function resultBox(p, parts, x, y, t0, w = 520) {
+  const g = G(p, { o: 0, s: .7, x, y });
+  mk('rect', { x: -w / 2, y: -56, width: w, height: 84, rx: 18, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, g);
+  M(g, parts, { y: 4, size: 56, fill: COL.good });
+  tw(g, { o: 1, s: 1 }, t0, .5, back);
+  return g;
+}
+const pw = (b, e) => [b, E(e)];
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Monomials', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 9, Chapter 50', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and Dividing', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Monomials', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['(4x', E(3), 'y)(5x', E(2), 'y', E(4), ') = 20x', E(5), 'y', E(5)], 800, 630, m('sub'), COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['parts', 'Inside a monomial', (m) => {
+    const p = panel(0);
+    const R = mrow(p, ['3', ['x', E(2)], 'y'], 800, 260, m('ex'), 96);
+    const ex = tokens(p, [{ t: '3', fill: LANE[0] }, '  ·  ', { t: 'x', fill: LANE[1] }, '  ·  ', { t: 'x', fill: LANE[1] }, '  ·  ', { t: 'y', fill: LANE[2] }], { x: 800, y: 450, size: 80, anchor: 'middle', o: 0 });
+    ex.forEach((e, i) => show(e, m('expand', i * .15)));
+    show(M(p, ['3'], { x: R.row[0]._px, y: 260, size: 96, fill: LANE[0], o: 0 }), m('coef'), .3);
+    text(p, 'coefficient', ex[0]._px, 560, m('coef'), { size: 30, fill: LANE[0], anchor: 'end', weight: 600 });
+    draw(path(p, `M${ex[0]._px - 70} 530L${ex[0]._px - 10} 480`, { stroke: LANE[0], 'stroke-width': 3 }, { d: 0 }), m('coef'), .3);
+    text(p, 'base x', ex[3]._px, 560, m('bases'), { size: 30, fill: LANE[1], anchor: 'middle', weight: 600 });
+    text(p, 'base y', ex[6]._px + 50, 560, m('bases', .4), { size: 30, fill: LANE[2], anchor: 'start', weight: 600 });
+  }],
+  ['mult', 'Multiplying', (m) => {
+    const p = panel(0);
+    const R = mrow(p, ['(', '4', pw('x', 3), 'y', ')(', '5', pw('x', 2), pw('y', 4), ')'], 800, 170, .2);
+    laneBox(p, m('lanes'));
+    laneHeads(p, ['numbers', 'x', 'y'], m('lanes'));
+    [[1, 0, 0], [2, 1, 0], [3, 2, 0], [5, 0, 1], [6, 1, 1], [7, 2, 1]].forEach(([k, lane, r], i) => {
+      fly(p, R, k, LX[lane], 410 + r * 100, m('sort', 1 + i * .45), LANE[lane]);
+      if (r) show(M(p, ['·'], { x: LX[lane], y: 455, size: 44, fill: COL.dim, o: 0 }), m('sort', 1 + i * .45));
+    });
+    mline(p, '4 · 5 = 20', LX[0], 640, m('nums'), LANE[0], 46);
+    mline(p, [...pw('x', '3 + 2'), ' = ', ...pw('x', 5)], LX[1], 640, m('xs'), LANE[1], 46);
+    mline(p, [...pw('y', '1 + 4'), ' = ', ...pw('y', 5)], LX[2], 640, m('ys'), LANE[2], 46);
+    text(p, 'y means y¹', LX[2], 690, m('ys', .6), { size: 22, fill: COL.dim, anchor: 'middle' });
+    resultBox(p, ['20x', E(5), 'y', E(5)], 800, 800, m('ans'));
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 240, w: 1160, cls: 'side' }, [{
+    id: 'c-mult', prompt: ['Multiply ', $m('3a', E(4), 'b', E(2), 'c', E(6), ' · (−2a', E(5), 'b)'), '.'],
+    build: blanks([{ parts: [{ box: '-6' }, 'a', E('p'), 'b', E('q'), 'c', E('r'), ':     p = ', { box: '9' }, ',  q = ', { box: '3' }, ',  r = ', { box: '6' }],
+      why: '3 · (−2) = −6; a: 4 + 5 = 9; b: 2 + 1 = 3; c stays 6.', hint: 'Multiply the numbers (watch the sign). Add exponents base by base; b alone is b¹, and c appears only once.' }]),
+  }], done) }],
+  ['div', 'Dividing', (m) => {
+    const p = panel(0);
+    mline(p, ['21x', E(6), 'y', E(10), ' ÷ 7x', E(4), 'y', E(3)], 800, 130, m('ex'), COL.chalk, 52);
+    const N = mrow(p, ['21', pw('x', 6), pw('y', 10)], 800, 250, m('frac'), 56), D = mrow(p, ['7', pw('x', 4), pw('y', 3)], 800, 340, m('frac'), 56);
+    show(path(p, 'M640 275H960', { stroke: COL.chalk, 'stroke-width': 3.5 }, { o: 0 }), m('frac'));
+    laneBox(p, m('frac', 1.2), 380, 330);
+    [0, 1, 2].forEach(i => {
+      fly(p, N, i, LX[i], 480, m('frac', 1.4 + i * .3), LANE[i], 52);
+      fly(p, D, i, LX[i], 570, m('frac', 1.5 + i * .3), LANE[i], 52);
+      show(path(p, `M${LX[i] - 70} 505H${LX[i] + 70}`, { stroke: LANE[i], 'stroke-width': 3 }, { o: 0 }), m('frac', 1.6 + i * .3));
+    });
+    mline(p, '21 ÷ 7 = 3', LX[0], 670, m('nums'), LANE[0], 44);
+    mline(p, [...pw('x', '6 − 4'), ' = ', ...pw('x', 2)], LX[1], 670, m('xs'), LANE[1], 44);
+    mline(p, [...pw('y', '10 − 3'), ' = ', ...pw('y', 7)], LX[2], 670, m('ys'), LANE[2], 44);
+    resultBox(p, ['3x', E(2), 'y', E(7)], 800, 800, m('ans'));
+  }],
+  ['negdiv', 'A negative exponent', (m) => {
+    const p = panel(0);
+    mline(p, ['3a', E(5), ' ÷ 10a', E(9)], 800, 130, m('ex'), COL.chalk, 56);
+    mline(p, F(3, 10), 560, 330, m('nums'), LANE[0], 64);
+    text(p, 'already in lowest terms', 560, 420, m('nums', .5), { size: 24, fill: COL.dim, anchor: 'middle' });
+    const am = mline(p, [...pw('a', '5 − 9'), ' = ', ...pw('a', '−4')], 1000, 330, m('xs'), LANE[1], 60);
+    const g = G(p, { o: 0 });
+    M(g, ['3'], { x: 800, y: 600, size: 72, fill: COL.good });
+    path(g, 'M650 625H950', { stroke: COL.good, 'stroke-width': 4 });
+    M(g, ['10'], { x: 775, y: 710, size: 72, fill: COL.good });
+    show(g, m('pos'));
+    const mv = M(p, pw('a', '−4'), { x: 1100, y: 330, size: 60, fill: LANE[1], o: 0 });
+    show(mv, m('pos', .2), .1);
+    tw(mv, { x: 850, y: 710, s: 1.2 }, m('pos', .4), 1.2);
+    hide(mv, m('pos', 1.6), .2);
+    show(M(p, pw('a', '4'), { x: 850, y: 710, size: 72, fill: COL.good, o: 0 }), m('pos', 1.6));
+    text(p, 'negative exponent on top = positive exponent on the bottom', 800, 820, m('pos', 2.2), { size: 26, fill: KEEP, anchor: 'middle', weight: 600 });
+    tw(am, { o: .5 }, m('ans'), .4);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 240, w: 1160, cls: 'side' }, [{
+    id: 'c-div', prompt: ['Divide ', $m('12x', E(5), 'y', E(2), ' ÷ (−4x', E(2), 'y', E(5), ')'), '. Exponents may be negative.'],
+    build: blanks([{ parts: [{ box: '-3' }, 'x', E('m'), 'y', E('n'), ':     m = ', { box: '3' }, ',  n = ', { box: '-3' }],
+      why: '12 ÷ (−4) = −3; x: 5 − 2 = 3; y: 2 − 5 = −3. With positive exponents: −3x³ / y³.', hint: 'Divide the numbers, then subtract the exponents for x and for y.' }]),
+  }], done) }],
+  ['power', 'A power of a power', (m) => {
+    const p = panel(0);
+    mline(p, ['(x', E(3), ')', E(2)], 800, 170, m('ex'), COL.chalk, 80);
+    const cp = tokens(p, [{ t: ['x', E(3)], fill: LANE[1] }, ' · ', { t: ['x', E(3)], fill: LANE[2] }], { x: 800, y: 330, size: 72, anchor: 'middle', o: 0 });
+    cp.forEach(e => show(e, m('copies')));
+    text(p, 'two copies', 800, 400, m('copies', .5), { size: 26, fill: COL.dim, anchor: 'middle' });
+    const ex = tokens(p, ['x', ' · ', 'x', ' · ', 'x', '    ', 'x', ' · ', 'x', ' · ', 'x'].map((t, i) => ({ t, fill: i < 5 ? LANE[1] : i > 5 ? LANE[2] : COL.chalk })), { x: 800, y: 520, size: 64, anchor: 'middle', o: 0 });
+    ex.forEach((e, i) => show(e, m('expand', i * .08)));
+    [0, 2, 4, 6, 8, 10].forEach((k, i) => show(T(p, String(i + 1), { x: ex[k]._px, y: 580, size: 24, fill: KEEP, anchor: 'middle', weight: 700, o: 0 }), m('expand', 1.5 + i * .25)));
+    mline(p, ['(x', E(3), ')', E(2), ' = x', E('3 · 2'), ' = x', E(6)], 800, 700, m('ans'), COL.good, 60);
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 500, y: 760, width: 600, height: 86, rx: 16, fill: 'none', stroke: KEEP, 'stroke-width': 3 }, r);
+    M(r, ['(x', E('a'), ')', E('b'), ' = x', E('ab')], { x: 800, y: 818, size: 44, fill: KEEP });
+    show(r, m('rule'));
+  }],
+  ['powmono', 'Power of a monomial', (m) => {
+    const p = panel(0);
+    const R = mrow(p, ['(', '3', pw('a', 7), pw('b', 4), ')', E(2)], 800, 270, m('ex'), 84);
+    const src = R.row[5], sx = src._px + 6, sy = 196;
+    [1, 2, 3].forEach((k, i) => {
+      const tx = R.row[k]._px, l = path(p, `M${sx} ${sy}Q${(sx + tx) / 2} ${70 + i * 20} ${tx} ${sy - 4}`, { stroke: KEEP, 'stroke-width': 3.5 }, { d: 0 });
+      draw(l, m('arrows', i * .7), .5);
+    });
+    [[['3', E(2)], ' = 9', LANE[0]], [['a', E('7 · 2')], ['= a', E(14)], LANE[1]], [['b', E('4 · 2')], ['= b', E(8)], LANE[2]]].forEach(([a, b, c], i) => {
+      mline(p, a, LX[i], 430, m('each', i * 3), c, 52);
+      mline(p, [].concat(b), LX[i], 510, m('each', i * 3 + 1.2), c, 52);
+    });
+    resultBox(p, ['9a', E(14), 'b', E(8)], 800, 650, m('ans'));
+    mline(p, ['3a', E(14), 'b', E(8)], 800, 800, m('warn'), COL.bad, 52);
+    draw(path(p, 'M680 790H920', { stroke: COL.bad, 'stroke-width': 4 }, { d: 0 }), m('warn', 1.5), .4);
+    text(p, 'forgot to square the 3', 1000, 790, m('warn', 1.8), { size: 26, fill: COL.bad, weight: 600 });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 240, w: 1160, cls: 'side' }, [{
+    id: 'c-who', prompt: ['Simplify ', $m('(5a', E(2), ')', E(3)), '.'],
+    build: choice([[$m('125a', E(8))], [$m('125a', E(6))], [$m('5a', E(6))], [$m('15a', E(6))]], 1, '5³ = 125 and (a²)³ = a⁶.',
+      ['(a²)³ multiplies the exponents: 2 · 3 = 6, not 2³.', null, 'The power reaches the 5 too: 5³ = 125.', '5³ is 5 · 5 · 5 = 125, not 5 · 3.']),
+  }], done) }],
+  ['combo', 'Putting it together', (m) => {
+    const p = panel(0), X = 300;
+    mline(p, ['(5a', E(3), 'b', E(4), ')', E(2), ' · (2a', E(5), 'b)', E(3)], 800, 150, m('ex'), COL.chalk, 56);
+    eqLine(p, [], ['25a', E(6), 'b', E(8), ' · 8a', E(15), 'b', E(3)], 300, m('pow'), { xEq: X, note: 'powers first', noteX: 1100 });
+    eqLine(p, [], ['25 · 8 · a', E('6 + 15'), ' · b', E('8 + 3')], 430, m('mult'), { xEq: X, note: 'then multiply', noteX: 1100 });
+    eqLine(p, [], ['200a', E(21), 'b', E(11)], 560, m('ans'), { xEq: X, fill: COL.good });
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Multiply: multiply coefficients, add exponents base by base.', 'w1', LANE[1]], ['Divide: divide coefficients, subtract exponents.', 'w2', LANE[2]],
+     ['Power of a power: multiply exponents; the power reaches every factor.', 'w3', KEEP]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 150, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 150, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 210, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-md', prompt: ['Simplify. Exponents may be negative.'], build: blanks([
+      { parts: ['x', E(4), 'y', E(7), ' · x', E(3), 'y', E(5), ' = x', E('m'), 'y', E('n'), ':     m = ', { box: '7' }, ',  n = ', { box: '12' }], why: '4 + 3 = 7; 7 + 5 = 12.', hint: 'Add the exponents base by base.' },
+      { parts: ['2m', E(3), ' · 6m', E(2), ' = ', { box: '12' }, 'm', E('n'), ':     n = ', { box: '5' }], why: '2 · 6 = 12; 3 + 2 = 5.', hint: 'Multiply 2 and 6, add 3 and 2.' },
+      { parts: ['18a', E(7), ' ÷ 6a', E(2), ' = ', { box: '3' }, 'a', E('n'), ':     n = ', { box: '5' }], why: '18 ÷ 6 = 3; 7 − 2 = 5.', hint: 'Divide 18 by 6, subtract 2 from 7.' },
+      { parts: ['12x', E(5), 'y', E('−8'), ' ÷ (−15x', E(9), 'y', E(3), ') = ', { box: '-4/5' }, 'x', E('m'), 'y', E('n'), ':     m = ', { box: '-4' }, ',  n = ', { box: '-11' }], why: '12 ÷ (−15) = −4/5; 5 − 9 = −4; −8 − 3 = −11.', hint: 'Reduce 12/15; subtract the exponents.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-pow', prompt: ['Simplify each power. Exponents may be negative.'], build: blanks([
+      { parts: ['(3x', E(3), ')', E(2), ' = ', { box: '9' }, 'x', E('n'), ':     n = ', { box: '6' }], why: '3² = 9; 3 · 2 = 6.', hint: 'Square the 3 as well.' },
+      { parts: ['(−2y', E(4), ')', E(3), ' = ', { box: '-8' }, 'y', E('n'), ':     n = ', { box: '12' }], why: '(−2)³ = −8; 4 · 3 = 12.', hint: 'An odd power of a negative is negative.' },
+      { parts: ['(a', E(2), 'b', E(5), ')', E(4), ' = a', E('m'), 'b', E('n'), ':     m = ', { box: '8' }, ',  n = ', { box: '20' }], why: '2 · 4 = 8; 5 · 4 = 20.', hint: 'Multiply each exponent by 4.' },
+      { parts: ['(8m', E('−3'), 'n', E('−4'), ')', E(2), ' ÷ (4m', E('−5'), 'n', E(2), ')', E(3), ' = m', E('p'), 'n', E('q'), ':     p = ', { box: '9' }, ',  q = ', { box: '-14' }], why: '64m⁻⁶n⁻⁸ ÷ 64m⁻¹⁵n⁶: p = −6 − (−15) = 9, q = −8 − 6 = −14.', hint: 'Do both powers first: 64m⁻⁶n⁻⁸ and 64m⁻¹⁵n⁶.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const TFQ = [
+  { parts: [$m('(x', E(2), ')', E(3), ' = x', E(5))], ans: ['f'], why: 'Multiply the exponents: x⁶.' },
+  { parts: [$m('(2x)', E(3), ' = 2x', E(3))], ans: ['f'], why: 'The 2 is cubed too: 8x³.' },
+  { parts: [$m('x', E(2), ' · x', E(3), ' = x', E(5))], ans: ['t'], why: 'Add the exponents.' },
+  { parts: [$m('(ab)', E(2), ' = a', E(2), 'b', E(2))], ans: ['t'], why: 'The power reaches every factor.' },
+  { parts: [$m('6x', E(4), ' ÷ 2x = 3x', E(3))], ans: ['t'], why: '6 ÷ 2 = 3; 4 − 1 = 3.' },
+  { parts: [$m('4a', E(2), ' · 3a', E(2), ' = 7a', E(4))], ans: ['f'], why: 'Multiply the coefficients: 12a⁴.' },
+];
+boot();
+</script>
+</body>
+</html>

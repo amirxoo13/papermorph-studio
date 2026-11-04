@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Quadratic Equations by Factoring — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 62, title: 'Solving Quadratic Equations by Factoring', minutes: 10, next: '../ch63/' };
+const F1 = COL.whole, F2 = COL.nat, PROD = COL.task, HIT = COL.good, PAR = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const fmt = v => { const r = Math.round(v * 100) / 100; return (r < 0 ? '−' : '') + Math.abs(r).toFixed(Number.isInteger(r) ? 0 : 1); };
+// Worked steps, left-aligned at X; notes on the right.
+const steps = (p, lines, X, y0, gap, size = 50, noteX = 1120) => lines.forEach(([parts, t0, note, fill]) => {
+  mline(p, parts, X, y0, t0, fill || COL.chalk, size, 'start');
+  if (note) text(p, note, noteX, y0 - 8, t0, { size: 26, fill: COL.task, weight: 600 });
+  y0 += gap;
+});
+// Accept two solutions in either order.
+const two = (a, b) => ([p, q]) => Math.abs(p - a) + Math.abs(q - b) < 1e-9 || Math.abs(p - b) + Math.abs(q - a) < 1e-9;
+const solRow = (lead, a, b, why, hint) => ({ parts: [...[].concat(lead), lead.length ? ':     x = ' : 'x = ', { box: String(a) }, '  or  x = ', { box: String(b) }], test: two(rat(String(a)).reduce((n, d) => n / d), rat(String(b)).reduce((n, d) => n / d)), why, hint });
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Solving by factoring', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 12, Chapter 62', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving Quadratic Equations', { x: 800, y: 400, size: 76, weight: 600, anchor: 'middle' });
+    T(g, 'by Factoring', { x: 800, y: 490, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, '(x + 5)(x − 2) = 0', 800, 630, m('sub'), COL.dim, 54);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['zp', 'Zero-product principle', (m) => {
+    const p = panel(0);
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 330, y: 110, width: 940, height: 110, rx: 20, fill: 'none', stroke: PROD, 'stroke-width': 3 }, r);
+    M(r, ['If ab = 0, then a = 0 or b = 0.'], { x: 800, y: 182, size: 52, fill: PROD });
+    show(r, m('rule'));
+    mline(p, '3 · 4 = 12,    (−2)(5) = −10,    0.5 · 6 = 3', 800, 320, m('why'), COL.dim, 40);
+    mline(p, '0 · 7 = 0,    4 · 0 = 0', 800, 400, m('zero'), HIT, 44);
+    const t = tokens(p, [{ t: '(x − 2)', fill: F1 }, { t: '(y − 5)', fill: F2 }, ' = 0'], { x: 800, y: 540, size: 60, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, m('ex')));
+    mline(p, 'x − 2 = 0', 560, 660, m('split'), F1, 50);
+    text(p, 'or', 800, 650, m('split', .3), { size: 34, fill: COL.dim, anchor: 'middle' });
+    mline(p, 'y − 5 = 0', 1040, 660, m('split', .5), F2, 50);
+    mline(p, 'x = 2', 560, 770, m('ans'), HIT, 52);
+    mline(p, 'y = 5', 1040, 770, m('ans', .4), HIT, 52);
+  }],
+  ['watch', 'Where the product is zero', (m) => {
+    const p = panel(0);
+    const NX = v => 140 + (v + 7) * 52, NY = 660;
+    const nl = G(p, { o: 0 });
+    path(nl, `M${NX(-7.3)} ${NY}H${NX(4.3)}`, { stroke: COL.chalk, 'stroke-width': 3 });
+    for (let v = -7; v <= 4; v++) { path(nl, `M${NX(v)} ${NY - 8}V${NY + 8}`, { stroke: COL.dim, 'stroke-width': 2 }); T(nl, num(v), { x: NX(v), y: NY + 34, size: 20, fill: COL.dim, font: MATH, anchor: 'middle' }); }
+    show(nl, m('f'));
+    const rows = [['x', COL.chalk], ['x + 5', F1], ['x − 2', F2], ['(x + 5)(x − 2)', PROD]];
+    const vals = rows.map(([lab, c], i) => {
+      mline(p, lab, 430, 200 + i * 90, m('f', i * .2), c, 42, 'end');
+      text(p, '=', 460, 190 + i * 90, m('f', i * .2), { size: 40, fill: COL.dim });
+      return T(p, '', { x: 520, y: 200 + i * 90, size: 46, font: MATH, fill: c, o: 0 });
+    });
+    vals.forEach(v => show(v, m('f', .8)));
+    const P = plane(p, { cx: 1180, cy: 320, u: 34, x0: -7, x1: 4, y0: -13, y1: 5, t0: m('f'), labels: false });
+    P.layer = p;
+    const f = x => (x + 5) * (x - 2);
+    const dot = put(mk('circle', { r: 13, fill: COL.chalk, stroke: COL.board, 'stroke-width': 3 }, p), { x: NX(-7), y: NY, o: 0 });
+    const gd = put(mk('circle', { r: 10, fill: PROD }, p), { x: P.PX(-7), y: P.PY(f(-7)), o: 0 });
+    show(dot, m('slide')); show(gd, m('graph'));
+    const set = x => {
+      put(dot, { x: NX(x) }); put(gd, { x: P.PX(x), y: P.PY(Math.max(-13, Math.min(5, f(x)))) });
+      [x, x + 5, x - 2, f(x)].forEach((v, i) => { vals[i].textContent = fmt(v); vals[i].setAttribute('fill', i && Math.abs(v) < 1e-6 ? HIT : rows[i][1]); });
+    };
+    prog(q => set(-7 + 2 * q), m('slide', .5), m('a') - m('slide', .5), io);
+    prog(q => set(-5 + 7 * q), m('a', 3.5), m('b') - m('a', 3.5), io);
+    prog(q => set(2 + 1.5 * q), m('b', 3.5), 1.5, io);
+    prog(q => set(3.5 - 4.5 * q), m('else'), 3.5, io);
+    [-5, 2].forEach((v, i) => { const r = put(mk('circle', { r: 18, fill: 'none', stroke: HIT, 'stroke-width': 4 }, p), { x: NX(v), y: NY, o: 0 }); show(r, m(i ? 'b' : 'a', .3)); });
+    P.fn(f, -7, 4, PAR, m('graph'), { dur: 1.6 });
+    [-5, 2].forEach((v, i) => P.dot(v, 0, HIT, m('graph', 1.8 + i * .3), { label: `x = ${num(v)}`, dx: i ? 12 : -12, dy: -18, anchor: i ? 'start' : 'end' }));
+  }],
+  ['steps', 'Three steps', (m) => {
+    const p = panel(0);
+    [['1.  Get 0 on one side.', 's1'], ['2.  Factor.', 's2'], ['3.  Set each factor to 0 and solve.', 's3']].forEach(([s, k], i) => text(p, s, 160, 160 + i * 60, m(k), { size: 32, fill: COL.task, weight: 600 }));
+    steps(p, [
+      [['x', E(2), ' + 3x − 10 = 0'], m('ex')],
+      ['(x + 5)(x − 2) = 0', m('fac'), 'factor'],
+      [['x + 5 = 0   or   x − 2 = 0'], m('sol'), 'each factor = 0'],
+      [['x = −5   or   x = 2'], m('ans'), '', HIT],
+    ], 300, 420, 110);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-solve', prompt: ['Solve ', $m('x', E(2), ' + 7x + 10 = 0'), '.'],
+    build: blanks([solRow([], -2, -5, '(x + 2)(x + 5) = 0.', 'Factor: two numbers that multiply to 10 and add to 7.')]),
+  }], done) }],
+  ['rhs', 'Zero on one side', (m) => {
+    const p = panel(0);
+    steps(p, [
+      [['2x', E(2), ' − 11x = −12'], m('ex')],
+      [['2x', E(2), ' − 11x + 12 = 0'], m('move'), '+12 both sides'],
+      [['(2x − 3)(x − 4) = 0'], m('fac'), 'factor'],
+      [['x = ', F(3, 2), '   or   x = 4'], m('ans'), '', HIT],
+    ], 300, 140, 110);
+    const w = G(p, { o: 0 });
+    mk('rect', { x: 240, y: 600, width: 1120, height: 200, rx: 20, fill: 'none', stroke: COL.bad, 'stroke-width': 3 }, w);
+    M(w, ['(x − 4)(x + 3) = 2'], { x: 560, y: 690, size: 46 });
+    M(w, ['x − 4 = 2  or  x + 3 = 2'], { x: 560, y: 765, size: 40, fill: COL.bad });
+    path(w, 'M370 752H760', { stroke: COL.bad, 'stroke-width': 4 });
+    T(w, 'Only a product of 0 splits like this.', { x: 1000, y: 700, size: 28, fill: COL.bad, weight: 600, anchor: 'middle' });
+    T(w, '1 · 2 = 2, but so does 4 · ½ …', { x: 1000, y: 750, size: 26, fill: COL.dim, anchor: 'middle' });
+    show(w, m('warn'));
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    [['(x − 4)(x − 2) = 3', 'line 1'], ['x − 4 = 3   or   x − 2 = 3', 'line 2'], ['x = 7   or   x = 5', 'line 3']].forEach(([s, l], i) => {
+      text(p, l, 300, 200 + i * 100, .2 + i * .2, { size: 26, fill: COL.dim, weight: 600 });
+      mline(p, s, 440, 210 + i * 100, .2 + i * .2, COL.chalk, 48, 'start');
+    });
+  }, { ask: done => quiz({ x: 260, y: 520, w: 1080, cls: 'side' }, [{
+    id: 'c-err', prompt: ['Eric solved this. On which line is his first mistake?'],
+    build: choice([['line 2'], ['line 3'], ['no mistake']], 0, 'The right side is 3, not 0, so the zero-product principle doesn’t apply. Expand: x² − 6x + 5 = 0, so x = 1 or x = 5.',
+      [null, 'Line 3 follows from line 2; the problem is earlier.', 'Check x = 7: (3)(5) = 15, not 3.']),
+  }], done) }],
+  ['gcf', 'A common factor first', (m) => {
+    const p = panel(0);
+    steps(p, [
+      [['6x', E(2), ' − 4x − 10 = 0'], m('ex')],
+      [['2(3x', E(2), ' − 2x − 5) = 0'], m('g'), 'GCF: 2'],
+      [['2(3x − 5)(x + 1) = 0'], m('f'), 'factor'],
+      [['2 ≠ 0'], m('two'), 'no solution from this factor', COL.dim],
+      [['x = ', F(5, 3), '   or   x = −1'], m('ans'), '', HIT],
+    ], 300, 160, 110);
+  }],
+  ['double', 'One repeated solution', (m) => {
+    const p = panel(0);
+    steps(p, [
+      [['x', E(2), ' − 16x + 64 = 0'], m('ex')],
+      [['(x − 8)(x − 8) = 0'], m('f'), 'perfect square'],
+      [['x = 8'], m('one'), 'one solution', HIT],
+    ], 160, 180, 120, 46, 560);
+    const P = plane(p, { cx: 1080, cy: 720, u: 32, x0: -1, x1: 12, y0: -1, y1: 16, t0: m('graph'), labels: false });
+    P.layer = p;
+    P.fn(x => (x - 8) ** 2, 4, 12, PAR, m('graph', .3));
+    P.dot(8, 0, HIT, m('graph', 1.4), { label: 'x = 8', dy: 34 });
+    text(p, 'touches, doesn’t cross', 1080, 850, m('graph', 1.8), { size: 26, fill: PAR, anchor: 'middle', weight: 600 });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-gcf', prompt: ['Solve ', $m('4x', E(2), ' + 6x = 10'), '.'],
+    build: blanks([solRow([], 1, '-5/2', '4x² + 6x − 10 = 2(2x + 5)(x − 1) = 0.', 'Move 10 to the left, factor out 2, then factor 2x² + 3x − 5.')]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['If ab = 0, then a = 0 or b = 0.', 'w1', PROD], ['Get 0 on one side, then factor.', 'w2', F1],
+     ['Set each factor to 0 and solve.', 'w3', F2], ['Solutions: where the parabola meets the x-axis.', 'w4', PAR]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-fac', prompt: ['Solve. The two solutions can go in either order.'], build: blanks([
+      solRow(['x', E(2), ' − 4x − 21 = 0'], 7, -3, '(x − 7)(x + 3) = 0.'),
+      solRow(['2x', E(2), ' + 9x + 4 = 0'], '-1/2', -4, '(2x + 1)(x + 4) = 0.'),
+      solRow(['3x', E(2), ' + 10x − 8 = 0'], '2/3', -4, '(3x − 2)(x + 4) = 0.'),
+      solRow(['6x', E(2), ' − 13x − 28 = 0'], '-4/3', '7/2', '(3x + 4)(2x − 7) = 0.'),
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-rhs', prompt: ['Get 0 on one side first.'], build: blanks([
+      solRow(['x', E(2), ' = 4x + 32'], -4, 8, 'x² − 4x − 32 = (x + 4)(x − 8) = 0.'),
+      solRow(['(x − 3)(x + 4) = 8'], -5, 4, 'x² + x − 20 = (x + 5)(x − 4) = 0.', 'Multiply out first: x² + x − 12 = 8.'),
+      solRow(['(3x − 4)(2x + 5) = −10'], '5/6', -2, '6x² + 7x − 10 = (6x − 5)(x + 2) = 0.', 'Multiply out first, then add 10.'),
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-more', prompt: ['Solve.'], build: blanks([
+      { parts: ['4x', E(2), ' − 12x + 9 = 0:     x = ', { box: '3/2' }], why: '(2x − 3)² = 0: one solution.', hint: 'It’s a perfect square trinomial.' },
+      solRow(['x', E(2), ' − 49 = 0'], 7, -7, '(x − 7)(x + 7) = 0.', 'Difference of squares.'),
+      solRow(['3x', E(2), ' = 12x'], 0, 4, '3x² − 12x = 3x(x − 4) = 0. Don’t divide by x: you’d lose x = 0.', 'Move 12x over and factor out 3x.'),
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

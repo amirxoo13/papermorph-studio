@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Polynomials — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 51, title: 'Multiplying and Dividing Polynomials', minutes: 10, next: '../ch52/' };
+const CX2 = TS.x2[2], CX = TS.x[2], C1 = TS.one[2], TOP = COL.whole, SIDE = COL.nat;
+const FO = [COL.nat, COL.int, COL.irr, COL.rat];   // first, outer, inner, last
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const pw = (b, e) => [b, E(e)];
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Multiplying polynomials', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 9, Chapter 51', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and Dividing', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Polynomials', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'every term times every term', 800, 620, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['mono', 'Monomial times binomial', (m) => {
+    const p = panel(0);
+    const row = tokens(p, [{ t: pw('x', 2), fill: SIDE }, '(', { t: pw('x', 3), fill: TOP }, ' + ', { t: '7y', fill: TOP }, ')'], { x: 800, y: 230, size: 72, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, .2));
+    arc(p, row[0]._px, 160, row[2]._px, 158, -70, COL.task, m('dist'));
+    arc(p, row[0]._px - 8, 162, row[4]._px, 158, -130, COL.task, m('dist', .5));
+    const A = areaGrid(p, 520, 400, [300, 300], [170], [pw('x', 3), '7y'], [pw('x', 2)], m('box'), { size: 46 });
+    A.cell(0, 0, pw('x', 5), m('c1'), { tint: CX2 });
+    A.cell(0, 1, ['7x', E(2), 'y'], m('c2'), { tint: CX });
+    mline(p, ['x', E(2), '(x', E(3), ' + 7y) = x', E(5), ' + 7x', E(2), 'y'], 800, 720, m('ans'), COL.good, 56);
+    text(p, 'not like terms: done', 800, 790, m('ans', 1.5), { size: 26, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-mono', prompt: ['Multiply ', $m('3m', E(2), 'n', E(3), '(−5m + 7m', E(6), 'n', E(4), ')'), '.'],
+    build: blanks([{ parts: ['= ', { box: '-15' }, 'm', E(3), 'n', E(3), ' + ', { box: '21' }, 'm', E(8), 'n', E(7)], why: '3 · (−5) = −15 and 3 · 7 = 21; add the exponents of m and n.', hint: 'Multiply 3 by −5, then 3 by 7.' }]),
+  }], done) }],
+  ['binom', 'Two binomials', (m) => {
+    const p = panel(0), U = 24, XW = 260;
+    mline(p, '(x + 9)(x + 7)', 1150, 160, .2, COL.chalk, 60);
+    const A = S.bA = areaGrid(p, 260, 230, [XW, 9 * U], [XW, 7 * U], ['x', '9'], ['x', '7'], m('rect'));
+    text(p, 'drawn with x as an unknown length', 497, 850, m('split'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    A.cell(0, 0, ['x', E(2)], m('c1'), { tint: CX2 });
+    A.cell(0, 1, '9x', m('c2'), { tint: CX });
+    A.cell(1, 0, '7x', m('c3'), { tint: CX });
+    A.cell(1, 1, '63', m('c4'), { tint: C1 });
+    A.ring(0, 1, COL.task, m('like')); A.ring(1, 0, COL.task, m('like'));
+    mline(p, ['x', E(2), ' + 9x + 7x + 63'], 1150, 420, m('c4', .6), COL.chalk, 48);
+    mline(p, '7x + 9x = 16x', 1150, 520, m('like', .5), COL.task, 44);
+    mline(p, ['x', E(2), ' + 16x + 63'], 1150, 650, m('ans'), COL.good, 60);
+  }],
+  ['foil', 'FOIL', (m) => {
+    const p = panel(0);
+    const row = tokens(p, ['(', 'a', ' + ', 'b', ')(', 'c', ' + ', 'd', ')'], { x: 560, y: 330, size: 84, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, .2));
+    const X = k => row[k]._px;
+    const pairs = [[1, 5, -120, 'f'], [1, 7, -220, 'o'], [3, 5, 110, 'i'], [3, 7, 200, 'l']];
+    pairs.forEach(([a, b, h, mk2], i) => { const y = h < 0 ? 262 : 350; arc(p, X(a), y, X(b), y, h, FO[i], m(mk2)); });
+    const prod = tokens(p, [{ t: 'ac', fill: FO[0] }, ' + ', { t: 'ad', fill: FO[1] }, ' + ', { t: 'bc', fill: FO[2] }, ' + ', { t: 'bd', fill: FO[3] }], { x: 560, y: 640, size: 64, anchor: 'middle', o: 0 });
+    ['f', 'o', 'i', 'l'].forEach((k, i) => {
+      show(prod[i * 2], m(k, .5)); if (i) show(prod[i * 2 - 1], m(k, .5));
+      text(p, ['First', 'Outer', 'Inner', 'Last'][i], prod[i * 2]._px, 700, m(k, .5), { size: 24, fill: FO[i], anchor: 'middle', weight: 700 });
+    });
+    text(p, 'FOIL', 560, 790, m('word'), { size: 32, fill: COL.task, anchor: 'middle', weight: 600 });
+    const A = areaGrid(p, 1100, 360, [170, 170], [150, 150], ['c', 'd'], ['a', 'b'], m('same'), { size: 44 });
+    [[0, 0, 'ac'], [0, 1, 'ad'], [1, 0, 'bc'], [1, 1, 'bd']].forEach(([i, j, s], k) => A.cell(i, j, s, m('same', .8 + k * .3), { fill: FO[k], tint: FO[k] }));
+    text(p, 'the same four products', 1270, 720, m('same', 2.2), { size: 26, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-foil', prompt: ['Multiply ', $m('(x + 2y)(3x − 4y)'), '.'],
+    build: blanks([{ parts: ['= 3x', E(2), ' + ', { box: '2' }, 'xy − ', { box: '8' }, 'y', E(2)], why: 'F: 3x². O: −4xy. I: 6xy. L: −8y². −4xy + 6xy = 2xy.', hint: 'Outer is x · (−4y) = −4xy and inner is 2y · 3x = 6xy. Combine them.' }]),
+  }], done) }],
+  ['neg', 'Negative terms', (m) => {
+    const p = panel(0);
+    mline(p, '(2x − 3)(x + 5)', 800, 140, m('q'), COL.chalk, 60);
+    const A = areaGrid(p, 380, 300, [260, 260], [170, 170], ['x', '+5'], ['2x', '−3'], m('cells'), { size: 46 });
+    A.cell(0, 0, ['2x', E(2)], m('c1'), { tint: CX2 });
+    A.cell(0, 1, '10x', m('c2'), { tint: CX });
+    A.cell(1, 0, '−3x', m('c3'), { tint: COL.bad, fill: COL.bad });
+    A.cell(1, 1, '−15', m('c4'), { tint: COL.bad, fill: COL.bad });
+    A.ring(0, 1, COL.task, m('like')); A.ring(1, 0, COL.task, m('like'));
+    mline(p, '10x − 3x = 7x', 1260, 420, m('like', .5), COL.task, 44);
+    mline(p, ['2x', E(2), ' + 7x − 15'], 1260, 560, m('ans'), COL.good, 56);
+  }],
+  ['big', 'A bigger grid', (m) => {
+    const p = panel(0);
+    mline(p, ['(x + 2)(x', E(2), ' + 3x − 1)'], 800, 140, m('q'), COL.chalk, 60);
+    const A = S.gA = areaGrid(p, 300, 300, [230, 230, 230], [160, 160], [pw('x', 2), '+3x', '−1'], ['x', '+2'], m('grid'), { size: 44 });
+    const cells = [[0, 0, pw('x', 3), CX2], [0, 1, ['3x', E(2)], CX], [0, 2, '−x', COL.bad], [1, 0, ['2x', E(2)], CX], [1, 1, '6x', C1], [1, 2, '−2', COL.bad]];
+    cells.forEach(([i, j, s], k) => A.cell(i, j, s, m('fill', k * .25)));
+    [[0, 1], [1, 0]].forEach(([i, j]) => A.ring(i, j, COL.int, m('diag', .5)));
+    [[0, 2], [1, 1]].forEach(([i, j]) => A.ring(i, j, COL.irr, m('diag', 3.5)));
+    mline(p, ['3x', E(2), ' + 2x', E(2), ' = 5x', E(2)], 1260, 360, m('diag', 1.5), COL.int, 40);
+    mline(p, '−x + 6x = 5x', 1260, 450, m('diag', 4.5), COL.irr, 40);
+    mline(p, ['x', E(3), ' + 5x', E(2), ' + 5x − 2'], 800, 720, m('ans'), COL.good, 56);
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0);
+    mline(p, '(x − 4)(x + 6)', 420, 160, .2, COL.chalk, 56);
+    const A = S.qA = areaGrid(p, 200, 280, [230, 230], [150, 150], ['x', '+6'], ['x', '−4'], .3, { size: 42 });
+    A.cell(0, 0, ['x', E(2)], .6, { tint: CX2 });
+  }, { ask: done => quiz({ x: 760, y: 240, w: 780, cls: 'side' }, [{
+    id: 'c-grid', prompt: ['Fill in the three cells, then combine.'],
+    build: blanks([
+      { parts: ['cells:   ', { box: '6' }, 'x,     ', { box: '-4' }, 'x,     ', { box: '-24' }], why: 'x · 6 = 6x, −4 · x = −4x, −4 · 6 = −24.', hint: 'Multiply each column term by each row term. Keep the sign of −4.',
+        fx: () => { const L = S.q || qlayer(); [[0, 1, '6x'], [1, 0, '−4x'], [1, 1, '−24']].forEach(([i, j, s], k) => S.qA.cell(i, j, s, k * .2, { run: fx, into: L, tint: CX })); } },
+      { parts: ['product:   x', E(2), ' + ', { box: '2' }, 'x − ', { box: '24' }], why: '6x − 4x = 2x.', hint: 'Combine 6x and −4x.' },
+    ]),
+  }], done) }],
+  ['div', 'Dividing by a monomial', (m) => {
+    const p = panel(0);
+    mline(p, ['(a', E(10), 'b', E(4), ' − a', E(8), 'b', E(5), ') ÷ a', E(2), 'b', E(3)], 800, 140, m('q'), COL.chalk, 52);
+    const one = G(p, { o: 0 });
+    M(one, ['a', E(10), 'b', E(4), ' − a', E(8), 'b', E(5)], { x: 800, y: 290, size: 52 });
+    path(one, 'M600 312H1000', { stroke: COL.chalk, 'stroke-width': 3.5 });
+    M(one, ['a', E(2), 'b', E(3)], { x: 800, y: 380, size: 52, fill: COL.task });
+    show(one, m('q', 2)); hide(one, m('split'), .4);
+    const half = (x, top, col, t0) => {
+      const g = G(p, { o: 0 });
+      M(g, top, { x, y: 290, size: 52, fill: col });
+      path(g, `M${x - 110} 312H${x + 110}`, { stroke: COL.chalk, 'stroke-width': 3.5 });
+      M(g, ['a', E(2), 'b', E(3)], { x, y: 380, size: 52, fill: COL.task });
+      show(g, t0);
+    };
+    half(560, ['a', E(10), 'b', E(4)], TOP, m('split', .2));
+    mline(p, '−', 800, 330, m('split', .2), COL.chalk, 60);
+    half(1040, ['a', E(8), 'b', E(5)], SIDE, m('split', .4));
+    mline(p, ['a', E('10 − 2'), 'b', E('4 − 3'), ' = a', E(8), 'b'], 560, 520, m('t1'), TOP, 44);
+    mline(p, ['a', E('8 − 2'), 'b', E('5 − 3'), ' = a', E(6), 'b', E(2)], 1040, 520, m('t2'), SIDE, 44);
+    mline(p, ['a', E(8), 'b − a', E(6), 'b', E(2)], 800, 680, m('ans'), COL.good, 60);
+  }],
+  ['q4', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-div', prompt: ['Simplify ', $m('(x', E(5), 'y', E(3), ' + x', E(9), 'y', E(6), ') ÷ xy'), '.'],
+    build: choice([[$m('x', E(4), 'y', E(2), ' + x', E(8), 'y', E(5))], [$m('x', E(4), 'y', E(2), ' + x', E(9), 'y', E(6))], [$m('x', E(5), 'y', E(3), ' + x', E(8), 'y', E(5))]], 0, 'Divide each term by xy: subtract 1 from every exponent.',
+      ['Divide the second term by xy too.', null, 'Divide the first term by xy too.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Multiply every term by every term; an area grid keeps track.', 'w1', TOP], ['Two binomials: FOIL, first, outer, inner, last.', 'w2', FO[1]],
+     ['Then combine like terms.', 'w3', COL.task], ['Divide by a monomial: divide each term separately.', 'w4', SIDE]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 170, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 170, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 230, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-mono', prompt: ['Multiply. Fill in the coefficients.'], build: blanks([
+      { parts: ['xy(x', E(3), 'y', E(5), ' − x', E(7), ') = ', { box: '1' }, 'x', E(4), 'y', E(6), ' − ', { box: '1' }, 'x', E(8), 'y'], why: 'xy · x³y⁵ = x⁴y⁶ and xy · x⁷ = x⁸y. The coefficients are 1.', hint: 'A term with no number in front has coefficient 1.' },
+      { parts: ['4a(2a', E(2), ' − 3a + 5) = ', { box: '8' }, 'a', E(3), ' − ', { box: '12' }, 'a', E(2), ' + ', { box: '20' }, 'a'], why: '4a · 2a² = 8a³, 4a · 3a = 12a², 4a · 5 = 20a.', hint: 'Multiply 4a by each of the three terms.' },
+      { parts: ['−2x', E(2), '(x', E(2), ' − 6) = ', { box: '-2' }, 'x', E(4), ' + ', { box: '12' }, 'x', E(2)], why: '−2x² · x² = −2x⁴ and −2x² · (−6) = 12x².', hint: 'Negative times negative is positive.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-bin', prompt: ['Multiply the binomials.'], build: blanks([
+      { parts: ['(x + 3)(x + 5) = x', E(2), ' + ', { box: '8' }, 'x + ', { box: '15' }], why: 'Outer 5x + inner 3x = 8x; last 3 · 5 = 15.', hint: 'FOIL, then combine 5x and 3x.' },
+      { parts: ['(x − 7)(x + 2) = x', E(2), ' − ', { box: '5' }, 'x − ', { box: '14' }], why: '2x − 7x = −5x; −7 · 2 = −14.', hint: 'Combine 2x and −7x.' },
+      { parts: ['(3p', E(3), ' − 2q', E(5), ')(2p', E(6), ' + 5q', E(8), ') = ', { box: '6' }, 'p', E(9), ' + ', { box: '15' }, 'p', E(3), 'q', E(8), ' − ', { box: '4' }, 'p', E(6), 'q', E(5), ' − ', { box: '10' }, 'q', E(13)], why: 'F 6p⁹, O 15p³q⁸, I −4p⁶q⁵, L −10q¹³: no like terms.', hint: 'Four products; none of them combine.' },
+      { parts: ['(2x + 1)(2x − 1) = ', { box: '4' }, 'x', E(2), ' − ', { box: '1' }], why: 'Outer −2x and inner 2x cancel.', hint: 'The middle terms cancel.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-div', prompt: ['Divide. Write the coefficients and exponents.'], build: blanks([
+      { parts: ['(a', E(13), 'b', E(4), ' + a', E(8), 'b', E(10), ') ÷ a', E(6), 'b', E(3), ' = a', E('p'), 'b + a', E(2), 'b', E('q'), ':     p = ', { box: '7' }, ',  q = ', { box: '7' }], why: 'a¹³⁻⁶b⁴⁻³ = a⁷b and a⁸⁻⁶b¹⁰⁻³ = a²b⁷.', hint: 'Subtract the exponents in each term.' },
+      { parts: ['(6m', E(10), 'n', E(3), ' − 8m', E(2), 'n) ÷ 2m', E(8), 'n = ', { box: '3' }, 'm', E(2), 'n', E(2), ' − ', { box: '4' }, 'm', E('k'), ':     k = ', { box: '-6' }], why: '6 ÷ 2 = 3 and 8 ÷ 2 = 4; m: 2 − 8 = −6, so the last term is 4/m⁶.', hint: 'In the second term, n cancels and m has exponent 2 − 8.' },
+      { parts: ['(12x', E(4), ' + 9x', E(3), ' − 3x', E(2), ') ÷ 3x', E(2), ' = ', { box: '4' }, 'x', E(2), ' + ', { box: '3' }, 'x − ', { box: '1' }], why: '12 ÷ 3 = 4, 9 ÷ 3 = 3, 3 ÷ 3 = 1.', hint: 'Divide each of the three terms by 3x².' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Points and Lines — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 31, title: 'Points and lines', minutes: 5, next: '../ch32/' };
+const XC = COL.whole, YC = COL.nat, PT = COL.task;
+const QC = [COL.nat, COL.whole, COL.irr, COL.real];   // quadrant I–IV tints
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 40) => mline(p, parts, 1060, y, t0, fill, size, 'start');
+// The plane lives outside the panels so it stays across steps.
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 540, cy: 450, u: 50, x0: -7, x1: 7, y0: -6, y1: 6, t0 }); return S.P; }
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Points and lines', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 31', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Points and lines', { x: 800, y: 430, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['(x, y)'], 800, 590, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['plane', 'The coordinate plane', (m) => {
+    const p = panel(0), P = makePlane(m('grid')); P.layer = p;
+    const xa = path(p, `M${P.PX(-7.5)} ${P.cy}H${P.PX(7.5)}`, { stroke: XC, 'stroke-width': 6 }, { d: 0 });
+    draw(xa, .2, 1); show(T(p, 'x-axis', { x: P.PX(6.5), y: P.cy - 16, size: 26, fill: XC, weight: 600, anchor: 'middle', o: 0 }), .8);
+    const ya = path(p, `M${P.cx} ${P.PY(-6.5)}V${P.PY(6.5)}`, { stroke: YC, 'stroke-width': 6 }, { d: 0 });
+    draw(ya, m('y'), 1); show(T(p, 'y-axis', { x: P.cx + 16, y: P.PY(6), size: 26, fill: YC, weight: 600, o: 0 }), m('y', .6));
+    P.dot(0, 0, PT, m('origin'), { label: 'origin (0, 0)', dx: -14, dy: 34, anchor: 'end' });
+    hide(xa, m('grid', 1), .6); hide(ya, m('grid', 1), .6);
+    side(p, ['coordinate plane'], 450, m('grid'), COL.chalk, 44);
+  }],
+  ['pair', 'Ordered pairs', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    side(p, ['(x, y)'], 200, .2, COL.chalk, 60);
+    show(T(p, 'x first: right or left', { x: 1060, y: 260, size: 26, fill: XC, weight: 600, o: 0 }), .5);
+    show(T(p, 'then y: up or down', { x: 1060, y: 300, size: 26, fill: YC, weight: 600, o: 0 }), .8);
+    side(p, ['plot (3, 4)'], 420, m('q'), PT);
+    P.walk(3, 4, m('x'), { label: '(3, 4)' });
+    const g2 = G(p, { o: 0 });
+    side(g2, ['(4, 3) is a different point'], 520, m('order'), COL.dim, 32);
+    const d = P.dot(4, 3, COL.dim, m('order', 1), { label: '(4, 3)', r: 8 });
+  }],
+  ['neg', 'Negative coordinates', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    side(p, ['A (−3, −5)'], 250, m('a'), COL.real);
+    P.walk(-3, -5, m('a', .4), { color: COL.real, label: 'A' });
+    side(p, ['B (6, 1)'], 330, m('b'), COL.irr);
+    P.walk(6, 1, m('b', .3), { color: COL.irr, label: 'B' });
+    side(p, ['C (−2, 0)'], 410, m('c'), COL.int);
+    P.walk(-2, 0, m('c', .3), { color: COL.int, label: 'C' });
+    show(T(p, 'C sits on the x-axis', { x: 1060, y: 460, size: 26, fill: COL.dim, o: 0 }), m('c', 3));
+  }],
+  ['q1', 'Quick check', () => { S.P.layer = panel(0); }, { ask: done => quiz(RIGHT, [{
+    id: 'c-plot', prompt: ['Plot the point ', $m('(−4, 2)'), '.'],
+    build: pickPoint(S.P, [-4, 2], 'Four to the left, then two up.',
+      (x, y) => x === 2 && y === -4 ? 'That is (2, −4): x comes first.' : x === 4 ? 'x = −4 means left, not right.' : `You picked (${num(x)}, ${num(y)}). Move 4 left, then 2 up.`,
+      () => S.P.walk(-4, 2, 0, { run: fx, color: COL.good, into: S.q })),
+  }], done) }],
+  ['quad', 'Quadrants', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    [[1, 1, 'I', '(+, +)', 'q1'], [-1, 1, 'II', '(−, +)', 'q2'], [-1, -1, 'III', '(−, −)', 'q3'], [1, -1, 'IV', '(+, −)', 'q4']].forEach(([sx, sy, n, sg, mark], i) => {
+      const r = rect(p, sx > 0 ? P.cx : P.PX(-7), sy > 0 ? P.PY(6) : P.cy, 7 * P.u, 6 * P.u, QC[i]); r.setAttribute('fill-opacity', .14);
+      show(r, m(mark), .4);
+      const g = G(p, { o: 0 });
+      T(g, n, { x: P.PX(3.5 * sx), y: P.PY(3.5 * sy) + 12, size: 48, fill: QC[i], weight: 700, anchor: 'middle' });
+      M(g, [sg], { x: P.PX(3.5 * sx), y: P.PY(3.5 * sy) + 58, size: 30, fill: QC[i] });
+      show(g, m(mark, .2));
+    });
+    const arc = path(p, `M${P.PX(4.5)} ${P.PY(5.2)}A 240 240 0 0 0 ${P.PX(-5)} ${P.PY(1)}`, { stroke: COL.dim, 'stroke-width': 2.5, 'stroke-dasharray': '6 6' }, { d: 0 });
+    draw(arc, m('q2'), 1.5);
+    side(p, ['counterclockwise from top right'], 250, .2, COL.dim, 28);
+    side(p, ['(−2, 0): on an axis, no quadrant'], 400, m('axis'), COL.int, 30);
+  }],
+  ['q2', 'Quick check', () => { S.P.layer = panel(0); }, { ask: done => quiz({ x: 1060, y: 360, w: 520, cls: 'side', maxH: 520 }, [{   // wider and higher than RIGHT: the answer line fits without scrolling
+    id: 'c-quad', prompt: ['Which quadrant holds ', $m('(1, −2)'), '?'],
+    build: choice([['I'], ['II'], ['III'], ['IV']], 3, 'x is positive and y is negative: quadrant IV.',
+      ['Quadrant I needs y positive too.', 'Quadrant II has x negative.', 'Quadrant III has both negative.', null],
+      () => S.P.walk(1, -2, 0, { run: fx, color: COL.good, into: qlayer() })),
+  }], done) }],
+  ['relation', 'Domain and range', (m) => {
+    const p = panel(0), P = S.P; P.layer = p;
+    const pts = [[-5, 1], [-2, 0], [1, -1], [4, -2], [7, -3]];
+    side(p, ['{(−5, 1), (−2, 0), (1, −1),'], 200, m('q'), COL.chalk, 32);
+    side(p, [' (4, −2), (7, −3)}'], 250, m('q'), COL.chalk, 32);
+    pts.forEach(([x, y], i) => P.dot(x, y, PT, m('q', 1 + i * .6), { r: 9 }));
+    pts.forEach(([x, y], i) => draw(path(p, `M${P.PX(x)} ${P.PY(y)}V${P.cy}`, { stroke: XC, 'stroke-width': 2, 'stroke-dasharray': '5 5' }, { d: 0 }), m('dom', i * .2), .4));
+    side(p, ['domain: {−5, −2, 1, 4, 7}'], 380, m('dom', .5), XC, 34);
+    pts.forEach(([x, y], i) => draw(path(p, `M${P.PX(x)} ${P.PY(y)}H${P.cx}`, { stroke: YC, 'stroke-width': 2, 'stroke-dasharray': '5 5' }, { d: 0 }), m('rng', i * .2), .4));
+    side(p, ['range: {−3, −2, −1, 0, 1}'], 460, m('rng', .5), YC, 34);
+    show(T(p, 'sets go in braces { }', { x: 1060, y: 540, size: 26, fill: COL.dim, o: 0 }), m('braces'));
+  }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['(x, y): x first, then y.', 'w1'], ['Quadrants I–IV run counterclockwise from top right.', 'w2'], ['Domain = x values; range = y values.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-quad', prompt: ['Where is each point?'],
+    build: grid(QUADQ, [['1', 'I'], ['2', 'II'], ['3', 'III'], ['4', 'IV'], ['a', 'On an axis']].map(([k, l], i) => [k, l, null, String(i + 1)]), { multi: false }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => { show(S.pg, 0, .4); S.P.layer = panel(0); }, { ask: done => quiz(SORT_SCREEN, [
+    { id: 'p-p1', prompt: ['Plot ', $m('(5, 0)'), '.'], build: pickPoint(S.P, [5, 0], 'Five right, no move up or down.', (x, y) => `You picked (${num(x)}, ${num(y)}).`) },
+    { id: 'p-p2', prompt: ['Plot ', $m('(−7, 3)'), '.'], build: pickPoint(S.P, [-7, 3], 'Seven left, three up.', (x, y) => `You picked (${num(x)}, ${num(y)}).`) },
+    { id: 'p-p3', prompt: ['Plot ', $m('(0, −5)'), '.'], build: pickPoint(S.P, [0, -5], 'No move left or right, five down.', (x, y) => `You picked (${num(x)}, ${num(y)}).`) },
+  ], done, 'Chapter practice 2 of 3,  point') }],
+  ['final3', 'Chapter practice', () => { hide(S.pg, 0, .4); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-dr', prompt: ['Relation: {(9, 2), (4, 7), (−1, 12)}. Fill in each set from least to greatest.'], build: blanks(DRQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const QUADQ = [
+  { parts: ['(−3, −7)'], ans: ['3'], why: 'Both negative.' },
+  { parts: ['(8, 4)'], ans: ['1'], why: 'Both positive.' },
+  { parts: ['(−2, 6)'], ans: ['2'], why: 'x negative, y positive.' },
+  { parts: ['(0, −4)'], ans: ['a'], why: 'x = 0: on the y-axis.' },
+  { parts: ['(5, −1)'], ans: ['4'], why: 'x positive, y negative.' },
+];
+const DRQ = [
+  { parts: ['domain: {', { box: '-1' }, ', ', { box: '4' }, ', ', { box: '9' }, '}'], why: 'The x values: −1, 4, 9.' },
+  { parts: ['range: {', { box: '2' }, ', ', { box: '7' }, ', ', { box: '12' }, '}'], why: 'The y values: 2, 7, 12.' },
+];
+boot();
+</script>
+</body>
+</html>

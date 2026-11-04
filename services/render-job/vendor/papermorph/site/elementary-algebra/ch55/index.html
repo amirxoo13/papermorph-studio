@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring Trinomials When a ≠ 1 — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 55, title: 'Factoring Trinomials When a ≠ 1', minutes: 9, next: '../ch56/' };
+const CA = COL.int, CB = COL.whole, CC = COL.nat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const sgn = (v, first) => first ? num(v) : (v < 0 ? ' − ' : ' + ') + Math.abs(v);
+const term = (k, v, first) => { const s = sgn(k, first); return (Math.abs(k) === 1 ? s.replace(/1$/, '') : s) + v; };
+const tri = (a, b, c) => [term(a, 'x', true), E(2), term(b, 'x'), sgn(c)];
+// The four numbers of (dx + e)(fx + g) must rebuild ax² + bx + c; order and matching sign flips are all fine.
+const fac = (a, b, c) => ([d, e, f, g]) => d * f === a && d * g + e * f === b && e * g === c;
+// Worked steps, left-aligned at X, each with a short note on the right.
+const steps = (p, lines, X, y0, t0s, gap = 96, size = 48) => lines.forEach(([parts, note, fill], i) => {
+  mline(p, parts, X, y0 + i * gap, t0s[i], fill || COL.chalk, size, 'start');
+  if (note) text(p, note, 1200, y0 + i * gap - 8, t0s[i], { size: 26, fill: COL.task, weight: 600 });
+});
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'When a is not 1', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 10, Chapter 55', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Factoring Trinomials', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    M(g, ['When a ≠ 1'], { x: 800, y: 490, size: 80, fill: COL.chalk });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [...tri(2, 7, 5), ' = (x + 1)(2x + 5)'], 800, 630, m('sub'), COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['form', 'Four unknown numbers', (m) => {
+    const p = panel(0);
+    const t = tokens(p, [{ t: '2', fill: CA }, ['x', E(2), ' + '], { t: '7', fill: CB }, 'x + ', { t: '5', fill: CC }], { x: 800, y: 150, size: 64, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, .2));
+    mline(p, '(dx + e)(fx + g)', 800, 290, m('goal'), COL.chalk, 60);
+    mline(p, ['= df\u200Bx', E(2), ' + (dg + ef)x + eg'], 800, 400, m('foil'), COL.chalk, 52);
+    mline(p, 'a = df', 450, 530, m('a'), CA, 50);
+    mline(p, 'c = eg', 800, 530, m('c'), CC, 50);
+    mline(p, 'b = dg + ef', 1150, 530, m('b'), CB, 50);
+    text(p, 'four numbers at once: hard to guess', 800, 680, m('hard'), { size: 30, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['ac', 'The ac method', (m) => {
+    const p = panel(0);
+    mline(p, tri(2, 7, 5), 800, 120, .2, COL.chalk, 60);
+    steps(p, [
+      [['a · c = 2 · 5 = 10'], '1. multiply a and c'],
+      [['2 · 5 = 10,   2 + 5 = 7'], '2. multiply to ac, add to b'],
+      [['2x', E(2), ' + 7x + 5 = 2x', E(2), ' + 2x + 5x + 5'], '3. split the middle term'],
+      [['= 2x(x + 1) + 5(x + 1)'], '4. factor by grouping'],
+      [['= (x + 1)(2x + 5)'], '', HIT],
+    ], 300, 240, [m('mult'), m('pair'), m('split'), m('group'), m('ans')], 110);
+    const pre = M(p, ['2x', E(2), ' + 7x + 5 = 2x', E(2), ' + '], { size: 48, o: 0 })._w, mid = M(p, ['2x + 5x'], { size: 48, o: 0 })._w;   // measure only
+    const sp = put(mk('rect', { x: 300 + pre - 10, y: 412, width: mid + 20, height: 64, rx: 14, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p), { o: 0 });
+    show(sp, m('split', .5)); hide(sp, m('four', 1));
+  }],
+  ['box', 'The grid', (m) => {
+    const p = panel(0);
+    mline(p, tri(2, 7, 5), 800, 120, .2, COL.chalk, 56);
+    const A = areaGrid(p, 560, 280, [260, 260], [170, 170], ['', ''], ['', ''], m('cells'), { size: 48 });
+    A.cell(0, 0, ['2x', E(2)], m('cells', .4), { tint: CA });
+    A.cell(1, 1, '5', m('cells', .9), { tint: CC });
+    A.cell(0, 1, '5x', m('cells', 3.2), { tint: CB });
+    A.cell(1, 0, '2x', m('cells', 3.6), { tint: CB });
+    mline(p, 'x', 536, 381, m('rows'), CC, 48, 'end'); mline(p, '1', 536, 551, m('rows', 1.2), CC, 48, 'end');
+    mline(p, '2x', 690, 258, m('cols'), CB, 48); mline(p, '5', 950, 258, m('cols', 1.2), CB, 48);
+    const r = G(p, { o: 0, x: 800, y: 730 });
+    mk('rect', { x: -330, y: -62, width: 660, height: 96, rx: 18, fill: 'none', stroke: HIT, 'stroke-width': 3 }, r);
+    M(r, ['(x + 1)(2x + 5)'], { y: 4, size: 52, fill: HIT });
+    show(r, m('ans'));
+    [[0, 0], [0, 1], [1, 0], [1, 1]].forEach(([i, j], k) => A.ring(i, j, HIT, m('chk', k * .25)));
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    mline(p, tri(3, 16, 5), 800, 160, .2, COL.chalk, 60);
+    text(p, 'a · c = 15,  b = 16', 800, 240, .4, { size: 30, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 260, y: 320, w: 1080, cls: 'side' }, [{
+    id: 'c-pair', prompt: ['Which two numbers multiply to 15 and add to 16?'],
+    build: choice([[$m('3 and 5')], [$m('1 and 15')], [$m('−1 and −15')]], 1, '1 · 15 = 15 and 1 + 15 = 16: 3x² + x + 15x + 5 = (3x + 1)(x + 5).',
+      ['3 + 5 = 8, not 16.', null, 'Their sum is −16; b is +16.']),
+  }], done) }],
+  ['neg', 'Negative b', (m) => {
+    const p = panel(0);
+    mline(p, tri(3, -10, 8), 800, 120, m('q'), COL.chalk, 60);
+    steps(p, [
+      [['ac = 24,   b = −10'], ''],
+      [['(−4)(−6) = 24,   −4 + (−6) = −10'], 'both negative'],
+      [['= 3x', E(2), ' − 4x − 6x + 8'], 'split'],
+      [['= x(3x − 4) − 2(3x − 4)'], 'group'],
+      [['= (3x − 4)(x − 2)'], '', HIT],
+    ], 300, 240, [m('ac'), m('pair'), m('split'), m('group'), m('ans')], 110);
+  }],
+  ['negc', 'Negative c', (m) => {
+    const p = panel(0);
+    mline(p, tri(5, -28, -12), 800, 120, m('q'), COL.chalk, 60);
+    steps(p, [
+      [['ac = −60,   b = −28'], ''],
+      [['2 · (−30) = −60,   2 + (−30) = −28'], 'opposite signs'],
+      [['= 5x', E(2), ' + 2x − 30x − 12'], 'split'],
+      [['= x(5x + 2) − 6(5x + 2)'], 'group'],
+      [['= (5x + 2)(x − 6)'], '', HIT],
+    ], 300, 250, [m('ac'), m('pair'), m('split'), m('split', 2.5), m('ans')], 110);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-fac', prompt: ['Factor ', $m(...tri(6, 17, 5)), ' as ', $m('(dx + e)(fx + g)'), '.'],
+    build: blanks([{ parts: ['(', { box: '2' }, 'x + ', { box: '5' }, ')(', { box: '3' }, 'x + ', { box: '1' }, ')'], test: fac(6, 17, 5),
+      why: 'ac = 30: 2 · 15 = 30 and 2 + 15 = 17. 6x² + 2x + 15x + 5 = 2x(3x + 1) + 5(3x + 1).', hint: 'ac = 30. Find two numbers that multiply to 30 and add to 17, then split and group.' }]),
+  }], done) }],
+  ['none', 'When nothing works', (m) => {
+    const p = panel(0);
+    mline(p, tri(6, -5, 14), 800, 120, m('q'), COL.chalk, 60);
+    mline(p, 'ac = 84,   b = −5', 800, 210, m('ac'), COL.dim, 40);
+    const pairs = [[-1, -84], [-2, -42], [-3, -28], [-4, -21], [-6, -14], [-7, -12]];
+    pairs.forEach(([d, e], i) => {
+      const x = 330 + (i % 3) * 470, y = 340 + Math.floor(i / 3) * 140;
+      mline(p, `(${num(d)})(${num(e)})`, x, y, m('list', i * .7), COL.chalk, 40);
+      mline(p, `sum ${num(d + e)}`, x, y + 50, m('list', i * .7 + .3), COL.bad, 34);
+    });
+    text(p, 'no pair adds to −5: not factorable with integers', 800, 700, m('nf'), { size: 32, fill: COL.bad, anchor: 'middle', weight: 600 });
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Multiply a · c.', 'w1', CA], ['Find two numbers: product ac, sum b.', 'w2', CB],
+     ['Split the middle term with them; factor by grouping.', 'w3', COL.task], ['No pair? Not factorable with integers.', 'w4', COL.bad]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-fac', prompt: ['Factor as ', $m('(dx + e)(fx + g)'), '. Any correct order works.'], build: blanks(FACQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-can', prompt: ['Can it be factored with integers?'],
+    build: grid(CANQ, [['y', 'Yes', HIT, 'Y'], ['n', 'No', COL.bad, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [
+    { id: 'p-c1', prompt: ['Factor ', $m(...tri(20, -44, -15)), '.'], build: choice([[$m('(10x − 3)(2x + 5)')], [$m('(10x + 3)(2x − 5)')], [$m('(4x − 3)(5x + 5)')]], 1, 'ac = −300: 6 · (−50); 20x² + 6x − 50x − 15 = 2x(10x + 3) − 5(10x + 3).', ['That gives +44x in the middle.', null, 'That gives +5x in the middle.']) },
+    { id: 'p-c2', prompt: ['Factor ', $m(...tri(4, -16, 15)), '.'], build: choice([[$m('(2x − 3)(2x − 5)')], [$m('(4x − 3)(x − 5)')], [$m('(2x + 3)(2x + 5)')]], 0, 'ac = 60: (−6)(−10); 4x² − 6x − 10x + 15.', [null, 'That gives −23x in the middle.', 'That gives +16x in the middle.']) },
+    { id: 'p-c3', prompt: ['Factor ', $m(...tri(2, -15, 28)), '.'], build: choice([[$m('(2x − 4)(x − 7)')], [$m('(x − 4)(2x − 7)')], [$m('(2x − 7)(x + 4)')]], 1, 'ac = 56: (−7)(−8); 2x² − 7x − 8x + 28 = x(2x − 7) − 4(2x − 7).', ['That gives −18x in the middle.', null, 'That gives +x in the middle and −28 at the end.']) },
+  ], done, 'Chapter practice 3 of 3,  question') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const frow = (a, b, c, [d, e, f, g], why) => ({ parts: [...tri(a, b, c), ' = (', { box: String(d) }, 'x + ', { box: String(e) }, ')(', { box: String(f) }, 'x + ', { box: String(g) }, ')'],
+  test: fac(a, b, c), why, hint: `ac = ${num(a * c)}. Find two numbers with product ${num(a * c)} and sum ${num(b)}, split, and group. Type negative numbers like −4.` });
+const FACQ = [
+  frow(3, 16, 5, [1, 5, 3, 1], '(x + 5)(3x + 1).'),
+  frow(7, 17, 6, [7, 3, 1, 2], '(7x + 3)(x + 2).'),
+  frow(6, 31, 35, [3, 5, 2, 7], '(3x + 5)(2x + 7).'),
+  frow(3, -10, 8, [3, -4, 1, -2], '(3x − 4)(x − 2).'),
+];
+const CANQ = [
+  { parts: [$m(...tri(6, -5, 14))], ans: ['n'], why: 'ac = 84; no pair adds to −5.' },
+  { parts: [$m(...tri(2, 7, 3))], ans: ['y'], why: '(2x + 1)(x + 3).' },
+  { parts: [$m(...tri(3, 4, 2))], ans: ['n'], why: 'ac = 6; pairs add to 7 or 5, never 4.' },
+  { parts: [$m(...tri(4, 4, 1))], ans: ['y'], why: '(2x + 1)(2x + 1).' },
+  { parts: [$m(...tri(5, 3, 1))], ans: ['n'], why: 'ac = 5; only 1 + 5 = 6.' },
+  { parts: [$m(...tri(6, 1, -2))], ans: ['y'], why: '(3x + 2)(2x − 1).' },
+];
+boot();
+</script>
+</body>
+</html>

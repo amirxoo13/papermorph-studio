@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tables and Ratios — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 18, title: 'Tables and ratios', minutes: 5, next: '../ch19/' };
+const A = COL.whole, B = COL.nat, U = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A two-column table. rows: [[a, b]] with '' for an empty cell. cell(r, c, text, t0) writes into a cell later.
+function table2(p, x, y, heads, rows, t0, { cw = 220, rh = 64, title } = {}) {
+  const g = G(p, { o: 0 }), top = title ? y + 50 : y;
+  if (title) T(g, title, { x: x + cw, y: y + 34, size: 30, fill: COL.task, weight: 600, anchor: 'middle' });
+  heads.forEach((h, j) => {
+    mk('rect', { x: x + j * cw, y: top, width: cw, height: rh, fill: mix(COL.board, COL.chalk, .07), stroke: COL.dim, 'stroke-width': 2 }, g);
+    T(g, h, { x: x + j * cw + cw / 2, y: top + 42, size: 26, fill: [A, B][j], weight: 600, anchor: 'middle' });
+  });
+  const cells = rows.map((r, i) => r.map((v, j) => {
+    mk('rect', { x: x + j * cw, y: top + (i + 1) * rh, width: cw, height: rh, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, g);
+    return v === '' ? null : T(g, String(v), { x: x + j * cw + cw / 2, y: top + (i + 1) * rh + 44, size: 30, fill: COL.chalk, font: MATH, anchor: 'middle' });
+  }));
+  show(g, t0);
+  const at = (r, c) => [x + c * cw + cw / 2, top + (r + 1) * rh];
+  return {
+    at, rh, cw,
+    cell(r, c, text, t, color = U, run = tw) { const [cx, cy] = at(r, c); const e = T(p, String(text), { x: cx, y: cy + 44, size: 30, fill: color, font: MATH, weight: 600, anchor: 'middle', o: 0 }); run(e, { o: 1 }, t, .4); return e; },
+    hl(r, t, color = U, run = tw) { const [cx, cy] = at(r, 0); const e = put(mk('rect', { x: x + 3, y: cy + 3, width: 2 * cw - 6, height: rh - 6, rx: 6, fill: color, 'fill-opacity': .15 }, p), { o: 0 }); run(e, { o: 1 }, t, .3); return e; },
+    arrow(r1, r2, label, t, color = COL.task, side = 1) {
+      const [, y1] = at(r1, 0), [, y2] = at(r2, 0), xx = side > 0 ? x + 2 * cw + 20 : x - 20;
+      draw(path(p, `M${xx} ${y1 + rh / 2}Q${xx + 60 * side} ${(y1 + y2) / 2 + rh / 2} ${xx} ${y2 + rh / 2}`, { stroke: color, 'stroke-width': 3 }, { d: 0 }), t, .5);
+      show(T(p, label, { x: xx + 70 * side, y: (y1 + y2) / 2 + rh / 2 + 9, size: 26, fill: color, font: MATH, anchor: side > 0 ? 'start' : 'end', o: 0 }), t + .3);
+    },
+  };
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Tables and ratios', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 18', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Tables and ratios', { x: 800, y: 430, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    tw(g, { o: 0, y: -24 }, D - .9, .8);
+  }],
+  ['unitRow', 'The unit rate row', (m) => {
+    const p = panel(0);
+    const Tb = table2(p, 260, 180, ['laps', 'minutes'], [['1', ''], [3, 9], [6, 18], [10, '']], .2);
+    Tb.hl(1, m('r1')); Tb.hl(2, m('r2'));
+    const q = Tb.cell(0, 1, '?', m('q'), COL.task); tw(q, { o: 0 }, m('fill'), .2);
+    mline(p, ['9 ÷ 3 = 3'], 1100, 300, m('div'), COL.chalk, 46);
+    mline(p, ['18 ÷ 6 = 3'], 1100, 380, m('check'), COL.chalk, 46);
+    Tb.cell(0, 1, 3, m('fill', .3)); Tb.hl(0, m('fill', .3));
+    show(T(p, '3 minutes per lap', { x: 1100, y: 470, size: 30, fill: U, weight: 600, anchor: 'middle', o: 0 }), m('fill', .6));
+    Tb.cell(3, 1, 30, m('more', 2)); mline(p, ['10 × 3 = 30'], 1100, 580, m('more', 1), COL.chalk, 46);
+  }],
+  ['scale', 'Scaling rows', (m) => {
+    const p = panel(0);
+    const Tb = table2(p, 460, 200, ['laps', 'minutes'], [[3, 9], [6, 18]], .1);
+    Tb.arrow(0, 1, '× 2', m('x2'), COL.task, -1); Tb.arrow(0, 1, '× 2', m('x2', .3), COL.task, 1);
+    caption(p, 'Multiply both columns by the same number.', m('rule'), 560, COL.task, 32);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.tb = table2(p, 150, 150, ['bulbs', 'minutes'], [['1', ''], [3, 6], ['', 16], [10, '']], .2, { title: 'Val plants bulbs' });
+  }, { ask: done => quiz({ x: 700, y: 150, w: 860, cls: 'side' }, [{
+    id: 'c-table', prompt: ['Fill in the missing numbers, in order from the top.'],
+    build: blanks([
+      { parts: ['1 bulb takes ', { box: '2' }, ' minutes'], why: '6 ÷ 3 = 2.', hint: '6 minutes for 3 bulbs.', fx: () => S.tb.cell(0, 1, 2, 0, U, fx) },
+      { parts: [{ box: '8' }, ' bulbs take 16 minutes'], why: '16 ÷ 2 = 8.', hint: 'How many 2-minute bulbs fit in 16 minutes?', fx: () => S.tb.cell(2, 0, 8, 0, U, fx) },
+      { parts: ['10 bulbs take ', { box: '20' }, ' minutes'], why: '10 × 2 = 20.', hint: 'Multiply by the unit rate.', fx: () => S.tb.cell(3, 1, 20, 0, U, fx) },
+    ]),
+  }], done) }],
+  ['compare', 'Who is faster?', (m) => {
+    const p = panel(0);
+    const An = table2(p, 160, 150, ['laps', 'minutes'], [['1', ''], [3, 12], [7, 28]], m('q'), { title: 'Ann', cw: 180 });
+    const Hi = table2(p, 900, 150, ['laps', 'minutes'], [['1', ''], [2, 10], [4, 20]], m('q', .4), { title: 'Hiro', cw: 180 });
+    An.cell(0, 1, 4, m('ann', 1.5)); An.hl(0, m('ann', 1.5));
+    mline(p, ['12 ÷ 3 = 4 min per lap'], 340, 560, m('ann'), COL.chalk, 38);
+    Hi.cell(0, 1, 5, m('hiro', 1.5)); Hi.hl(0, m('hiro', 1.5));
+    mline(p, ['10 ÷ 2 = 5 min per lap'], 1080, 560, m('hiro'), COL.chalk, 38);
+    caption(p, '4 < 5: Ann takes less time per lap, so Ann is faster', m('who'), 680, COL.good, 32);
+    caption(p, 'fewer minutes per lap = faster', m('warn'), 750, COL.task, 26);
+  }],
+  ['notProp', 'Not proportional', (m) => {
+    const p = panel(0);
+    caption(p, 'Taxi: $3 to start, plus $2 per kilometer', m('q'), 140, COL.chalk);
+    const Tb = table2(p, 260, 200, ['km', 'cost ($)'], [[1, 5], [2, 7], [4, 11]], m('rows'));
+    [['5 ÷ 1 = 5', 0], ['7 ÷ 2 = 3.5', 1], ['11 ÷ 4 = 2.75', 2]].forEach(([s, r], i) => mline(p, [s], 1000, 300 + r * 64, m('test', i * 1.2), COL.bad, 38, 'start'));
+    caption(p, '✗ different ratios: not proportional', m('no'), 560, COL.bad, 32);
+    caption(p, 'Doubling the distance does not double the cost.', m('why'), 640, COL.dim, 28);
+    caption(p, 'Use unit rates only when every row has the same ratio.', m('rule'), 720, COL.task, 28);
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    table2(p, 280, 170, ['pens', 'cost ($)'], [[2, 3], [4, 6], [10, 15]], .2, { title: 'Store A', cw: 180 });
+    table2(p, 960, 170, ['hours', 'pay ($)'], [[1, 12], [2, 20], [3, 28]], .3, { title: 'Job B', cw: 180 });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-prop', prompt: ['Which table is proportional?'],
+    build: choice([['Store A'], ['Job B'], ['Both']], 0, 'Store A: 3 ÷ 2 = 6 ÷ 4 = 15 ÷ 10 = 1.5 in every row. Job B: 12, 10, then about 9.33 per hour.',
+      [null, 'Check Job B: 12 ÷ 1 = 12, but 20 ÷ 2 = 10.', 'Job B’s ratios change from row to row.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Proportional table: every row has the same ratio.', 'w1'], ['Divide to find the unit rate; put it in the 1-row.', 'w2'],
+     ['Fill rows with the unit rate, or scale both columns.', 'w3'], ['Different ratios: not proportional.', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-fill', prompt: ['The tables are proportional. Fill in the missing numbers.'], build: blanks(FILL),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-prop', prompt: ['Is each table proportional?'], build: grid(PROPQ, [['y', 'Proportional', COL.good], ['n', 'Not proportional', COL.bad]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const FILL = [
+  { parts: ['Omar: 2 bulbs in 1 min, 5 bulbs in 2.5 min.  1 bulb: ', { box: '0.5' }, ' min'], why: '1 ÷ 2 = 0.5 minutes per bulb.' },
+  { parts: ['Evan: 8 bulbs in 16 min.  1 bulb: ', { box: '2' }, ' min;  ', { box: '4' }, ' bulbs in 8 min'], why: '16 ÷ 8 = 2 minutes per bulb, and 8 ÷ 2 = 4 bulbs.' },
+  { parts: ['Keisha: 5 bulbs in 7.5 min.  1 bulb: ', { box: '1.5' }, ' min;  ', { box: '6' }, ' bulbs in 9 min'], why: '7.5 ÷ 5 = 1.5, and 9 ÷ 1.5 = 6.' },
+  { parts: ['A car: 3 hours, 180 km.  5 hours: ', { box: '300' }, ' km'], why: '60 km per hour, and 5 × 60 = 300.' },
+];
+const PROPQ = [
+  { parts: ['cups of flour 2, 4, 6  →  cookies 24, 48, 72'], ans: ['y'], why: '12 cookies per cup in every row.' },
+  { parts: ['age 10, 20, 30  →  height 140, 175, 178 cm'], ans: ['n'], why: 'Height does not grow at a constant rate.' },
+  { parts: ['tickets 1, 3, 5  →  cost $8, $24, $40'], ans: ['y'], why: '$8 per ticket in every row.' },
+  { parts: ['songs 1, 2, 4  →  cost $5, $7, $11 (with a $3 fee)'], ans: ['n'], why: '5, 3.5, 2.75: the ratios differ.' },
+];
+const TFQ = [
+  { parts: ['In a proportional table, every row has the same ratio.'], ans: ['t'], why: 'That ratio is the unit rate.' },
+  { parts: ['If 4 laps take 20 minutes, 1 lap takes 5 minutes.'], ans: ['t'], why: '20 ÷ 4 = 5.' },
+  { parts: ['A runner who needs 6 minutes per lap is faster than one who needs 5.'], ans: ['f'], why: 'More minutes per lap is slower.' },
+  { parts: ['Adding 3 to both columns keeps a table proportional.'], ans: ['f'], why: 'Multiply both columns by the same number instead.' },
+];
+boot();
+</script>
+</body>
+</html>

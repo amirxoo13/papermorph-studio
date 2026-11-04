@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Decimals — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 10, title: 'Multiplying and dividing decimals', minutes: 7, next: '../ch11/' };
+const A = COL.whole, B = COL.nat, AB = COL.real;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Multiplying and dividing decimals', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 10', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and dividing decimals', { x: 800, y: 410, size: 70, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = pointRow(scene, '7448', 800, 590, 0, { size: 80 });
+    show(r.g, m('q')); r.hop(0, 3, m('q', .6));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r.g, D - .9, .8);
+  }],
+  ['grid', 'Tenths times tenths', (m) => {
+    const p = panel(0), x0 = 260, y0 = 170, s = 460, u = s / 10;
+    mline(p, ['0.3 × 0.4'], 1130, 220, .2, COL.chalk, 64);
+    const g = G(p, { o: 0 });
+    mk('rect', { x: x0, y: y0, width: s, height: s, fill: 'none', stroke: COL.chalk, 'stroke-width': 3 }, g);
+    for (let i = 1; i < 10; i++) path(g, `M${x0 + i * u} ${y0}V${y0 + s}M${x0} ${y0 + i * u}H${x0 + s}`, { stroke: COL.faint, 'stroke-width': 1.2 });
+    show(g, m('sq'));
+    tw(rect(p, x0, y0, 3 * u, s, A), { o: .4 }, m('a'), .6);
+    bracketH(p, x0, x0 + 3 * u, y0 + s + 24, '0.3', A, m('a', .3));
+    tw(rect(p, x0, y0, s, 4 * u, B), { o: .4 }, m('b'), .6);
+    draw(path(p, `M${x0 - 20} ${y0}V${y0 + 4 * u}`, { stroke: B, 'stroke-width': 3 }, { d: 0 }), m('b', .3), .4);
+    show(T(p, '0.4', { x: x0 - 30, y: y0 + 2 * u + 10, size: 28, fill: B, font: MATH, anchor: 'end', o: 0 }), m('b', .5));
+    const ov = put(mk('rect', { x: x0, y: y0, width: 3 * u, height: 4 * u, fill: 'none', stroke: AB, 'stroke-width': 5 }, p), { o: 0 });
+    show(ov, m('both'));
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) show(T(p, String(j * 3 + i + 1), { x: x0 + (i + .5) * u, y: y0 + (j + .5) * u + 8, size: 20, fill: COL.chalk, font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('both', .5 + (j * 3 + i) * .1));
+    mline(p, ['12 hundredths'], 1130, 360, m('ans'), AB, 44);
+    mline(p, ['0.3 × 0.4 = 0.12'], 1130, 450, m('ans', 2), COL.chalk, 56);
+    caption(p, 'tenths × tenths = hundredths', m('why'), 560, COL.task, 32, 1130);
+  }],
+  ['rule', 'Where the point goes', (m) => {
+    const p = panel(0);
+    mline(p, ['5.32 × 1.4'], 800, 150, m('q'), COL.chalk, 60);
+    show(T(p, '1. no negative signs: positive', { x: 260, y: 260, size: 28, fill: COL.dim, o: 0 }), m('s1'));
+    show(T(p, '2. multiply without the points', { x: 260, y: 330, size: 28, fill: COL.dim, o: 0 }), m('s2'));
+    mline(p, ['532 × 14 = 7448'], 1080, 330, m('s2', 1.5), COL.chalk, 44);
+    show(T(p, '3. count decimal places', { x: 260, y: 400, size: 28, fill: COL.dim, o: 0 }), m('s3'));
+    const c = G(p, { o: 0 });
+    M(c, ['5.32 → 2 places'], { x: 1080, y: 400, size: 40, fill: A });
+    show(c, m('s3', 1.5));
+    mline(p, ['1.4 → 1 place'], 1080, 460, m('s3', 3.5), B, 40);
+    mline(p, ['2 + 1 = 3 places'], 1080, 520, m('s3', 5.5), COL.task, 40);
+    const r = pointRow(p, '7448', 800, 660, 0, { size: 86 });
+    show(r.g, m('hop', -.5)); r.hop(0, 3, m('hop', .4));
+    mline(p, ['5.32 × 1.4 = 7.448'], 800, 780, m('ans'), COL.good, 50);
+    show(T(p, 'estimate: 5 × 1.5 ≈ 7 ✓', { x: 1250, y: 660, size: 28, fill: COL.dim, anchor: 'middle', o: 0 }), m('check'));
+  }],
+  ['zeros', 'Zeros at the end', (m) => {
+    const p = panel(0);
+    mline(p, ['3.12 × (−0.5)'], 800, 150, .2, COL.chalk, 60);
+    show(T(p, 'one negative sign: negative', { x: 800, y: 230, size: 28, fill: NEG, anchor: 'middle', o: 0 }), m('s1'));
+    mline(p, ['312 × 5 = 1560'], 800, 330, m('s2'), COL.chalk, 48);
+    mline(p, ['2 + 1 = 3 places'], 800, 410, m('s3'), COL.task, 40);
+    const r = pointRow(p, '1560', 800, 560, 0, { size: 86, sign: '−' });
+    show(r.g, m('s3', 1)); r.hop(0, 3, m('hop'));
+    tw(r.ds[3], { o: .25 }, m('drop'), .5);
+    const z = path(p, `M${r.px(0) - r.w + 8} 580L${r.px(0) - 8} 510`, { stroke: COL.bad, 'stroke-width': 4 }, { d: 0 });
+    draw(z, m('drop'), .3);
+    mline(p, ['= −1.56'], 800, 700, m('drop', 1.5), NEG, 56);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    mline(p, ['2.5 × 0.13'], 800, 200, .2, COL.chalk, 64);
+    mline(p, ['25 × 13 = 325'], 800, 300, .4, COL.dim, 44);
+    S.q1 = pointRow(p, '0325', 800, 470, 0, { size: 90 });
+    show(S.q1.g, .6);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-point', prompt: ['Which is ', $m('2.5 × 0.13'), '?'],
+    build: choice([['32.5'], ['3.25'], ['0.325']], 2, '2.5 has 1 place and 0.13 has 2, so the product has 3: 0.325. Estimate: 2.5 × 0.1 ≈ 0.25.',
+      ['That has 1 decimal place. Count the places in both factors.', 'That has 2 decimal places. Count the places in both factors: 1 + 2.', null],
+      () => S.q1.hop(0, 3, 0, fx)),
+  }], done) }],
+  ['divMeaning', 'How many fit?', (m) => {
+    const p = panel(0);
+    mline(p, ['2.8 ÷ 0.7'], 800, 150, m('q'), COL.chalk, 60);
+    caption(p, 'How many 0.7s fit in 2.8?', m('ask'), 220, COL.dim);
+    const u = 340, x0 = 250, y0 = 320, cells = [];
+    for (let k = 0; k < 3; k++) {
+      const w = k < 2 ? u : .8 * u;
+      const g = G(p, { o: 0 });
+      mk('rect', { x: x0 + k * (u + 12), y: y0, width: w, height: 80, fill: 'none', stroke: COL.chalk, 'stroke-width': 2.5 }, g);
+      for (let i = 1; i < (k < 2 ? 10 : 8); i++) path(g, `M${x0 + k * (u + 12) + i * u / 10} ${y0}V${y0 + 80}`, { stroke: COL.faint, 'stroke-width': 1.5 });
+      show(g, m('bar', k * .3));
+      for (let i = 0; i < (k < 2 ? 10 : 8); i++) cells.push([x0 + k * (u + 12) + i * u / 10, y0]);
+    }
+    const colors = [A, B, COL.int, COL.irr];
+    cells.forEach(([x, y], i) => {
+      const gI = Math.floor(i / 7), r = rect(p, x + 3, y + 3, u / 10 - 6, 74, colors[gI]);
+      r.setAttribute('fill-opacity', .6); show(r, m('group', gI * .5 + (i % 7) * .05), .2);
+    });
+    for (let gI = 0; gI < 4; gI++) {
+      const [xa] = cells[gI * 7], [xb] = cells[gI * 7 + 6];
+      show(T(p, String(gI + 1), { x: (xa + xb + u / 10) / 2, y: y0 + 140, size: 36, fill: colors[gI], font: MATH, weight: 600, anchor: 'middle', o: 0 }), m('count', gI * .2));
+    }
+    mline(p, ['2.8 ÷ 0.7 = 4'], 560, 620, m('count', 1), COL.chalk, 56);
+    mline(p, ['28 ÷ 7 = 4'], 1060, 620, m('same'), COL.chalk, 56);
+  }],
+  ['scale', 'Scaling both numbers', (m) => {
+    const p = panel(0);
+    [['6 ÷ 2 = 3', 0], ['60 ÷ 20 = 3', .8], ['600 ÷ 200 = 3', 1.6]].forEach(([s, d], i) => mline(p, [s], 350, 180 + i * 70, m('pat', d), COL.dim, 40));
+    caption(p, 'Multiply both by the same 10, 100, 1000: the quotient stays.', m('rule'), 420, COL.task, 28);
+    mline(p, ['−6.912 ÷ 0.03'], 1100, 200, m('ex'), COL.chalk, 52);
+    show(T(p, 'one negative sign: negative', { x: 1100, y: 250, size: 26, fill: NEG, anchor: 'middle', o: 0 }), m('sign'));
+    mline(p, ['× 100:   −691.2 ÷ 3'], 1100, 320, m('hop'), COL.task, 40);
+    mline(p, ['691.2 ÷ 3 = 230.4'], 800, 560, m('div'), COL.chalk, 52);
+    mline(p, ['−6.912 ÷ 0.03 = −230.4'], 800, 680, m('ans'), NEG, 56);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-div', prompt: ['Make the divisor a whole number, then divide.'],
+    build: blanks([{ parts: ['4.5 ÷ 0.09 = ', { box: '450' }, ' ÷ 9 = ', { box: '50' }], why: 'Multiply both by 100: 450 ÷ 9 = 50.', hint: '0.09 × 100 = 9, so multiply 4.5 by 100 too.' }]),
+  }], done) }],
+  ['story', 'Riding speed', (m) => {
+    const p = panel(0), x0 = 200, uT = 480, uD = uT / 13.6;
+    mline(p, ['32.64 kilometers in 2.4 hours'], 800, 150, .2, COL.chalk, 44);
+    const tl = G(p, { o: 0 });
+    path(tl, `M${x0} 300H${x0 + 2.4 * uT}`, { stroke: A, 'stroke-width': 6 });
+    for (let h = 0; h <= 2; h++) { path(tl, `M${x0 + h * uT} 288V312`, { stroke: A, 'stroke-width': 3 }); T(tl, `${h} h`, { x: x0 + h * uT, y: 270, size: 24, fill: A, anchor: 'middle' }); }
+    T(tl, '2.4 h', { x: x0 + 2.4 * uT, y: 270, size: 24, fill: A, anchor: 'middle' });
+    show(tl, m('q'));
+    const dl = G(p, { o: 0 });
+    path(dl, `M${x0} 420H${x0 + 32.64 * uD}`, { stroke: B, 'stroke-width': 6 });
+    T(dl, '32.64 km', { x: x0 + 32.64 * uD, y: 470, size: 24, fill: B, anchor: 'middle' });
+    show(dl, m('q', .5));
+    mline(p, ['32.64 ÷ 2.4 = 326.4 ÷ 24'], 800, 580, m('hop'), COL.chalk, 46);
+    mline(p, ['= 13.6 kilometers per hour'], 800, 670, m('ans'), COL.good, 50);
+    for (let h = 1; h <= 2; h++) {
+      const x = x0 + h * uT;
+      draw(path(p, `M${x} 312V408`, { stroke: COL.task, 'stroke-width': 2.5, 'stroke-dasharray': '6 6' }, { d: 0 }), m('see', (h - 1) * .8), .4);
+      show(T(p, `${(13.6 * h).toFixed(1)} km`, { x, y: 470, size: 24, fill: COL.task, anchor: 'middle', o: 0 }), m('see', (h - 1) * .8 + .3));
+    }
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-round', prompt: ['Sam jogs 19.7 kilometers in 4.5 hours. How far is that each hour, to the nearest hundredth?'],
+    build: blanks([{ parts: ['19.7 ÷ 4.5 ≈ ', { box: '4.38' }], why: '197 ÷ 45 = 4.377…, and the thousandths digit 7 rounds the hundredths up: 4.38.', hint: 'Divide 197 by 45 to three decimal places, then round.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Multiply as whole numbers; count the decimal places in both factors.', 'w1'],
+     ['To divide, scale both numbers until the divisor is whole.', 'w2'], ['Use the sign rules, and check with an estimate.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-calc', prompt: ['Simplify each expression.'], build: blanks(CALC),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-point', prompt: ['Choose the product.'], build: grid(POINTQ, [['a', 'A'], ['b', 'B'], ['c', 'C']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CALC = [
+  { parts: ['6 × (−4.3) = ', { box: '-25.8' }], why: '6 × 43 = 258, one decimal place, negative: −25.8.' },
+  { parts: ['−2.5 × 1.04 = ', { box: '-2.6' }], why: '25 × 104 = 2600, three places: 2.600 = 2.6, negative.' },
+  { parts: ['(−0.6) × (−0.07) = ', { box: '0.042' }], why: '6 × 7 = 42, three places: 0.042, positive.' },
+  { parts: ['(−48.6) ÷ 6 = ', { box: '-8.1' }], why: '48.6 ÷ 6 = 8.1, negative.' },
+  { parts: ['(−12.6) ÷ 0.03 = ', { box: '-420' }], why: 'Multiply both by 100: 1260 ÷ 3 = 420, negative.' },
+  { parts: ['(−7.2) ÷ (−0.9) = ', { box: '8' }], why: 'Multiply both by 10: 72 ÷ 9 = 8, positive.' },
+  { parts: ['−1.5 × 0.4 ÷ (−0.02) = ', { box: '30' }], why: '−1.5 × 0.4 = −0.6; −0.6 ÷ (−0.02) = 60 ÷ 2 = 30.' },
+];
+const POINTQ = [
+  { parts: [$m('0.8 × 0.3'), ':   A ', $m('2.4'), '   B ', $m('0.24'), '   C ', $m('0.024')], ans: ['b'], why: '8 × 3 = 24, two places: 0.24.' },
+  { parts: [$m('1.25 × 4'), ':   A ', $m('5'), '   B ', $m('0.5'), '   C ', $m('50')], ans: ['a'], why: '125 × 4 = 500, two places: 5.00 = 5.' },
+  { parts: [$m('0.05 × 0.2'), ':   A ', $m('0.1'), '   B ', $m('0.01'), '   C ', $m('0.001')], ans: ['b'], why: '5 × 2 = 10, three places: 0.010 = 0.01.' },
+  { parts: [$m('3.6 × 0.5'), ':   A ', $m('18'), '   B ', $m('0.18'), '   C ', $m('1.8')], ans: ['c'], why: '36 × 5 = 180, two places: 1.80 = 1.8.' },
+  { parts: [$m('0.12 × 0.03'), ':   A ', $m('0.0036'), '   B ', $m('0.036'), '   C ', $m('0.36')], ans: ['a'], why: '12 × 3 = 36, four places: 0.0036.' },
+];
+const TFQ = [
+  { parts: ['To multiply decimals, you must line up the decimal points.'], ans: ['f'], why: 'Lining up is for adding and subtracting. For multiplying, count decimal places.' },
+  { parts: [$m('0.4 × 0.2 = 0.8')], ans: ['f'], why: 'Tenths times tenths make hundredths: 0.08.' },
+  { parts: [$m('1.8 ÷ 0.6'), ' has the same answer as ', $m('18 ÷ 6'), '.'], ans: ['t'], why: 'Both numbers were multiplied by 10.' },
+  { parts: ['Multiplying by a number between 0 and 1 makes a positive number smaller.'], ans: ['t'], why: 'You take only part of it: 8 × 0.5 = 4.' },
+  { parts: [$m('(−0.3) × (−0.3) = −0.09')], ans: ['f'], why: 'Two negative signs: 0.09.' },
+  { parts: ['Dividing by 0.5 is the same as multiplying by 2.'], ans: ['t'], why: 'Two halves fit in every whole: 3 ÷ 0.5 = 6.' },
+];
+boot();
+</script>
+</body>
+</html>

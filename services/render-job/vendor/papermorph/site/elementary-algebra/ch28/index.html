@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rewriting Formulas — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 28, title: 'Rewriting formulas', minutes: 5, next: '../ch29/' };
+const TG = COL.task, SOL = COL.good;   // target letter, result
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// Ring around the target letter's position in a line (x, y centre).
+function spot(p, x, y, t0, r = 34) {
+  const g = G(p, { x, y, o: 0 });
+  mk('circle', { r, fill: 'none', stroke: TG, 'stroke-width': 3, 'stroke-dasharray': '7 5' }, g);
+  show(g, t0); pulse(g, t0 + .3, 1.25);
+  return g;
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Rewriting formulas', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 5, Chapter 28', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Rewriting formulas', { x: 800, y: 420, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['A = lw   →   w = ', F('A', 'l')], 800, 600, m('q'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['area', 'Area of a rectangle', (m) => {
+    const p = panel(0), u = 50, x0 = 220, y0 = 260;
+    mline(p, ['A = lw'], 800, 150, .2, COL.chalk, 60);
+    const rc = rect(p, x0, y0, 6 * u, 4 * u, COL.whole); rc.setAttribute('fill-opacity', .35); rc.setAttribute('stroke', COL.whole);
+    show(rc, m('pic'), .5);
+    bracketH(p, x0, x0 + 6 * u, y0 + 4 * u + 24, 'l = 6 cm', COL.whole, m('pic', .5));
+    show(T(p, 'A = 24 cm²', { x: x0 + 3 * u, y: y0 + 2 * u + 10, size: 30, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }), m('pic', 1));
+    show(T(p, 'w = ?', { x: x0 + 6 * u + 20, y: y0 + 2 * u + 10, size: 30, fill: TG, font: MATH, o: 0 }), m('q'));
+    eqLine(p, ['A'], ['lw'], 300, m('solve'), { xEq: 1020, note: '', noteX: 1300 });
+    eqLine(p, [F('A', 'l')], [F('lw', 'l')], 420, m('solve', 2.5), { xEq: 1020 });
+    show(T(p, '÷ l on both sides', { x: 1020, y: 500, size: 26, fill: TG, weight: 600, anchor: 'middle', o: 0 }), m('solve', 2.5));
+    eqLine(p, ['w'], [F('A', 'l')], 600, m('res'), { xEq: 1020, fill: SOL });
+    mline(p, ['w = ', F(24, 6), ' = 4'], 1020, 720, m('use'), SOL, 46);
+    show(T(p, 'centimeters', { x: 1130, y: 712, size: 26, fill: SOL, weight: 600, o: 0 }), m('use'));
+    caption(p, 'one rewrite, any rectangle', m('why'), 780, COL.dim, 28, 400);
+  }],
+  ['steps', 'Letters act like numbers', (m) => {
+    const p = panel(0);
+    caption(p, 'Solve for a:', m('q'), 150, TG, 30, 450);
+    eqLine(p, ['a + 8b'], ['c'], 240, m('q'), { xEq: 450 });
+    spot(p, 450 - 30 - textW('a + 8b', 50) + 12, 222, m('q', .3));
+    show(T(p, '− 8b on both sides', { x: 450, y: 320, size: 26, fill: TG, weight: 600, anchor: 'middle', o: 0 }), m('move'));
+    eqLine(p, ['a'], ['c − 8b'], 420, m('res'), { xEq: 450, fill: SOL });
+    caption(p, 'Solve for x:', m('q2'), 150, TG, 30, 1150);
+    eqLine(p, ['y'], ['mx + b'], 240, m('q2'), { xEq: 1070 });
+    eqLine(p, ['y − b'], ['mx'], 360, m('s1'), { xEq: 1070 });
+    show(T(p, '− b', { x: 1070, y: 300, size: 26, fill: TG, weight: 600, anchor: 'middle', o: 0 }), m('s1'));
+    eqLine(p, [F('y − b', 'm')], [F('mx', 'm')], 490, m('s2'), { xEq: 1070 });
+    show(T(p, '÷ m', { x: 1070, y: 430, size: 26, fill: TG, weight: 600, anchor: 'middle', o: 0 }), m('s2'));
+    eqLine(p, ['x'], [F('y − b', 'm')], 630, m('res2'), { xEq: 1070, fill: SOL });
+  }],
+  ['q1', 'Quick check', () => { panel(0); mline(S.panel, ['P = 2l + 2w'], 800, 250, .2, COL.chalk, 64); }, { ask: done => quiz(BAND, [{
+    id: 'c-rw', prompt: ['The perimeter of a rectangle is ', $m('P = 2l + 2w'), '. Which is solved for w?'],
+    build: choice([[$m('w = P − 2l')], [$m('w = ', F('P − 2l', 2))], [$m('w = ', F('P', 2), ' − 2l')]], 1,
+      'Subtract 2l, then divide both sides by 2: w = (P − 2l)/2.',
+      ['You still need to divide by the 2 in 2w.', null, 'Divide the whole side by 2, including the 2l.']),
+  }], done) }],
+  ['temp', 'Celsius and Fahrenheit', (m) => {
+    const p = panel(0);
+    eqLine(p, ['C'], [F(5, 9), '(F − 32)'], 180, .2, { xEq: 700 });
+    caption(p, 'solve for F', m('q'), 250, TG, 28, 700);
+    eqLine(p, [F(9, 5), 'C'], ['F − 32'], 350, m('s1', 3), { xEq: 700, note: '× 9/5 on both sides' });
+    eqLine(p, [F(9, 5), 'C + 32'], ['F'], 480, m('s2'), { xEq: 700, note: '+ 32 on both sides' });
+    eqLine(p, ['F'], [F(9, 5), 'C + 32'], 610, m('res'), { xEq: 700, fill: SOL });
+    mline(p, ['C = 20:   F = ', F(9, 5), '(20) + 32 = 36 + 32 = 68'], 800, 740, m('use'), COL.dim, 42);
+  }],
+  ['fraction', 'Letters in a denominator', (m) => {
+    const p = panel(0);
+    eqLine(p, [F(2, 'x')], [F(5, 3)], 220, m('q'));
+    eqLine(p, [F(2, 'x'), ' · 3x'], [F(5, 3), ' · 3x'], 380, m('mul'), { note: '× 3x on both sides' });
+    eqLine(p, ['6'], ['5x'], 520, m('res'));
+    eqLine(p, ['x'], [F(6, 5)], 650, m('div'), { fill: SOL, note: '÷ 5' });
+  }],
+  ['q2', 'Quick check', () => { panel(0); mline(S.panel, ['F = ', F(9, 5), 'C + 32'], 800, 250, .2, COL.chalk, 60); }, { ask: done => quiz(BAND, [{
+    id: 'c-use', prompt: ['Water freezes at 0 °C and boils at 100 °C. What are these in Fahrenheit?'],
+    build: blanks([{ parts: ['0 °C = ', { box: '32' }, ' °F,   100 °C = ', { box: '212' }, ' °F'], why: '9/5 · 0 + 32 = 32, and 9/5 · 100 + 32 = 180 + 32 = 212.', hint: 'Put each Celsius value into F = 9/5 C + 32.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Pick the letter you want alone.', 'w1'], ['Treat the other letters like numbers.', 'w2'], ['Undo with inverses, the same on both sides.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-rw', prompt: ['Choose the formula solved for the given letter.'], build: grid(RWQ, [['a', 'A'], ['b', 'B'], ['c', 'C']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-use', prompt: ['Rewrite if needed, then find the value.'], build: blanks(USEQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const RWQ = [
+  { parts: [$m('PV = nRT'), ' for V:   A ', $m('V = nRTP'), '   B ', $m('V = ', F('nRT', 'P')), '   C ', $m('V = nRT − P')], ans: ['b'], why: 'P multiplies V, so divide both sides by P.' },
+  { parts: [$m('C = ', F(1, 2), 'h(a + b)'), ' for h:   A ', $m('h = ', F('2C', 'a + b')), '   B ', $m('h = ', F('C', '2(a + b)')), '   C ', $m('h = 2C − a − b')], ans: ['a'], why: 'Multiply by 2, then divide by (a + b).' },
+  { parts: [$m('D = ', F(1, 2), 'at', E(2)), ' for a:   A ', $m('a = 2Dt', E(2)), '   B ', $m('a = ', F('D', '2t²')), '   C ', $m('a = ', F('2D', 't²'))], ans: ['c'], why: 'Multiply by 2, then divide by t².' },
+  { parts: [$m('d = rt'), ' for t:   A ', $m('t = ', F('d', 'r')), '   B ', $m('t = ', F('r', 'd')), '   C ', $m('t = dr')], ans: ['a'], why: 'r multiplies t, so divide by r.' },
+];
+const USEQ = [
+  { parts: ['Rectangle: A = 45, l = 9. Width w = ', { box: '5' }], why: 'w = A/l = 45/9.' },
+  { parts: ['P = 2l + 2w with P = 30, l = 8. Width w = ', { box: '7' }], why: 'w = (30 − 16)/2 = 7.' },
+  { parts: ['d = rt with d = 150 kilometers, r = 60 kilometers per hour. Time t = ', { box: '2.5' }, ' hours'], why: 't = d/r = 150/60.' },
+  { parts: ['C = ', F(5, 9), '(F − 32) with F = 50. C = ', { box: '10' }], why: '5/9 · 18 = 10.' },
+];
+const TFQ = [
+  { parts: ['To solve ', $m('A = lw'), ' for l, divide both sides by w.'], ans: ['t'], why: 'l = A/w.' },
+  { parts: [$m('y = mx + b'), ' solved for b is ', $m('b = y + mx'), '.'], ans: ['f'], why: 'Subtract mx: b = y − mx.' },
+  { parts: ['When rewriting a formula, other letters can be treated like numbers.'], ans: ['t'], why: 'They stay as they are while you undo operations.' },
+  { parts: ['From ', $m('F = ', F(9, 5), 'C + 32'), ', a temperature of 25 °C is 77 °F.'], ans: ['t'], why: '9/5 · 25 + 32 = 45 + 32 = 77.' },
+];
+boot();
+</script>
+</body>
+</html>

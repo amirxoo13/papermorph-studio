@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Positive and Negative Numbers — Elementary Mathematics</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+<style>
+  .screen .grid.text .row { grid-template-columns: minmax(0, 1fr) auto 40px; }
+  .screen .grid.text .why { padding-left: 0; }
+  .side .grid .row { grid-template-columns: 80px minmax(0, 1fr) 34px; }
+  .side .grid .why { padding-left: 96px; }
+  .blanks .say { display: inline-block; width: 880px; font-size: 30px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 2, title: 'Positive and Negative Numbers', minutes: 8, language: 'en', next: '../ch03/' };
+AXIS.u = 80;   // number line −8…8 across the stage
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500, font = UI } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, font, o: 0 }); show(e, t0); return e; };
+// Sign colour: positive blue, negative coral, zero chalk (engine POS / NEG).
+const pnCol = v => v > 0 ? POS : v < 0 ? NEG : COL.chalk;
+// One side of the number line tinted in its sign colour, kept under the ticks (lives in S.line).
+function pnBand(v0, v1, col, t0) {
+  const b = path(S.line, `M${X(v0)} ${Y0}H${X(v1)}`, { stroke: col, 'stroke-width': 12, opacity: .45, 'stroke-linecap': 'butt' }, { d: 0 });
+  S.line.insertBefore(b, S.line.firstChild);
+  draw(b, t0, 1.1);
+  return b;
+}
+// n unit hops from 0 in direction dir (+1 right, −1 left), one arc per step.
+function pnHops(p, n, dir, t0, col, step = .28) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const a = X(dir * k), b = X(dir * (k + 1));
+    const h = path(p, `M${a} ${Y0 - 14}Q${(a + b) / 2} ${Y0 - 72} ${b} ${Y0 - 14}`, { stroke: col, 'stroke-width': 3 }, { d: 0 });
+    draw(h, t0 + k * step, step, lin); out.push(h);
+  }
+  return out;
+}
+// Flip a dot across zero from a to b along an arc whose top is at y = peak; the dot changes to b's sign colour.
+// Pass g to move an existing dot (from landDot or an earlier flip); returns the dot.
+function pnFlip(p, a, b, t0, { peak = 420, dur = 1.5, g } = {}) {
+  const x1 = X(a), x2 = X(b), cx = (x1 + x2) / 2, cy = 2 * peak - Y0;
+  draw(path(p, `M${x1} ${Y0}Q${cx} ${cy} ${x2} ${Y0}`, { stroke: COL.task, 'stroke-width': 3, opacity: .85 }, { d: 0 }), t0, dur, io);
+  if (!g) {
+    g = G(p, { x: x1, y: Y0, o: 0 });
+    mk('circle', { r: 12, fill: pnCol(a), stroke: COL.board, 'stroke-width': 2 }, g);
+    show(g, t0, .15);
+  }
+  prog(q => { const u = 1 - q; put(g, { x: u * u * x1 + 2 * u * q * cx + q * q * x2, y: u * u * Y0 + 2 * u * q * cy + q * q * Y0 }); }, t0, dur, io);
+  tw(g.firstChild, { c_fill: pnCol(b) }, t0 + dur * .45, .2, lin);
+  return g;
+}
+// A labelled point on the number line: dot, leader, label above.
+function mark(p, v, label, t0, col = pnCol(v)) {
+  const x = X(v);
+  const g = landDot(p, v, t0, col);
+  draw(path(p, `M${x} ${Y0 - 18}V${Y0 - 64}`, { stroke: col, 'stroke-width': 3 }, { d: 0 }), t0 + .2, .3);
+  return [g, mline(p, label, x, Y0 - 102, t0 + .35, col, 40)];
+}
+// Arrowhead over one end of the number line (d = +1 right, −1 left).
+const pnTip = (p, d, col) => path(p, `M${X(8.7 * d) - 15 * d} ${Y0 - 10}L${X(8.7 * d)} ${Y0}L${X(8.7 * d) - 15 * d} ${Y0 + 10}`, { stroke: col, 'stroke-width': 6 }, { o: 0 });
+// Straight arrow with a head, drawn on.
+function pnArrow(p, x1, y1, x2, y2, col, t0, dur = .6) {
+  const a = Math.atan2(y2 - y1, x2 - x1), hx = c => x2 - 16 * Math.cos(a + c), hy = c => y2 - 16 * Math.sin(a + c);
+  draw(path(p, `M${x1} ${y1}L${x2} ${y2}M${hx(.5)} ${hy(.5)}L${x2} ${y2}L${hx(-.5)} ${hy(-.5)}`, { stroke: col, 'stroke-width': 4 }, { d: 0 }), t0, dur);
+}
+// A one-dollar coin.
+function pnCoin(p, x, y) {
+  const g = G(p, { x, y, o: 0 });
+  mk('circle', { r: 28, fill: mix(COL.board, COL.int, .25), stroke: COL.int, 'stroke-width': 3 }, g);
+  T(g, '$1', { y: 8, size: 22, fill: COL.int, weight: 700, anchor: 'middle' });
+  return g;
+}
+// A dot (in its sign colour) and its label pop onto the line as an answer effect.
+function pnDotFx(v, label) {
+  const L = S.q || qlayer();
+  const g = G(L, { x: X(v), y: Y0, s: 0, o: 0 });
+  mk('circle', { r: 12, fill: pnCol(v), stroke: COL.board, 'stroke-width': 2 }, g);
+  fx(g, { s: 1, o: 1 }, 0, .45, back);
+  fx(M(L, [label], { x: X(v), y: Y0 - 36, size: 34, fill: pnCol(v), o: 0 }), { o: 1 }, .25, .4);
+}
+// Tap points on the line, with visible dots at the candidates (from ch01).
+const tapDots = (vals, ...rest) => (body, api) => {
+  const ctl = tap(vals, ...rest)(body, api);
+  for (const v of vals) {
+    const g = landDot(S.q, v, 0, COL.task, fx);
+    g.style.pointerEvents = 'none';
+    S.dots[v] = g;
+  }
+  return ctl;
+};
+// blanks with a sentence before each box (rows: { say: rich text, parts: [{ box }], why, hint }).
+// A leading + and thousands commas are accepted: "+1,250" is read as 1250.
+const pnBlanks = rows => (body, api) => {
+  const ctl = blanks(rows.map(({ say, ...r }) => r))(body, api);
+  body.querySelectorAll('.bline').forEach((ln, i) => ln.prepend(h('span', 'say', [rich(rows[i].say, 30)])));
+  const check = ctl.check;
+  ctl.check = () => {
+    body.querySelectorAll('input.box').forEach(b => { b.value = b.value.replace(/^\s*\+\s*/, '').replace(/(\d),(?=\d{3}\b)/g, '$1'); });
+    check();
+  };
+  return ctl;
+};
+const SIGN_COLS = [['p', 'Positive', POS, 'P'], ['n', 'Negative', NEG, 'N'], ['z', 'Neither', COL.chalk, '0']];
+const Q1POS = { x: 800, y: 50, w: 780, cls: 'side', maxH: 500 };   // above the line, wide enough for three answer buttons
+const WORLD = [
+  ['debt (money you owe)', 'savings (money you keep)', 'r1'],
+  ['temperature below zero', 'temperature above zero', 'r2'],
+  ['below sea level', 'above sea level', 'r3'],
+  ['debit (money taken out)', 'credit (money put in)', 'r4'],
+  ['negative electric charge', 'positive electric charge', 'r5'],
+];
+
+/* ---------- beats: [id, title, run(m, D), { ask }?] ---------- */
+const BEATS = [
+  ['intro', 'Positive and negative numbers', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1 · The Number System · Chapter 2', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Positive and', { x: 800, y: 410, size: 84, weight: 600, anchor: 'middle' });
+    T(g, 'Negative Numbers', { x: 800, y: 510, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const mini = G(scene, { o: 0 });   // a tiny number line: coral left, 0, blue right
+    path(mini, 'M620 590H784', { stroke: NEG, 'stroke-width': 8 });
+    path(mini, 'M816 590H980', { stroke: POS, 'stroke-width': 8 });
+    mk('circle', { cx: 800, cy: 590, r: 9, fill: COL.chalk }, mini);
+    T(mini, '−', { x: 596, y: 603, size: 44, fill: NEG, anchor: 'middle', font: MATH });
+    T(mini, '+', { x: 1004, y: 603, size: 44, fill: POS, anchor: 'middle', font: MATH });
+    show(mini, .9, .8);
+    const r = text(scene, 'Every number except 0 sits on one side of zero.', 800, 690, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8); hide(mini, D - .9, .8);
+  }],
+  ['sides', 'Two sides of zero', (m) => {
+    const p = panel(0);
+    numberLine(.3, -8, 8);
+    const z = landDot(p, 0, m('zero'), COL.chalk);
+    pulse(z, m('zero', .6), 1.6);
+    text(p, '0 is neither positive nor negative', 800, 740, m('zero', 2), { size: 30, anchor: 'middle', weight: 600 });
+    pnBand(.15, 8.55, POS, m('pos'));
+    const lp = text(p, 'positive', X(4.3), 470, m('pos', .6), { size: 46, fill: POS, anchor: 'middle', weight: 700 });
+    text(p, 'greater than 0', X(4.3), 514, m('pos', 1.2), { size: 28, fill: COL.dim, anchor: 'middle' });
+    pnBand(-.15, -8.55, NEG, m('neg'));
+    const ln = text(p, 'negative', X(-4.3), 470, m('neg', .6), { size: 46, fill: NEG, anchor: 'middle', weight: 700 });
+    text(p, 'less than 0', X(-4.3), 514, m('neg', 1.2), { size: 28, fill: COL.dim, anchor: 'middle' });
+    pulse(lp, m('mirror'), 1.2); pulse(ln, m('mirror'), 1.2);
+    for (const [v, k] of [[2, 0], [5, 1]]) { landDot(p, v, m('mirror', .8 + k * .6), POS); landDot(p, -v, m('mirror', .8 + k * .6), NEG); }
+  }],
+  ['signs', 'Writing the signs', (m) => {
+    const p = panel(0);
+    const [d4] = mark(p, 4, ['+4'], m('plus'));
+    mline(p, ['+4 = 4'], X(4), 330, m('same'), POS, 60);
+    text(p, 'the + sign is optional', X(4), 384, m('same', 1), { size: 28, fill: COL.dim, anchor: 'middle' });
+    mark(p, -4, ['−4'], m('minus'));
+    mline(p, ['−4'], X(-4), 330, m('minus', .8), NEG, 60);
+    text(p, 'the − sign is required', X(-4), 384, m('need'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    pulse(d4, m('need', 1.8), 1.8);
+    const tr = pnTip(p, 1, COL.task), tl = pnTip(p, -1, COL.task);
+    show(tr, m('ends'), .3); show(tl, m('ends'), .3);
+    hide(tr, m('inf', 1.2), .5); hide(tl, m('ninf', 1.2), .5);
+    text(p, '∞', 1450, Y0 - 34, m('inf'), { size: 64, fill: POS, anchor: 'middle', font: MATH });
+    text(p, 'infinity', 1450, Y0 - 100, m('inf', .4), { size: 28, fill: POS, anchor: 'middle', weight: 600 });
+    text(p, '−∞', 150, Y0 - 34, m('ninf'), { size: 64, fill: NEG, anchor: 'middle', font: MATH });
+    text(p, 'negative infinity', 150, Y0 - 100, m('ninf', .4), { size: 28, fill: NEG, anchor: 'middle', weight: 600 });
+    text(p, 'Infinity (∞): endless, without any limit', 800, 790, m('word'), { size: 30, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(Q1POS, [{
+    id: 'c-sign', prompt: ['Is each number positive, negative, or neither?'],
+    build: grid([
+      { parts: ['−6'], ans: ['n'], why: 'It has a minus sign: negative, left of 0.', fx: () => pnDotFx(-6, '−6') },
+      { parts: ['+3'], ans: ['p'], why: '+3 is the same as 3: positive, right of 0.', fx: () => pnDotFx(3, '+3') },
+      { parts: ['0'], ans: ['z'], why: '0 is the dividing point: neither positive nor negative.', fx: () => pnDotFx(0, '0') },
+      { parts: ['−1.5'], ans: ['n'], why: 'A decimal can be negative too: −1.5 is less than 0.', fx: () => pnDotFx(-1.5, '−1.5') },
+    ], SIGN_COLS, { multi: false }),
+  }], done) }],
+  ['world', 'Opposite quantities', (m) => {
+    const p = panel(0);
+    draw(path(p, 'M800 150V500', { stroke: COL.dim, 'stroke-width': 2.5 }, { d: 0 }), .3, .6);
+    text(p, '−  negative', 770, 130, .4, { size: 34, fill: NEG, anchor: 'end', weight: 700 });
+    text(p, 'positive  +', 830, 130, .4, { size: 34, fill: POS, weight: 700 });
+    WORLD.forEach(([l, r, k], i) => {
+      const y = 202 + i * 62;
+      tw(T(p, l, { x: 840, y, size: 30, fill: COL.chalk, anchor: 'end', o: 0 }), { o: 1, x: 770 }, m(k), .7, out);
+      tw(T(p, r, { x: 760, y, size: 30, fill: COL.chalk, o: 0 }), { o: 1, x: 830 }, m(k, i === 4 ? .6 : 2.4), .7, out);
+    });
+    pnArrow(p, 770, 540, 470, 540, NEG, m('pair', .5));
+    pnArrow(p, 830, 540, 1130, 540, POS, m('pair', .5));
+  }],
+  ['owe', 'Owing is negative', (m) => {
+    const p = panel(0);
+    text(p, 'Devin borrows $2 from his friend Stanley.', 800, 170, .3, { size: 38, anchor: 'middle', weight: 600 });
+    text(p, 'Devin', 470, 300, m('story', .6), { size: 34, anchor: 'middle', weight: 700 });
+    text(p, 'Stanley', 1130, 300, m('story', 1.2), { size: 34, anchor: 'middle', weight: 700 });
+    const c1 = pnCoin(p, 1100, 370), c2 = pnCoin(p, 1164, 370);
+    show(c1, m('story', 1.6)); show(c2, m('story', 1.8));
+    tw(c1, { x: 438 }, m('coins'), 1.3); tw(c2, { x: 502 }, m('coins', .15), 1.3);
+    text(p, 'owes $2: a debt', 470, 450, m('owes', .4), { size: 30, fill: NEG, anchor: 'middle', weight: 600 });
+    move(p, 0, -2, 535, m('neg'));
+    landDot(p, -2, m('neg', .7), NEG);
+    text(p, 'is owed $2', 1130, 450, m('pos', 1.8), { size: 30, fill: POS, anchor: 'middle', weight: 600 });
+    move(p, 0, 2, 535, m('pos', 3.2));
+    landDot(p, 2, m('pos', 3.9), POS);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [
+    { id: 'c-owe', prompt: ['Ana owes her sister $3. Tap the integer for Ana’s money.'],
+      build: tapDots([-4, -3, 3, 4], -3, 'Owing $3 is a debt: −3, three steps left of 0.',
+        v => v === 3 ? 'Right distance, wrong side. Owing is a debt, so the integer is negative.'
+          : v === 4 ? 'That is 4, and it is positive. Owing $3 is negative, 3 steps from 0.' : 'That is −4, four steps left. Ana owes $3, so count 3 steps.',
+        () => floatText('owes $3 → −3', X(-3), Y0 - 40, COL.good)) },
+    { id: 'c-credit', prompt: ['Ben puts $5 into his bank account. Tap the integer.'],
+      build: tapDots([-6, -5, 5, 6], 5, 'Money put in is a credit: +5, or just 5.',
+        v => v === -5 ? 'Right distance, wrong side. Money put in is positive.'
+          : v === 6 ? 'That is 6. Ben puts in $5, so count 5 steps.' : 'That is −6: negative, and 6 steps away. Money put in is positive.',
+        () => floatText('puts in $5 → +5', X(5), Y0 - 40, COL.good)) },
+  ], done) }],
+  ['vertical', 'Upright number lines', (m) => {
+    const p = panel(0);
+    hide(S.line, m('up'), .4);
+    const Z = 480;   // y of zero on both scales
+    const above = put(mk('rect', { x: 240, y: 170, width: 1220, height: Z - 170, fill: POS }, p), { o: 0 });
+    tw(above, { o: .08 }, m('rule'), .6);
+    const below = put(mk('rect', { x: 240, y: Z, width: 1220, height: 330, fill: NEG }, p), { o: 0 });
+    tw(below, { o: .08 }, m('rule'), .6);
+    const gT = G(p, { o: 0 });
+    const th = thermometer(gT, { x: 430, bottom: 760, top: 200, lo: -30, hi: 30, step: 10, value: 20, color: COL.task });
+    show(gT, m('up'), .6);
+    text(p, '°C', 430, 160, m('up', .3), { size: 26, fill: COL.dim, anchor: 'middle' });
+    mline(p, ['+20°'], 474, th.Yt(20) + 12, m('warm', .6), POS, 40, 'start');
+    th.set(-10, m('drop'), tw, 2.4);
+    mline(p, ['−10°'], 474, th.Yt(-10) + 12, m('cold'), NEG, 40, 'start');
+    // sea level: a second upright scale, in feet
+    const Yf = v => Z - v * 7;
+    vAxis(p, { x: 1150, Yf, lo: -40, hi: 40, step: 10, t0: m('sea') });
+    text(p, 'feet', 1150, 172, m('sea', .3), { size: 26, fill: COL.dim, anchor: 'middle' });
+    const wave = path(p, `M1180 ${Z}q15 -10 30 0t30 0t30 0t30 0t30 0t30 0t30 0t30 0`, { stroke: COL.dim, 'stroke-width': 3 }, { d: 0 });
+    draw(wave, m('sea', .6), .8);
+    text(p, 'sea level', 1436, Z + 8, m('sea', 1), { size: 22, fill: COL.dim, weight: 600 });
+    const gull = G(p, { x: 1300, y: Yf(30), o: 0 });
+    path(gull, 'M-46 4Q-24 -26 0 2Q24 -26 46 4', { stroke: COL.chalk, 'stroke-width': 5 });
+    mk('ellipse', { cy: 4, rx: 12, ry: 7, fill: COL.chalk }, gull);
+    show(gull, m('gull'));
+    const dg = G(p, { x: 1150, y: Yf(30), s: 0, o: 0 }); mk('circle', { r: 10, fill: POS }, dg); pop(dg, m('gull', .4));
+    text(p, '+30 ft', 1372, Yf(30) + 10, m('gull', .8), { size: 32, fill: POS, weight: 600 });
+    const sub = G(p, { x: 1300, y: Yf(-30), o: 0 });
+    mk('ellipse', { rx: 44, ry: 15, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, sub);
+    mk('rect', { x: -10, y: -28, width: 22, height: 14, rx: 3, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, sub);
+    path(sub, 'M4 -28V-40H14', { stroke: COL.chalk, 'stroke-width': 3 });
+    show(sub, m('sub'));
+    const ds = G(p, { x: 1150, y: Yf(-30), s: 0, o: 0 }); mk('circle', { r: 10, fill: NEG }, ds); pop(ds, m('sub', .4));
+    text(p, '−30 ft', 1356, Yf(-30) + 10, m('sub', .8), { size: 32, fill: NEG, weight: 600 });
+    draw(path(p, `M480 ${Z}H1050`, { stroke: COL.chalk, 'stroke-width': 2, opacity: .5 }, { d: 0 }), m('rule'), .8);
+    pnArrow(p, 720, Z - 30, 720, 250, POS, m('rule', .4));
+    text(p, 'above 0:', 750, 330, m('rule', .8), { size: 28, fill: COL.dim });
+    text(p, 'positive', 750, 372, m('rule', .8), { size: 38, fill: POS, weight: 700 });
+    pnArrow(p, 720, Z + 30, 720, 710, NEG, m('rule', 2.6));
+    text(p, 'below 0:', 750, 600, m('rule', 3), { size: 28, fill: COL.dim });
+    text(p, 'negative', 750, 642, m('rule', 3), { size: 38, fill: NEG, weight: 700 });
+  }],
+  ['opposites', 'Opposites', (m) => {
+    const p = panel(0);
+    show(S.line, .2, .5);
+    landDot(p, 5, .4, POS); landDot(p, -5, .6, NEG);
+    const old = pnHops(p, 5, 1, m('five'), POS);
+    old.push(text(p, '5 steps', X(2.5), Y0 - 88, m('five', 1.4), { size: 28, fill: POS, anchor: 'middle', weight: 600 }));
+    old.push(...pnHops(p, 5, -1, m('nfive'), NEG));
+    old.push(text(p, '5 steps', X(-2.5), Y0 - 88, m('nfive', 1.4), { size: 28, fill: NEG, anchor: 'middle', weight: 600 }));
+    old.forEach(e => hide(e, m('flip'), .4));
+    text(p, 'Opposites: same distance from 0, opposite sides', 800, 250, m('opp'), { size: 36, anchor: 'middle', weight: 700 });
+    text(p, '5 and −5 are opposites.', 800, 304, m('opp', 1.4), { size: 30, fill: COL.dim, anchor: 'middle' });
+    pnFlip(p, 5, -5, m('flip', .3), { peak: 400 });
+    landDot(p, 8, m('eight'), POS);
+    pnFlip(p, 8, -8, m('eight', 1.6), { peak: 350, dur: 1.7 });
+    text(p, 'the opposite of 8 is −8', 800, 750, m('eight', 2.6), { size: 32, anchor: 'middle', weight: 600 });
+    const z = landDot(p, 0, m('zero'), COL.chalk);
+    pulse(z, m('zero', 1.4), 1.7);
+    text(p, 'the opposite of 0 is 0', 800, 800, m('zero', 1.2), { size: 32, fill: COL.dim, anchor: 'middle', weight: 600 });
+  }],
+  ['oppopp', 'Opposite of the opposite', (m) => {
+    const p = panel(0);
+    const d = landDot(p, -6, .4, NEG);
+    const home = mk('circle', { cx: X(-6), cy: Y0, r: 24, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p);
+    put(home, { o: 0 }); show(home, m('start'), .4);
+    pnFlip(p, -6, 6, m('first'), { peak: 430, g: d });
+    text(p, 'the opposite of −6 is 6', 800, 750, m('first', .8), { size: 32, anchor: 'middle', weight: 600 });
+    pnFlip(p, 6, -6, m('second', .4), { peak: 340, g: d });
+    text(p, 'the opposite of 6 is −6', 800, 800, m('second', 1.6), { size: 32, anchor: 'middle', weight: 600 });
+    text(p, 'Opposites of opposites property', 800, 200, m('rule'), { size: 32, fill: COL.task, anchor: 'middle', weight: 700 });
+    text(p, 'The opposite of the opposite of a number is the number itself.', 800, 256, m('rule', 1.2), { size: 34, anchor: 'middle', weight: 600 });
+    pulse(d, m('home'), 1.8);
+    tw(home, { 'a_stroke-width': 7 }, m('home'), .3, out); tw(home, { 'a_stroke-width': 3 }, m('home', .35), .5);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [
+    { id: 'c-opp3', prompt: ['Tap the opposite of ', $m('3'), '.'],
+      build: tapDots([-4, -3, 3, 4], -3, 'Flip 3 across 0: −3, the same 3 steps on the other side.',
+        v => v === 3 ? 'That is 3 itself. Its opposite is on the other side of 0.'
+          : v === 4 ? 'That is 4, on the same side as 3. Flip across 0.' : 'That is −4: four steps from 0, but 3 is only three steps away.',
+        () => floatText('opposite of 3 → −3', X(-3), Y0 - 40, COL.good)) },
+    { id: 'c-oppopp', prompt: ['Tap the opposite of the opposite of ', $m('−7'), '.'],
+      build: tapDots([-7, 7], -7, 'Flip twice and you are home: −7 → 7 → −7.',
+        () => 'That is only one flip. The opposite of 7 is −7: flip once more.',
+        () => floatText('back to −7', X(-7), Y0 - 40, COL.good)) },
+  ], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    hide(S.line, 0, .4);
+    [['Positive: greater than 0. Negative: less than 0. 0 is neither.', 'w1'],
+     ['A negative number always shows its − sign; the + is optional.', 'w2'],
+     ['Opposite quantities get opposite signs: owe −2, save +2.', 'w3'],
+     ['Opposites: same distance from 0. Flip twice to get back.', 'w4']].forEach(([str, mk_], i) => {
+      const g = G(p, { x: 69, y: 240 + i * 150, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 85 }, m(mk_), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-quantities', prompt: ['Write the integer for each quantity.'],
+    build: pnBlanks(PRACTICE1),
+  }], done, 'Chapter practice · set 1 of 3') }],
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-opposites', prompt: ['Find each opposite.'],
+    build: pnBlanks(PRACTICE2),
+  }], done, 'Chapter practice · set 2 of 3') }],
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-truefalse', prompt: ['True or false?'],
+    build: grid(PRACTICE3, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice · set 3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- practice data ---------- */
+const PRACTICE1 = [
+  { say: 'A submarine is 250 feet below sea level.', parts: [{ box: '-250' }], why: 'Below sea level is negative: −250.', hint: 'Below sea level is negative.' },
+  { say: 'A plane is 900 feet above the runway.', parts: [{ box: '900' }], why: 'Above is positive: 900 (or +900).', hint: 'Above is positive.' },
+  { say: 'The temperature is 6 degrees below zero.', parts: [{ box: '-6' }], why: 'Below zero is negative: −6.', hint: 'Below zero means negative.' },
+  { say: 'Rosa owes her brother $12.', parts: [{ box: '-12' }], why: 'Owing is a debt: −12.', hint: 'Money you owe is a debt: negative.' },
+  { say: 'Kai has $340 in his savings account.', parts: [{ box: '340' }], why: 'Savings are positive: 340 (or +340).', hint: 'Money you keep is positive.' },
+];
+const PRACTICE2 = [
+  { say: ['The opposite of ', $m('9')], parts: [{ box: '-9' }], why: 'Flip 9 across 0: −9.', hint: 'Same distance from 0, other side.' },
+  { say: ['The opposite of ', $m('−100')], parts: [{ box: '100' }], why: 'Flip −100 across 0: 100.', hint: 'The opposite of a negative number is positive.' },
+  { say: ['The opposite of the opposite of ', $m('58')], parts: [{ box: '58' }], why: '58 → −58 → 58: the number itself.', hint: 'Flip twice: where do you end up?' },
+  { say: ['The opposite of the opposite of ', $m('−35')], parts: [{ box: '-35' }], why: '−35 → 35 → −35: the number itself.', hint: 'Two flips bring you home.' },
+  { say: ['The opposite of ', $m('0')], parts: [{ box: '0' }], why: '0 does not move when you flip it: its opposite is 0.', hint: 'Flipping 0 across 0 leaves it where it is.' },
+];
+const PRACTICE3 = [
+  { parts: [$m('+7'), ' and ', $m('7'), ' are the same number.'], ans: ['t'], why: 'The + sign is optional: +7 and 7 are the same.' },
+  { parts: [$m('0'), ' is a positive number.'], ans: ['f'], why: '0 is neither positive nor negative.' },
+  { parts: [$m('−3'), ' and ', $m('3'), ' are the same distance from 0.'], ans: ['t'], why: 'Both are 3 steps from 0, on opposite sides: they are opposites.' },
+  { parts: ['On a thermometer, temperatures below 0 are negative.'], ans: ['t'], why: 'On an upright number line, below 0 is negative.' },
+  { parts: ['The opposite of a negative number is negative.'], ans: ['f'], why: 'Flipping across 0 changes the side: the opposite of a negative number is positive.' },
+];
+boot();
+</script>
+</body>
+</html>

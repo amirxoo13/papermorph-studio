@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probability — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 42, title: 'Probability', minutes: 10, next: '../ch43/' };
+const FAV = COL.task, POSS = COL.whole, HEADS = COL.int, TAILS = COL.rat;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+function branch(p, x1, y1, x2, y2, t0, color = COL.dim, run = tw) {
+  const l = path(p, `M${x1} ${y1}L${x2} ${y2}`, { stroke: color, 'stroke-width': 3 }, { d: 0 });
+  run(l, { d: 1 }, t0, .4);
+  return l;
+}
+// Simple clothing icons, centred on (x, y).
+function shirt(p, x, y, color, s = 1) {
+  const g = G(p, { x, y, s: .5 * s, o: 0 });
+  path(g, 'M-18 -30L-44 -18L-36 2L-24 -4V32H24V-4L36 2L44 -18L18 -30Q0 -16 -18 -30Z', { fill: mix(COL.board, color, .6), stroke: color, 'stroke-width': 3 });
+  g._s = s;
+  return g;
+}
+function pants(p, x, y, color, s = 1) {
+  const g = G(p, { x, y, s: .5 * s, o: 0 });
+  path(g, 'M-26 -32H26L30 34H8L0 -6L-8 34H-30Z', { fill: mix(COL.board, color, .6), stroke: color, 'stroke-width': 3 });
+  g._s = s;
+  return g;
+}
+const grow = (e, t0) => tw(e, { s: e._s || 1, o: 1 }, t0, .45, back);
+
+/* ---------- data ---------- */
+const PL = { x0: 240, x1: 1360, y: 600 }, PX = v => PL.x0 + v * (PL.x1 - PL.x0);
+const TREE = { root: [190, 450], l1: [430, [300, 600]], l2: 720, gap: 44 };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Probability', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 7, Chapter 42', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Probability', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['0  ≤  ', 'P', '  ≤  1'], 800, 600, m('sub'), COL.dim, 46);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['terms', 'Outcomes and events', (m) => {
+    const p = panel(0);
+    text(p, 'action', 160, 170, m('act'), { size: 28, fill: COL.dim, weight: 600 });
+    text(p, 'roll a number cube once', 360, 170, m('act'), { size: 30 });
+    const big = die(p, 5, 1300, 200, 120);
+    tw(big, { s: 1, o: 1, r: 360 }, m('act', .3), 1, out);
+    text(p, 'outcomes', 160, 330, m('out'), { size: 28, fill: COL.dim, weight: 600 });
+    const faces = S.faces = [1, 2, 3, 4, 5, 6].map((n, i) => { const d = die(p, n, 420 + i * 150, 320); pop(d, m('out', .4 + i * .35)); return d; });
+    text(p, 'event', 160, 510, m('ev'), { size: 28, fill: COL.dim, weight: 600 });
+    text(p, 'roll an even number', 360, 510, m('ev'), { size: 30 });
+    [1, 3, 5].forEach((k, i) => { tw(faces[k]._box, { c_stroke: FAV, 'a_stroke-width': 6 }, m('fav', i * .4), .3); tw(faces[k], { y: 300 }, m('fav', i * .4), .3, out); });
+    text(p, 'favorable outcomes: 2, 4, 6', 360, 580, m('fav', 1.2), { size: 30, fill: FAV, weight: 600 });
+    text(p, 'fair cube: each face equally likely', 360, 720, m('eq'), { size: 28, fill: COL.dim });
+    [0, 1, 2, 3, 4, 5].forEach(i => pulse(faces[i], m('eq', .5 + i * .12), 1.12));
+  }],
+  ['formula', 'The probability ratio', (m) => {
+    const p = panel(0);
+    const faces = [1, 2, 3, 4, 5, 6].map((n, i) => { const d = die(p, n, 420 + i * 150, 200, 96, 1); if (n % 2 === 0) put(d._box, { c_stroke: FAV, 'a_stroke-width': 6 }); return d; });
+    const g = G(p, { o: 0 });
+    T(g, 'P(event) =', { x: 560, y: 470, size: 40, anchor: 'end', weight: 600 });
+    T(g, 'number of favorable outcomes', { x: 840, y: 440, size: 32, fill: FAV, anchor: 'middle' });
+    path(g, 'M600 455H1080', { stroke: COL.chalk, 'stroke-width': 3 });
+    T(g, 'number of possible outcomes', { x: 840, y: 500, size: 32, fill: POSS, anchor: 'middle' });
+    show(g, m('def'));
+    // Copies of the favorable faces fly to the numerator; all six to the denominator.
+    [1, 3, 5].forEach((k, i) => { const c = die(p, k + 1, 420 + k * 150, 200, 96, 1); put(c._box, { c_stroke: FAV }); tw(c, { x: 640 + i * 60, y: 650, s: .45 }, m('num', i * .2), .7); });
+    faces.forEach((f, i) => { const c = die(p, i + 1, 420 + i * 150, 200, 96, 1); tw(c, { x: 580 + i * 50, y: 760, s: .4 }, m('den', i * .1), .7); });
+    const row = tokens(p, [['P(even) = ', F(3, 6)], [' = ', F(1, 2)], { t: ' = 50%', fill: COL.good }], { x: 1260, y: 720, size: 60, anchor: 'middle', o: 0 });
+    ['frac', 'simp', 'pct'].forEach((k, i) => show(row[i], m(k)));
+    text(p, '3 favorable', 500, 610, m('num', .8), { size: 24, fill: FAV, anchor: 'middle' });
+    text(p, '6 possible', 500, 820, m('den', .8), { size: 24, fill: POSS, anchor: 'middle' });
+  }],
+  ['scale', 'From 0 to 1', (m) => {
+    const p = panel(0), y = PL.y;
+    const band = G(p, { o: 0 });
+    const grad = mk('linearGradient', { id: 'pgrad' }, mk('defs', {}, band));
+    [[0, COL.bad], [.5, COL.int], [1, COL.good]].forEach(([o, c]) => mk('stop', { offset: o, 'stop-color': c }, grad));
+    mk('rect', { x: PL.x0, y: y - 10, width: PL.x1 - PL.x0, height: 20, rx: 10, fill: 'url(#pgrad)', opacity: .55 }, band);
+    [[0, '0'], [.5, '½'], [1, '1']].forEach(([v, s]) => { path(band, `M${PX(v)} ${y - 18}V${y + 18}`, { stroke: COL.chalk, 'stroke-width': 3 }); T(band, s, { x: PX(v), y: y + 56, size: 34, font: MATH, anchor: 'middle' }); });
+    [[0, 'impossible'], [.25, 'unlikely'], [.5, 'equally likely'], [.75, 'likely'], [1, 'certain']].forEach(([v, s]) => T(band, s, { x: PX(v), y: y + 100, size: 24, fill: COL.dim, anchor: 'middle' }));
+    show(band, .2);
+    const pin = (v, label, parts, h, t0, color) => {
+      const g = G(p, { x: PX(v), y: y - 420, o: 0 });
+      path(g, `M0 ${h - 4}V${380 - 14}`, { stroke: color, 'stroke-width': 2.5, 'stroke-dasharray': '5 6' });
+      mk('circle', { cy: 380, r: 12, fill: color, stroke: COL.board, 'stroke-width': 3 }, g);
+      T(g, label, { y: h - 46, size: 24, fill: color, anchor: 'middle', weight: 600 });
+      M(g, parts, { y: h - 8, size: 34, fill: color });
+      show(g, t0, .3); tw(g, { y: y - 380 }, t0, .6, back);
+    };
+    pin(0, 'roll a 7', ['0'], 120, m('zero'), COL.bad);
+    pin(1, 'roll less than 7', ['1'], 120, m('one'), COL.good);
+    pin(.5, 'roll an even number', [F(1, 2)], 120, m('half'), COL.int);
+    pin(1 / 6, 'roll a 6', [F(1, 6)], 250, m('six'), COL.nat);
+    pin(5 / 6, 'roll more than 1', [F(5, 6)], 250, m('more'), COL.irr);
+    const pc = G(p, { o: 0 });
+    [[0, '0%'], [.5, '50%'], [1, '100%']].forEach(([v, s]) => T(pc, s, { x: PX(v), y: y + 150, size: 30, fill: COL.task, font: MATH, anchor: 'middle', weight: 600 }));
+    show(pc, m('pct'));
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.sp = spinner(p, 460, 450, 270, .2);
+    text(p, '8 equal sections', 460, 790, .3, { size: 26, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 900, y: 220, w: 560, cls: 'side' }, [{
+    id: 'c-blue', prompt: ['What is the probability of landing on blue?'],
+    build: blanks([{ parts: ['P(blue) = ', { box: '3/8' }], why: '3 of the 8 equal sections are blue.', hint: 'Count the blue sections, then count all the sections.',
+      fx: () => outline(S.q || qlayer(), S.sp, [0, 3, 6], COL.good, 0, fx) }]),
+  }], done) }],
+  ['or', 'Red or yellow', (m) => {
+    const p = panel(0), sp = spinner(p, 460, 450, 270, 0);
+    mline(p, 'P(red or yellow) = ?', 900, 220, m('ask'), COL.chalk, 46, 'start');
+    outline(p, sp, [1, 5], COL.nat, m('fav'));
+    outline(p, sp, [2, 7], COL.int, m('fav', 1.5));
+    mline(p, '2 red + 2 yellow = 4', 900, 330, m('fav', 1), COL.chalk, 40, 'start');
+    mline(p, ['P(red or yellow) = ', F(4, 8), ' = ', F(1, 2)], 900, 450, m('frac'), COL.good, 46, 'start');
+    text(p, 'One spin can’t be red and yellow at once,', 900, 560, m('why'), { size: 26, fill: COL.dim });
+    text(p, 'so the two counts add.', 900, 598, m('why'), { size: 26, fill: COL.dim });
+    tw(sp.ptr, { r: 720 + sp.land(5) }, m('spin'), 3, out);
+  }],
+  ['sample', 'Sample space', (m) => {
+    const p = panel(0);
+    text(p, 'flip a coin twice', 160, 150, m('two'), { size: 30, fill: COL.dim });
+    const rows = [['H', 'H'], ['H', 'T'], ['T', 'H'], ['T', 'T']];
+    const tb = G(p, { o: 0 });
+    T(tb, '1st flip', { x: 320, y: 230, size: 24, fill: COL.dim, anchor: 'middle' });
+    T(tb, '2nd flip', { x: 460, y: 230, size: 24, fill: COL.dim, anchor: 'middle' });
+    show(tb, m('two'));
+    rows.forEach(([a, b], i) => { coin(p, a, 320, 300 + i * 110, m('list', i * 1.4)); coin(p, b, 460, 300 + i * 110, m('list', i * 1.4 + .3)); });
+    const brace = path(p, 'M560 260Q590 260 590 300V420Q590 455 615 455Q590 455 590 490V610Q590 650 560 650', { stroke: COL.task, 'stroke-width': 3 }, { d: 0 });
+    draw(brace, m('space'), .6);
+    text(p, 'sample space: 4 outcomes', 640, 465, m('space', .3), { size: 30, fill: COL.task, weight: 600 });
+    [1, 2].forEach(i => { const r = put(mk('rect', { x: 270, y: 300 + i * 110 - 44, width: 240, height: 88, rx: 16, fill: 'none', stroke: COL.irr, 'stroke-width': 3 }, p), { o: 0 }); tw(r, { o: 1 }, m('order'), .3); tw(r, { o: 0 }, m('hh', -.3), .3); });
+    text(p, 'HT and TH are different outcomes', 640, 540, m('order', .4), { size: 26, fill: COL.irr });
+    const r0 = put(mk('rect', { x: 270, y: 256, width: 240, height: 88, rx: 16, fill: 'none', stroke: COL.good, 'stroke-width': 4 }, p), { o: 0 });
+    show(r0, m('hh'));
+    mline(p, ['P(two heads) = ', F(1, 4), ' = 25%'], 640, 680, m('hh', .5), COL.good, 46, 'start');
+  }],
+  ['tree', 'Tree diagrams', (m) => {
+    const p = panel(0), [rx, ry] = TREE.root, [x1, ys1] = TREE.l1;
+    const root = put(mk('circle', { r: 10, fill: COL.chalk }, p), { x: rx, y: ry, o: 0 }); show(root, m('coin'));
+    text(p, 'coin', x1, 140, m('coin'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    text(p, 'number cube', TREE.l2, 140, m('die'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    S.leaves = [];
+    ['H', 'T'].forEach((side, a) => {
+      const y1 = ys1[a];
+      branch(p, rx, ry, x1 - 36, y1, m('coin', .3 + a * .3));
+      coin(p, side, x1, y1, m('coin', .6 + a * .3));
+      for (let n = 1; n <= 6; n++) {
+        const y2 = y1 + (n - 3.5) * TREE.gap, t = m('die', a * .9 + n * .1);
+        branch(p, x1 + 36, y1, TREE.l2 - 26, y2, t);
+        const lab = M(p, [String(n)], { x: TREE.l2, y: y2 + 10, size: 28, o: 0 });
+        show(lab, t + .2);
+        const out = T(p, `${side}${n}`, { x: TREE.l2 + 135, y: y2 + 9, size: 26, fill: side === 'H' ? HEADS : TAILS, weight: 600, anchor: 'middle', o: 0 });
+        show(out, m('leaves', (a * 6 + n - 1) * .18));
+        S.leaves.push({ side, n, y: y2, out });
+      }
+    });
+    mline(p, '2 × 6 = 12 outcomes', 1120, 300, m('leaves', 2.4), COL.chalk, 40, 'start');
+    const hit = put(mk('rect', { x: TREE.l2 + 90, y: S.leaves[5].y - 24, width: 90, height: 44, rx: 12, fill: 'none', stroke: COL.good, 'stroke-width': 3.5 }, p), { o: 0 });
+    show(hit, m('ev'));
+    mline(p, ['P(heads and 6) = ', F(1, 12)], 1120, 420, m('one'), COL.good, 40, 'start');
+  }],
+  ['q2', 'Quick check', () => {}, { ask: done => quiz({ x: 1040, y: 465, w: 530, cls: 'side' }, [{   // wide and high enough that the answer and Continue stay above the controls
+    id: 'c-tree', prompt: ['What is the probability of tails and an even number?'],
+    build: blanks([{ parts: ['P = ', { box: '1/4' }], why: 'T2, T4 and T6: 3 of the 12 outcomes, and 3/12 = 1/4.', hint: 'Count the outcomes that start with T and end in 2, 4 or 6.',
+      fx: () => { const L = S.q || qlayer(); S.leaves.filter(l => l.side === 'T' && l.n % 2 === 0).forEach((l, i) => fx(put(mk('rect', { x: TREE.l2 + 90, y: l.y - 24, width: 90, height: 44, rx: 12, fill: 'none', stroke: COL.good, 'stroke-width': 3.5 }, L), { o: 0 }), { o: 1 }, i * .2, .3)); } }]),
+  }], done) }],
+  ['count', 'Counting principle', (m) => {
+    const p = panel(0);
+    const rule = G(p, { o: 0 });
+    T(rule, 'a ways, then b ways:', { x: 800, y: 130, size: 32, fill: COL.dim, anchor: 'middle' });
+    M(rule, ['a × b  ways in all'], { x: 800, y: 185, size: 44, fill: COL.task });
+    show(rule, m('rule'));
+    const SC = [COL.whole, COL.nat, COL.int, COL.irr], PC = [COL.real, COL.rat, COL.dim];
+    SC.forEach((c, j) => grow(shirt(p, 560 + j * 190, 300, c), m('shirts', j * .2)));
+    PC.forEach((c, i) => grow(pants(p, 330, 430 + i * 130, c), m('pants', i * .2)));
+    text(p, '4 shirts', 845, 250, m('shirts'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    text(p, '3 pants', 210, 560, m('pants'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    PC.forEach((pc, i) => SC.forEach((sc, j) => {
+      const t = m('grid', (i * 4 + j) * .14), x = 560 + j * 190, y = 430 + i * 130;
+      const cell = put(mk('rect', { x: x - 80, y: y - 58, width: 160, height: 116, rx: 14, fill: mix(COL.board, COL.chalk, .05), stroke: COL.faint, 'stroke-width': 2 }, p), { o: 0 });
+      show(cell, t, .3);
+      grow(shirt(p, x - 30, y, sc, .8), t); grow(pants(p, x + 32, y, pc, .8), t + .1);
+    }));
+    mline(p, '4 × 3 = 12 outfits', 1410, 560, m('grid', 1.8), COL.good, 44);
+    text(p, 'every shirt with every pair', 1410, 620, m('each'), { size: 24, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['coins', 'Three flips', (m) => {
+    const p = panel(0);
+    text(p, 'flip a coin 3 times', 160, 130, m('flip'), { size: 30, fill: COL.dim });
+    const lev = [[200, [450]], [420, [300, 600]], [640, [225, 375, 525, 675]], [860, [190, 265, 340, 415, 485, 560, 635, 710]]];
+    put(mk('circle', { r: 10, fill: COL.chalk }, p), { x: 200, y: 450 });
+    for (let L = 1; L <= 3; L++) {
+      const [x, ys] = lev[L], [px, pys] = lev[L - 1], t = m('branch', (L - 1) * 1.4);
+      ys.forEach((y, k) => {
+        const parent = pys[k >> 1], side = k % 2 ? 'T' : 'H';
+        branch(p, px + (L > 1 ? 26 : 0), parent, x - 26, y, t + k * .05);
+        coin(p, side, x, y, t + .3 + k * .05, 22);
+      });
+      text(p, `${2 ** L} paths`, x, 790, t + .5, { size: 26, fill: COL.task, anchor: 'middle', weight: 600 });
+    }
+    mline(p, '2 × 2 × 2 = 8', 1050, 400, m('mult'), COL.good, 56, 'start');
+    mline(p, '2 × 3 = 6', 1050, 540, m('warn'), COL.bad, 48, 'start');
+    draw(path(p, 'M1040 525H1260', { stroke: COL.bad, 'stroke-width': 4 }, { d: 0 }), m('warn', .5), .4);
+    text(p, '3 flips: three factors of 2', 1050, 610, m('warn', 1.2), { size: 26, fill: COL.dim });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 300, y: 220, w: 1000, cls: 'side' }, [{
+    id: 'c-count', prompt: ['Use the counting principle.'],
+    build: blanks([
+      { parts: ['6 kinds of bread and 4 fillings:  ', { box: '24' }, ' sandwiches'], why: '6 × 4 = 24.', hint: 'Multiply the number of choices at each stage.' },
+      { parts: ['one coin flipped 4 times:  ', { box: '16' }, ' arrangements'], why: '2 × 2 × 2 × 2 = 16.', hint: 'Each flip has 2 choices, and there are 4 flips.' },
+    ]),
+  }], done) }],
+  ['comp', 'Complements', (m) => {
+    const p = panel(0);
+    [['win', 'lose'], ['heads', 'tails']].forEach(([a, b], i) => {
+      text(p, a, 260, 180 + i * 60, m('ex', i * .8), { size: 30, fill: COL.whole, weight: 600, anchor: 'end' });
+      text(p, '↔', 300, 180 + i * 60, m('ex', i * .8), { size: 30, fill: COL.dim, anchor: 'middle' });
+      text(p, b, 340, 180 + i * 60, m('ex', i * .8), { size: 30, fill: COL.nat, weight: 600 });
+    });
+    mline(p, 'P(event) + P(not event) = 1 = 100%', 1000, 210, m('sum'), COL.task, 44);
+    const bx = 160, bw = 1280, by = 380;
+    show(rect(p, bx, by, bw, 80, 'none', 0, COL.faint), m('rain'));
+    const r1 = put(rect(p, bx, by, 0, 80, mix(COL.board, COL.whole, .6), 1), { a_width: 0 });
+    tw(r1, { a_width: bw * .3 }, m('rain', .3), .8, out);
+    text(p, 'rain 30%', bx + bw * .15, by + 52, m('rain', 1), { size: 30, anchor: 'middle', weight: 600 });
+    const r2 = put(rect(p, bx + bw * .3, by, 0, 80, mix(COL.board, COL.nat, .5), 1), { a_width: 0 });
+    tw(r2, { a_width: bw * .7 }, m('no'), .9, out);
+    text(p, 'no rain 70%', bx + bw * .65, by + 52, m('no', .8), { size: 30, anchor: 'middle', weight: 600 });
+    mline(p, '100% − 30% = 70%', 800, 540, m('no', .5), COL.chalk, 42);
+    const sp = spinner(p, 400, 720, 140, m('spin'));
+    outline(p, sp, [0, 3, 6], COL.whole, m('spin', .5));
+    outline(p, sp, [1, 2, 4, 5, 7], COL.nat, m('spin', 2));
+    mline(p, ['P(blue) = ', F(3, 8)], 640, 690, m('spin', .5), COL.whole, 40, 'start');
+    mline(p, ['P(not blue) = 1 − ', F(3, 8), ' = ', F(5, 8)], 640, 780, m('spin', 2), COL.nat, 40, 'start');
+  }],
+  ['q4', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 300, y: 220, w: 1000, cls: 'side' }, [{
+    id: 'c-comp', prompt: ['Find each complement.'],
+    build: blanks([
+      { parts: ['P(win) = 35%,    P(not win) = ', { box: '65' }, '%'], why: '100% − 35% = 65%.', hint: 'The two probabilities add up to 100%.' },
+      { parts: ['P(6) = ', F(1, 6), ',    P(not 6) = ', { box: '5/6' }], why: '1 − 1/6 = 5/6.', hint: 'The two probabilities add up to 1.' },
+    ]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['P(event) = favorable ÷ possible, from 0 to 1.', 'w1', FAV], ['Tables and tree diagrams list the sample space.', 'w2', HEADS],
+     ['Counting principle: multiply the choices at each stage.', 'w3', COL.irr], ['P(event) + P(not event) = 1.', 'w4', COL.nat]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => {
+    const p = panel(0);
+    text(p, 'one marble, picked without looking', 1180, 200, .2, { size: 26, fill: COL.dim, anchor: 'middle' });
+    [[COL.nat, 4], [COL.whole, 5], [COL.irr, 3]].flatMap(([c, n]) => Array(n).fill(c)).forEach((c, i) => {
+      const d = put(mk('circle', { cx: 0, cy: 0, r: 30, fill: mix(COL.board, c, .8), stroke: c, 'stroke-width': 3 }, p), { x: 1000 + (i % 4) * 120, y: 300 + Math.floor(i / 4) * 110, s: 0, o: 0 });
+      pop(d, .3 + i * .05);
+    });
+    text(p, '4 red, 5 blue, 3 green', 1180, 680, .4, { size: 28, anchor: 'middle', weight: 600 });
+  }, { ask: done => quiz({ x: 0, y: 0, w: 820, cls: 'screen' }, [{
+    id: 'p-prob', prompt: ['A bag holds 12 marbles. Find each probability.'], build: blanks([
+      { parts: ['P(red) = ', { box: '1/3' }], why: '4 of 12 marbles are red: 4/12 = 1/3.', hint: 'Favorable: the red marbles. Possible: all 12.' },
+      { parts: ['P(blue or green) = ', { box: '2/3' }], why: '5 + 3 = 8 of 12: 8/12 = 2/3.', hint: 'Add the blue and green marbles.' },
+      { parts: ['P(yellow) = ', { box: '0' }], why: 'There are no yellow marbles: impossible.', hint: 'How many yellow marbles are there?' },
+      { parts: ['P(not blue) = ', { box: '7/12' }], why: '1 − 5/12 = 7/12.', hint: 'Use the complement of blue.' },
+    ]),
+  }], done, 'Chapter practice   1 of 4') }],
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [
+    { id: 'p-c1', prompt: ['A lunch special has 5 sandwiches and 3 drinks. How many different lunches of one sandwich and one drink?'], build: blanks([{ parts: [{ box: '15' }, ' lunches'], why: '5 × 3 = 15.', hint: 'Multiply the number of choices.' }]) },
+    { id: 'p-c2', prompt: ['A coin is flipped 5 times. How many arrangements of heads and tails are possible?'], build: blanks([{ parts: [{ box: '32' }, ' arrangements'], why: '2 × 2 × 2 × 2 × 2 = 32.', hint: 'Five flips, two choices each.' }]) },
+    { id: 'p-c3', prompt: ['A code is one letter from A to Z followed by one digit from 0 to 9. How many codes are possible?'], build: blanks([{ parts: [{ box: '260' }, ' codes'], why: '26 letters × 10 digits = 260.', hint: 'How many letters? How many digits?' }]) },
+  ], done, 'Chapter practice 2 of 4,  question') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-likely', prompt: ['Roll one fair number cube. How likely is each event?'],
+    build: grid(LIKELY, [['0', 'Impossible', COL.bad], ['u', 'Unlikely', COL.nat], ['e', 'Even chance', COL.int], ['l', 'Likely', COL.irr], ['c', 'Certain', COL.good]], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 4') }],
+  ['final4', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-comp', prompt: ['Find each complement.'], build: blanks([
+      { parts: ['P(snow) = 0.4,    P(no snow) = ', { box: '0.6' }], why: '1 − 0.4 = 0.6.', hint: 'The two add up to 1.' },
+      { parts: ['P(win) = 15%,    P(not win) = ', { box: '85' }, '%'], why: '100% − 15% = 85%.', hint: 'The two add up to 100%.' },
+      { parts: ['P(red) = ', F(3, 10), ',    P(not red) = ', { box: '7/10' }], why: '1 − 3/10 = 7/10.', hint: 'The two add up to 1.' },
+      { parts: ['P(late) = 8%,    P(on time) = ', { box: '92' }, '%'], why: 'On time is the complement of late: 100% − 8% = 92%.', hint: 'On time is the complement of late.' },
+    ]),
+  }], done, 'Chapter practice   4 of 4') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const LIKELY = [
+  { parts: ['roll a 9'], ans: ['0'], why: 'A number cube has only 1 to 6: probability 0.' },
+  { parts: ['roll a 2'], ans: ['u'], why: '1 of 6 outcomes: 1/6.' },
+  { parts: ['roll an odd number'], ans: ['e'], why: '1, 3, 5: 3 of 6, which is 1/2.' },
+  { parts: ['roll a number greater than 2'], ans: ['l'], why: '3, 4, 5, 6: 4 of 6, which is 2/3.' },
+  { parts: ['roll a number less than 10'], ans: ['c'], why: 'Every face is less than 10: probability 1.' },
+  { parts: ['roll a 5 or a 6'], ans: ['u'], why: '2 of 6, which is 1/3.' },
+];
+boot();
+</script>
+</body>
+</html>

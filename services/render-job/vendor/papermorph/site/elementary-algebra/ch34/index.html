@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slope-Intercept Form — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 34, title: 'Slope-Intercept Form', minutes: 6, next: '../ch35/' };
+const LN = COL.whole, PT = COL.task, YI = COL.nat, XI = COL.int;   // line, point, y-intercept, x-intercept
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 40) => mline(p, parts, 1000, y, t0, fill, size, 'start');
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 450, u: 40, x0: -8, x1: 8, y0: -8, y1: 8, t0 }); return S.P; }
+function stage() { const p = panel(0), P = S.P; P.layer = p; S.qp = p; return [p, P]; }
+// Glow along one axis.
+function axisGlow(p, P, which, color, t0) {
+  const d = which === 'x' ? `M${P.PX(-8)} ${P.cy}H${P.PX(8)}` : `M${P.cx} ${P.PY(8)}V${P.PY(-8)}`;
+  const e = path(p, d, { stroke: color, 'stroke-width': 10, 'stroke-opacity': .35 }, { d: 0 });
+  draw(e, t0, .8);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Slope-intercept form', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 34', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Slope-Intercept Form', { x: 800, y: 430, size: 92, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['y = mx + b'], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['intercepts', 'Intercepts', (m) => {
+    makePlane(.2);
+    const [p, P] = stage();
+    P.line(0, -3, 6, 0, LN, .5);
+    P.dot(0, -3, YI, m('y'), { label: '(0, −3)', dx: 16, dy: 30 });
+    side(p, ['y-intercept'], 220, m('y', 2), YI);
+    axisGlow(p, P, 'y', YI, m('yx'));
+    side(p, ['on the y-axis, x = 0'], 280, m('yx'), COL.dim, 30);
+    P.dot(6, 0, XI, m('x'), { label: '(6, 0)', dx: 6, dy: -18 });
+    side(p, ['x-intercept'], 400, m('x', 2), XI);
+    axisGlow(p, P, 'x', XI, m('xy'));
+    side(p, ['on the x-axis, y = 0'], 460, m('xy'), COL.dim, 30);
+  }],
+  ['form', 'y = mx + b', (m) => {
+    const [p, P] = stage();
+    P.line(0, -3, 6, 0, LN, 0, { run: (e, to) => tw(e, to, 0, .01) });
+    P.dot(0, -3, YI, 0);
+    P.stair(0, -3, 1, 2, m('st'));
+    P.dot(2, -2, PT, m('st', 1.1));
+    side(p, ['slope = ', F(1, 2)], 180, m('m'), COL.irr, 40);
+    side(p, ['y = mx + b'], 300, m('eq'), COL.chalk, 56);
+    side(p, ['m: slope     b: y-intercept'], 370, m('mb'), COL.dim, 30);
+    side(p, ['y = ', F(1, 2), 'x − 3'], 490, m('ex'), COL.good, 52);
+    side(p, [F(1, 2), '(6) − 3 = 0  ✓'], 590, m('chk'), COL.dim, 36);
+    pulse(P.dot(6, 0, XI, m('chk'), { label: '(6, 0)', dx: 6, dy: -18 }), m('chk', 1.5));
+  }],
+  ['q1', 'Quick check', (m) => {
+    const [p] = stage();
+    side(p, ['y = −2x + 5'], 220, .2, COL.chalk, 52);
+  }, { ask: done => quiz({ x: 1000, y: 320, w: 580, cls: 'side' }, [{
+    id: 'c-read', prompt: ['What are the slope and the y-intercept of ', $m('y = −2x + 5'), '?'],
+    build: blanks([{ parts: ['m = ', { box: '-2' }, '     b = ', { box: '5' }], why: 'm is the number multiplying x; b is the constant.', hint: 'In y = mx + b, m multiplies x and b stands alone. Keep the signs.',
+      fx: () => { const L = S.q || qlayer(), P = S.P; P.line(0, 5, 2, 1, LN, 0, { run: fx, into: L }); P.dot(0, 5, YI, .6, { run: fx, into: L, label: '(0, 5)' }); P.stair(0, 5, -2, 1, 1, { run: fx, into: L }); } }]),
+  }], done) }],
+  ['graph', 'Graph from the equation', (m) => {
+    const [p, P] = stage();
+    side(p, ['y = ', F(3, 2), 'x − 1'], 180, .2, COL.chalk, 52);
+    side(p, ['m = ', F(3, 2), '     b = −1'], 280, m('read', 2), COL.dim, 40);
+    P.dot(0, -1, YI, m('b'), { label: '(0, −1)', dx: 16, dy: 30 });
+    P.stair(0, -1, 3, 2, m('s1')); P.dot(2, 2, PT, m('s1', 1.1));
+    P.stair(2, 2, 3, 2, m('s2')); P.dot(4, 5, PT, m('s2', 1.1));
+    side(p, ['up 3, right 2'], 380, m('s1'), COL.irr, 32);
+    P.line(0, -1, 2, 2, LN, m('line'));
+    P.stair(0, -1, -3, -2, m('back'), { labels: false }); P.dot(-2, -4, PT, m('back', 1.1));
+    side(p, ['down 3, left 2'], 440, m('back'), COL.irr, 32);
+  }],
+  ['q2', 'Quick check', () => {
+    const [p] = stage();
+    side(p, ['y = 3x − 4'], 150, .2, COL.chalk, 52);
+  }, { ask: done => quiz({ x: 1000, y: 230, w: 580, cls: 'side' }, [{
+    id: 'c-yint', prompt: ['Plot the y-intercept of ', $m('y = 3x − 4'), '.'],
+    build: pickPoint(S.P, [0, -4], 'b = −4, so the line crosses the y-axis at (0, −4).',
+      (x, y) => x === -4 && y === 0 ? 'That point is on the x-axis. The y-intercept has x = 0.' : x !== 0 ? 'The y-intercept is on the y-axis, where x = 0.' : 'Read b from the equation: b = −4.',
+      () => S.P.dot(0, -4, YI, 0, { run: fx, into: S.qp, label: '(0, −4)', dx: 16, dy: 30 })),
+  }, {
+    id: 'c-step', prompt: ['The slope is 3: up 3, right 1. Plot the next point.'],
+    build: pickPoint(S.P, [1, -1], 'From (0, −4), up 3 and right 1 is (1, −1).',
+      (x, y) => y === 3 * x - 4 ? 'That point is on the line, but take just one step: up 3, right 1.' : 'Start at (0, −4). Go up 3, then right 1.',
+      () => { const P = S.P; P.stair(0, -4, 3, 1, 0, { run: fx, into: S.qp }); P.line(0, -4, 1, -1, LN, 1.2, { run: fx, into: S.qp }); }),
+  }], done) }],
+  ['twoPts', 'From two points', (m) => {
+    const [p, P] = stage();
+    P.dot(3, 2, PT, .2, { label: '(3, 2)' }); P.dot(-5, 6, PT, .2, { label: '(−5, 6)' });
+    side(p, ['m = ', F('6 − 2', '−5 − 3'), ' = ', F(4, '−8'), ' = −', F(1, 2)], 190, m('m'), COL.irr, 38);
+    side(p, ['2 = −', F(1, 2), ' · 3 + b'], 310, m('sub'), COL.chalk, 40);
+    side(p, ['2 = −', F(3, 2), ' + b'], 400, m('b'), COL.chalk, 40);
+    side(p, ['b = ', F(7, 2)], 490, m('b', 2.5), YI, 40);
+    side(p, ['y = −', F(1, 2), 'x + ', F(7, 2)], 610, m('eq'), COL.good, 50);
+    P.line(3, 2, -5, 6, LN, m('eq'));
+    P.dot(0, 3.5, YI, m('chk'), { label: '(0, 3.5)', dx: 14, dy: 36 });
+  }],
+  ['xint', 'Finding the x-intercept', (m) => {
+    const [p, P] = stage();
+    side(p, ['y = ', F(2, 3), 'x − ', F(8, 3)], 170, m('eq'), COL.chalk, 44);
+    P.line(0, -8 / 3, 4, 0, LN, m('eq'));
+    side(p, ['y-intercept: (0, −', F(8, 3), ')'], 270, m('yi'), YI, 34);
+    P.dot(0, -8 / 3, YI, m('yi'));
+    side(p, ['0 = ', F(2, 3), 'x − ', F(8, 3)], 380, m('zero'), COL.chalk, 40);
+    side(p, [F(8, 3), ' = ', F(2, 3), 'x'], 470, m('s1'), COL.chalk, 40);
+    side(p, ['x = ', F(8, 3), ' · ', F(3, 2), ' = 4'], 560, m('s2'), COL.chalk, 40);
+    side(p, ['x-intercept: (4, 0)'], 660, m('pt'), XI, 34);
+    P.dot(4, 0, XI, m('pt'), { label: '(4, 0)', dx: 6, dy: -18 });
+  }],
+  ['q3', 'Quick check', () => {
+    const [p] = stage();
+    side(p, ['y = −2x + 6'], 220, .2, COL.chalk, 52);
+  }, { ask: done => quiz({ x: 1000, y: 320, w: 580, cls: 'side' }, [{
+    id: 'c-xint', prompt: ['Find the x-intercept of ', $m('y = −2x + 6'), '.'],
+    build: blanks([{ parts: ['x-intercept: (', { box: '3' }, ', 0)'], why: '0 = −2x + 6, so 2x = 6 and x = 3.', hint: 'Set y = 0, then solve for x.',
+      fx: () => { const L = S.q || qlayer(), P = S.P; P.line(0, 6, 3, 0, LN, 0, { run: fx, into: L }); P.dot(0, 6, YI, .6, { run: fx, into: L, label: '(0, 6)' }); P.dot(3, 0, XI, .9, { run: fx, into: L, label: '(3, 0)' }); } }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['y = mx + b:  m is the slope, b is the y-intercept.', 'w1'], ['To graph: plot (0, b), then step by the slope.', 'w2'], ['From two points: find m, then substitute one point for b.', 'w3'], ['x-intercept: set y = 0 and solve.', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      M(g, [str], { x: 260, size: 36, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-read', prompt: ['Find the slope m and the y-intercept b of each line.'], build: blanks(READQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-two', prompt: ['A line passes through the two points. Find m and b in ', $m('y = mx + b'), '. Fractions are fine.'], build: blanks(TWOQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-int', prompt: ['Find both intercepts of each line.'], build: blanks(INTQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const READQ = [
+  { parts: ['y = 2x − 9:     m = ', { box: '2' }, '   b = ', { box: '-9' }], why: 'm = 2 and b = −9.' },
+  { parts: ['y = ', F(7, 3), 'x + ', F(11, 8), ':     m = ', { box: '7/3' }, '   b = ', { box: '11/8' }], why: 'm = 7/3 and b = 11/8.' },
+  { parts: ['y = −x + 4:     m = ', { box: '-1' }, '   b = ', { box: '4' }], why: '−x means −1 · x, so m = −1.' },
+  { parts: ['y = 5 − 3x:     m = ', { box: '-3' }, '   b = ', { box: '5' }], why: 'Reorder it: y = −3x + 5.' },
+  { parts: ['y = ', F(1, 4), 'x:     m = ', { box: '1/4' }, '   b = ', { box: '0' }], why: 'Nothing is added, so b = 0: the line passes through the origin.' },
+];
+const TWOQ = [
+  { parts: ['(3, 3) and (1, 10):     m = ', { box: '-7/2' }, '   b = ', { box: '27/2' }], why: 'm = 7/(−2) = −7/2;  3 = −7/2 · 3 + b, so b = 27/2.' },
+  { parts: ['(7, −8) and (−1, −5):     m = ', { box: '-3/8' }, '   b = ', { box: '-43/8' }], why: 'm = 3/(−8) = −3/8;  −8 = −3/8 · 7 + b, so b = −43/8.' },
+  { parts: ['(', F(1, 2), ', −6) and (1, −9):     m = ', { box: '-6' }, '   b = ', { box: '-3' }], why: 'm = −3 ÷ 1/2 = −6;  −9 = −6 · 1 + b, so b = −3.' },
+  { parts: ['(2, 1) and (6, 3):     m = ', { box: '1/2' }, '   b = ', { box: '0' }], why: 'm = 2/4 = 1/2;  1 = 1/2 · 2 + b, so b = 0.' },
+];
+const INTQ = [
+  { parts: ['y = ', F(1, 5), 'x − ', F(3, 5), ':    x-intercept (', { box: '3' }, ', 0)    y-intercept (0, ', { box: '-3/5' }, ')'], why: '0 = x/5 − 3/5 gives x = 3; b = −3/5.' },
+  { parts: ['y = −2x − 3:    x-intercept (', { box: '-3/2' }, ', 0)    y-intercept (0, ', { box: '-3' }, ')'], why: '0 = −2x − 3 gives x = −3/2; b = −3.' },
+  { parts: ['y = 4x − 3:    x-intercept (', { box: '3/4' }, ', 0)    y-intercept (0, ', { box: '-3' }, ')'], why: '0 = 4x − 3 gives x = 3/4; b = −3.' },
+  { parts: ['y = −', F(1, 2), 'x + 2:    x-intercept (', { box: '4' }, ', 0)    y-intercept (0, ', { box: '2' }, ')'], why: '0 = −x/2 + 2 gives x = 4; b = 2.' },
+];
+boot();
+</script>
+</body>
+</html>

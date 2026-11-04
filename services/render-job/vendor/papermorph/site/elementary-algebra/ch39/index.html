@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Introduction to Statistics — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 39, title: 'Introduction to Statistics', minutes: 6, next: '../ch40/' };
+const QN = COL.whole, QL = COL.rat, SM = COL.task;   // quantitative, qualitative, sample
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// Age line from 0 to 80 years at height y; returns x for an age.
+const AX = a => 760 + a * 9.25;
+function ageLine(p, y, t0) {
+  const g = G(p, { o: 0 });
+  path(g, `M${AX(0)} ${y}H${AX(80)}`, { stroke: COL.dim, 'stroke-width': 3 });
+  for (let a = 0; a <= 80; a += 10) { path(g, `M${AX(a)} ${y - 8}V${y + 8}`, { stroke: COL.dim, 'stroke-width': 2 }); T(g, String(a), { x: AX(a), y: y + 34, size: 20, fill: COL.dim, anchor: 'middle' }); }
+  show(g, t0);
+}
+// Dots on an age line, stacked when ages repeat.
+function ageDots(p, y, ages, color, t0, step = .12) {
+  const seen = {};
+  return ages.map((a, i) => {
+    const k = seen[a] = (seen[a] || 0) + 1;
+    const d = put(mk('circle', { r: 9, fill: color }, p), { x: AX(a), y: y - 4 - k * 20, s: 0, o: 0 });
+    pop(d, t0 + i * step);
+    return d;
+  });
+}
+function bracket(p, a, b, y, label, color, t0) {
+  const g = G(p, { o: 0 });
+  path(g, `M${AX(a)} ${y + 10}V${y}H${AX(b)}V${y + 10}`, { stroke: color, 'stroke-width': 3 });
+  T(g, label, { x: (AX(a) + AX(b)) / 2, y: y - 12, size: 24, fill: color, weight: 600, anchor: 'middle' });
+  show(g, t0);
+}
+// A row of square people icons: n squares, the first k coloured.
+function squares(p, n, k, x, y, t0, { cols = 10, size = 34, color = SM, gap = 8 } = {}) {
+  return Array.from({ length: n }, (_, i) => {
+    const s = put(mk('rect', { x: -size / 2, y: -size / 2, width: size, height: size, rx: 6, fill: i < k ? color : COL.faint }, p),
+      { x: x + (i % cols) * (size + gap), y: y + Math.floor(i / cols) * (size + gap), s: 0, o: 0 });
+    pop(s, t0 + i * .03);
+    return s;
+  });
+}
+// Population bar with a shaded fraction.
+function popBar(p, total, frac, label, t0, tShade, run = tw) {
+  const g = G(p, { o: 0 });
+  mk('rect', { x: 160, y: 600, width: 800, height: 60, rx: 8, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, g);
+  T(g, total, { x: 160, y: 580, size: 26, fill: COL.dim });
+  run(g, { o: 1 }, t0, .5);
+  if (tShade !== undefined) {
+    const sh = put(mk('rect', { x: 160, y: 600, width: 800 * frac, height: 60, rx: 8, fill: SM }, p), { o: 0 });
+    run(sh, { o: .75 }, tShade, .6);
+    const l = M(p, [label], { x: 160 + 400 * frac, y: 700, size: 30, fill: SM, o: 0 });
+    run(l, { o: 1 }, tShade + .4, .4);
+  }
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Statistics', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 7, Chapter 39', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Introduction to Statistics', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'collect  →  organize  →  make sense of data', 800, 600, m('q'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['data', 'Two kinds of data', (m) => {
+    const p = panel(0);
+    text(p, 'data: facts as numbers, words, or descriptions', 800, 120, .2, { size: 30, fill: COL.dim, anchor: 'middle' });
+    [[420, 'Quantitative', 'numbers: count or measure', QN, 'quant', [['students in the class:  28', 'q1'], ['height of each student:  152 centimeters, 160 centimeters, …', 'q2']]],
+     [1180, 'Qualitative', 'descriptions or categories', QL, 'qual', [['favorite color:  blue', 'l1'], ['kind of pet:  dog, cat, fish, …', 'l2']]]].forEach(([cx, name, sub, col, mark, ex]) => {
+      const g = G(p, { o: 0 });
+      mk('rect', { x: cx - 340, y: 180, width: 680, height: 420, rx: 20, fill: 'none', stroke: col, 'stroke-width': 3 }, g);
+      T(g, name, { x: cx, y: 250, size: 44, fill: col, weight: 600, anchor: 'middle' });
+      T(g, sub, { x: cx, y: 300, size: 26, fill: COL.dim, anchor: 'middle' });
+      show(g, m(mark));
+      ex.forEach(([str, mk2], i) => text(p, str, cx - 300, 400 + i * 90, m(mk2), { size: str.length > 40 ? 22 : 28 }));
+    });
+    text(p, 'Can you add or average the answers?  Then it is quantitative.', 800, 700, m('tip'), { size: 30, fill: SM, anchor: 'middle', weight: 600 });
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    text(p, 'the number of goals each player scored this season', 800, 260, .2, { size: 40, anchor: 'middle', weight: 600 });
+  }, { ask: done => quiz({ x: 500, y: 360, w: 600, cls: 'side' }, [{
+    id: 'c-kind', prompt: ['What kind of data is this?'],
+    build: choice([['Quantitative'], ['Qualitative']], 0, 'Goals are counted, so the data are numbers.', [null, 'Each answer is a count, like 3 or 7. Counts are numbers.']),
+  }], done) }],
+  ['statq', 'Statistical questions', (m) => {
+    const p = panel(0);
+    text(p, '“How old am I?”', 100, 210, m('one'), { size: 34, weight: 600 });
+    ageLine(p, 230, m('one')); ageDots(p, 230, [13], SM, m('one', .5));
+    text(p, 'one answer: not statistical', 100, 255, m('one', 1.5), { size: 24, fill: COL.bad });
+    text(p, '“How old are the people in my family?”', 100, 410, m('many'), { size: 30, weight: 600 });
+    ageLine(p, 430, m('many')); ageDots(p, 430, [2, 9, 14, 38, 41, 67, 70], SM, m('many', .5));
+    text(p, 'many answers: statistical', 100, 455, m('many', 2), { size: 24, fill: COL.good });
+    text(p, 'variability: how spread out the data is', 100, 560, m('var'), { size: 28, fill: COL.dim });
+    bracket(p, 2, 70, 350, 'high variability', QL, m('hi'));
+    text(p, 'ages in a seventh grade class', 100, 700, m('lo'), { size: 30, weight: 600 });
+    ageLine(p, 720, m('lo')); ageDots(p, 720, [12, 12, 13, 12, 13, 13, 12, 12], SM, m('lo', .5), .06);
+    bracket(p, 11, 14, 590, 'low variability', QN, m('lo', 1.5));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 400, y: 260, w: 800, cls: 'side' }, [{
+    id: 'c-stat', prompt: ['Which one is a statistical question?'],
+    build: choice([['How tall is the school flagpole?'], ['How tall are the students in my class?'], ['How many days are in March?']], 1, 'Different students have different heights, so the answers vary.',
+      ['The flagpole has one height: only one answer.', null, 'March always has 31 days: only one answer.']),
+  }], done) }],
+  ['sample', 'Population and sample', (m) => {
+    const p = panel(0), dots = [];
+    const PX = i => 160 + (i % 20) * 36, PY = i => 200 + Math.floor(i / 20) * 40;
+    for (let i = 0; i < 200; i++) { const d = put(mk('circle', { r: 11, fill: COL.faint }, p), { x: PX(i), y: PY(i), o: 0 }); dots.push(d); show(d, m('pop', i * .004), .3); }
+    text(p, 'population: 200 students', 980, 230, m('pop'), { size: 32, fill: COL.chalk, weight: 600 });
+    const rs = G(p);
+    for (let k = 0; k < 20; k++) { const i = k * 37 % 200, d = put(mk('circle', { r: 11, fill: SM }, rs), { x: PX(i), y: PY(i), s: 0, o: 0 }); pop(d, m('samp', .3 + k * .06)); }
+    text(p, 'sample: 20 of them', 980, 300, m('samp'), { size: 32, fill: SM, weight: 600 });
+    text(p, 'random: everyone has the same chance', 980, 370, m('rand'), { size: 26, fill: COL.good });
+    hide(rs, m('bad'), .4);
+    const bad = G(p, { o: 0 });
+    for (let i = 0; i < 200; i++) if (i % 20 < 5 && i < 80) put(mk('circle', { r: 11, fill: COL.bad }, bad), { x: PX(i), y: PY(i) });
+    mk('rect', { x: 134, y: 176, width: 184, height: 168, rx: 14, fill: 'none', stroke: COL.bad, 'stroke-width': 3 }, bad);
+    show(bad, m('bad', .3));
+    text(p, 'one corner only: not representative', 980, 470, m('bad', .5), { size: 26, fill: COL.bad });
+  }],
+  ['estimate', 'Estimate from a sample', (m) => {
+    const p = panel(0);
+    text(p, 'population: 1,000 people', 160, 140, m('prob'), { size: 30, fill: COL.dim });
+    text(p, 'sample: 20 people, 5 bought vegan snacks', 160, 200, m('prob', 2), { size: 30 });
+    squares(p, 20, 5, 180, 270, m('prob', 3));
+    mline(p, [F(5, 20), ' = ', F(1, 4)], 1060, 300, m('frac'), SM, 52, 'start');
+    popBar(p, '1,000 people', 1 / 4, '250', m('scale'), m('scale', 1));
+    mline(p, [F(1, 4), ' × 1,000 = 250'], 1060, 420, m('scale', .5), COL.chalk, 46, 'start');
+    text(p, 'about 250 bought vegan snacks', 1060, 500, m('ans'), { size: 28, fill: COL.good });
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0);
+    text(p, 'population: 150 theater club members', 160, 140, .2, { size: 30, fill: COL.dim });
+    text(p, 'sample: 30 asked, 10 want a summer show', 160, 200, .3, { size: 30 });
+    squares(p, 30, 10, 180, 270, .4);
+    popBar(p, '150 members', 1 / 3, '', .6);
+  }, { ask: done => quiz({ x: 1000, y: 120, w: 560, cls: 'side' }, [{
+    id: 'c-est', prompt: ['About how many members want a summer show?'],
+    build: blanks([{ parts: ['about ', { box: '50' }, ' members'], why: '10/30 = 1/3, and 1/3 of 150 is 50.', hint: 'What fraction of the sample said yes? Take that fraction of 150.',
+      fx: () => { const L = S.q || qlayer(); const sh = put(mk('rect', { x: 160, y: 600, width: 800 / 3, height: 60, rx: 8, fill: SM }, L), { o: 0 }); fx(sh, { o: .75 }, 0, .6); const l = M(L, ['50'], { x: 160 + 400 / 3, y: 700, size: 30, fill: SM, o: 0 }); fx(l, { o: 1 }, .4, .4); } }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Quantitative data: numbers.  Qualitative data: descriptions.', 'w1'], ['A statistical question expects answers that vary.', 'w2'], ['Sample fraction × population ≈ how many in the whole group.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['Does the question ask for quantitative or qualitative data?'],
+    build: grid(KINDQ, [['n', 'Quantitative', QN], ['l', 'Qualitative', QL]], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-stat', prompt: ['Is it a statistical question?'],
+    build: grid(STATQ, [['y', 'Yes', null, 'Y'], ['n', 'No', null, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-est', prompt: ['Estimate for the whole population. Round to the nearest whole number.'], build: blanks(ESTQ),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: ['How many customers are in the grocery store?'], ans: ['n'], why: 'A count.' },
+  { parts: ['What is your favorite color?'], ans: ['l'], why: 'A description.' },
+  { parts: ['What types of cars do the teachers drive?'], ans: ['l'], why: 'Car types are categories.' },
+  { parts: ['How many students are going to the game?'], ans: ['n'], why: 'A count.' },
+  { parts: ['How tall is each player on the team?'], ans: ['n'], why: 'A measurement.' },
+  { parts: ['Which ice cream flavor do your classmates like best?'], ans: ['l'], why: 'Flavors are categories.' },
+];
+const STATQ = [
+  { parts: ['How old am I?'], ans: ['n'], why: 'Only one answer.' },
+  { parts: ['How old are the students in my class?'], ans: ['y'], why: 'The ages vary.' },
+  { parts: ['How many minutes did each student spend on homework last night?'], ans: ['y'], why: 'The times vary.' },
+  { parts: ['What is the capital of Japan?'], ans: ['n'], why: 'Only one answer: Tokyo.' },
+  { parts: ['How many pets does each family on my street have?'], ans: ['y'], why: 'The numbers vary from family to family.' },
+];
+const ESTQ = [
+  { parts: ['140 cars in the lot; 2 of 15 checked are red:     about ', { box: '19' }, ' red cars'], why: '2/15 × 140 ≈ 18.7, about 19.' },
+  { parts: ['500 students; 15 of 25 asked had internships:     about ', { box: '300' }], why: '15/25 = 3/5, and 3/5 × 500 = 300.' },
+  { parts: ['1,200 fans; 12 of 40 asked bought hats:     about ', { box: '360' }], why: '12/40 = 3/10, and 3/10 × 1,200 = 360.' },
+  { parts: ['800 trees; 6 of 50 checked are sick:     about ', { box: '96' }], why: '6/50 × 800 = 96.' },
+];
+boot();
+</script>
+</body>
+</html>

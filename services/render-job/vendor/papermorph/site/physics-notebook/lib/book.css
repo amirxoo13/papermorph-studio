@@ -1,0 +1,32 @@
+/* This book's own settings, imported by engine.css. The engine files next to this one are the same in every book
+   and are replaced when the engine is updated; this file is not.
+   The look: a lined school notebook, black ink, highlighter colours (style.json "look"). The engine is drawn for a
+   dark board, so its colours are redefined here (':root:root' outranks the engine's ':root') and its few fixed dark
+   colours are overridden below. lib/notebook.js does the same for the drawing palette COL. */
+@font-face { font-family: "Patrick Hand"; src: url(fonts/PatrickHand-Regular.ttf) format("truetype"); font-display: block; }
+@font-face { font-family: "Luckiest Guy"; src: url(fonts/LuckiestGuy-Regular.ttf) format("truetype"); font-display: block; }
+:root:root {
+  --page: #d9d3c4; --board: #fcfaf3; --panel: #fffdf8; --edge: #d4ccb8;
+  --chalk: #26241f; --dim: #6c665a; --faint: #b9b1a0;
+  --task: #e89a00; --quiz: #2d8fd0; --good: #2f9a5c; --bad: #d9473a;
+  --ui: "Patrick Hand", "Avenir Next", "Segoe UI", sans-serif;
+  --math-font: "Patrick Hand", "Avenir Next", sans-serif;
+  --hover: #eee9de;   /* the volume control under the pointer */
+  color-scheme: light;
+}
+/* Lined paper with a red margin: one static image (CSS gradients here cost Firefox ~20 ms a frame under camera moves). */
+:root #stage { background: url(paper.png) 0 0 / 1600px 900px no-repeat, #fcfaf3; }
+:root #frame { box-shadow: 0 0 0 1px var(--edge), 0 30px 80px rgba(60, 50, 30, .25); }
+:root .card { background: rgba(255, 253, 247, .98); box-shadow: 0 10px 30px rgba(60, 50, 30, .18); }
+:root .opt[aria-pressed="true"] { color: #fff; }
+:root .btn.go { color: #fff; }
+:root .grid .row, :root .blanks .brow { border-bottom-color: #e6dfcf; }
+:root .box { background: rgba(45, 143, 208, .07); }
+:root .grid .row.cur { background: rgba(45, 143, 208, .07); }
+:root #bar { background: #f1ece0; border-top-color: #ddd5c3; }
+:root .seg { background: #ddd5c3; }
+:root .seg.ask { background: #c6dcea; }
+:root .cover { background: rgba(252, 250, 243, .55); }
+:root .cover-t { font-family: "Luckiest Guy", var(--ui); letter-spacing: .02em; }
+:root .help { background: rgba(60, 52, 40, .45); }
+:root .paused-mark div, :root .sound-note, :root .caption { background: rgba(255, 253, 247, .94); color: var(--chalk); box-shadow: 0 6px 20px rgba(60, 50, 30, .2); }

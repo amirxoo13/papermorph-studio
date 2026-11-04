@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combining Like Terms — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 23, title: 'Combining like terms', minutes: 6, next: '../ch24/' };
+const CX2 = COL.real, CX = COL.whole, C1 = COL.int, CB = COL.nat;   // same colours as the engine's algebra tiles
+
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Combining like terms', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 4, Chapter 23', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Combining like terms', { x: 800, y: 430, size: 90, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['7x − 2x + 4x = 9x'], 800, 590, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['tiles', 'Algebra tiles', (m) => {
+    const p = panel(0);
+    [['x', 400, 'x', 'x'], ['x2', 800, 'x²', 'x2'], ['one', 1200, '1', 'one']].forEach(([k, x, lab, mark]) => {
+      const t = atile(p, k, x, 350); tw(t, { o: 1, s: 1 }, m(mark), .4, back);
+      show(M(p, [lab], { x, y: 500, size: 48, fill: TS[k][2], o: 0 }), m(mark, .3));
+    });
+    const n = atile(p, 'x', 1400, 350, true); tw(n, { o: 1, s: 1 }, m('neg'), .4, back);
+    show(M(p, ['−x'], { x: 1400, y: 500, size: 48, fill: COL.bad, o: 0 }), m('neg', .3));
+    show(T(p, 'x', { x: 400, y: 440, size: 22, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 }), m('x', .6));
+    show(T(p, 'x', { x: 800, y: 440, size: 22, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 }), m('x2', .6));
+    show(T(p, 'x', { x: 875, y: 356, size: 22, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 }), m('x2', .6));
+  }],
+  ['like', 'Like terms', (m) => {
+    const p = panel(0);
+    [[['3a', E(2), '   and   7a', E(2)], 'like terms', COL.good, 'l1'], [['4x   and   9y'], 'different variables', COL.bad, 'l2'], [['8p   and   8p', E(7)], 'different exponents', COL.bad, 'l3']].forEach(([f, s, c, mark], i) => {
+      const y = 230 + i * 150;
+      mline(p, f, 560, y, m(mark), COL.chalk, 56);
+      show(T(p, (c === COL.good ? '✓ ' : '✗ ') + s, { x: 1050, y: y - 6, size: 32, fill: c, weight: 600, o: 0 }), m(mark, .8));
+    });
+    caption(p, 'Coefficients can differ. The variable part must match.', m('coef'), 720, COL.task);
+  }],
+  ['combine', 'Adding coefficients', (m) => {
+    const p = panel(0);
+    mline(p, ['7x − 2x + 4x'], 800, 150, m('q'), COL.chalk, 56);
+    const a = tileRow(p, 'x', 7, 260, 360), b = tileRow(p, 'x', 2, 560, 560, true), c = tileRow(p, 'x', 4, 760, 360);
+    popIn(a, m('show')); popIn(b, m('neg')); popIn(c, m('pos'));
+    cancel(a, b, m('cancel'));
+    [...a.slice(2), ...c].forEach((t, i) => { tw(t, { x: 380 + i * 42 + (i > 4 ? 30 : 0) }, m('count', i * .05), .6); pulse(t, m('count', 1 + i * .08), 1.15); });
+    mline(p, ['7 − 2 + 4 = 9:   9x'], 800, 700, m('ans'), COL.good, 52);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-comb', prompt: ['Simplify ', $m('12m + 3m − m'), '.'],
+    build: blanks([{ parts: ['12m + 3m − m = ', { box: '14' }, 'm'], why: '12 + 3 − 1 = 14. The lone m has coefficient 1.', hint: 'The last term is −1m.' }]),
+  }], done) }],
+  ['mixed', 'Grouping kinds of terms', (m) => {
+    const p = panel(0);
+    mline(p, ['3x', E(2), ' − 8x + 1 + 7x − 10x', E(2)], 800, 130, m('q'), COL.chalk, 50);
+    const sqP = tileRow(p, 'x2', 3, 160, 330, false, 10), sqN = tileRow(p, 'x2', 10, 160, 470, true, 10).map((t, i) => (put(t, { x: 160 + (i % 5) * 130, y: 470 + Math.floor(i / 5) * 130 }), t));
+    const xN = tileRow(p, 'x', 8, 900, 330, true, 10), xP = tileRow(p, 'x', 7, 900, 480, false, 10), one = atile(p, 'one', 1400, 650);
+    [sqP, sqN, xN, xP, [one]].forEach((g, i) => popIn(g, m('q', 1 + i * .8), .05));
+    show(T(p, 'x² tiles', { x: 420, y: 250, size: 26, fill: CX2, weight: 600, anchor: 'middle', o: 0 }), m('sort'));
+    show(T(p, 'x tiles', { x: 1060, y: 250, size: 26, fill: CX, weight: 600, anchor: 'middle', o: 0 }), m('sort'));
+    show(T(p, 'ones', { x: 1400, y: 600, size: 26, fill: C1, weight: 600, anchor: 'middle', o: 0 }), m('sort'));
+    cancel(sqN, sqP, m('sq'));
+    mline(p, ['−7x', E(2)], 420, 780, m('sq', 2), CX2, 44);
+    cancel(xN, xP, m('xs', -1));
+    mline(p, ['−x'], 1060, 780, m('xs', 1.5), CX, 44);
+    mline(p, ['+ 1'], 1400, 780, m('c'), C1, 44);
+  }],
+  ['cant', 'Unlike terms stay', (m) => {
+    const p = panel(0);
+    const r = tokens(p, [{ t: '7a', fill: CX }, ' − ', { t: '8b', fill: CB }, ' + ', { t: '13c', fill: COL.dim }, ' + ', { t: '5a', fill: CX }, ' + ', { t: 'b', fill: CB }, ' − ', { t: '2', fill: COL.dim }], { x: 800, y: 230, size: 56, anchor: 'middle', o: 0 });
+    r.forEach(e => show(e, m('q')));
+    const link = (i, j, c, t0) => draw(path(p, `M${r[i]._px} 250Q${(r[i]._px + r[j]._px) / 2} 340 ${r[j]._px} 250`, { stroke: c, 'stroke-width': 3 }, { d: 0 }), t0, .6);
+    link(0, 6, CX, m('a')); link(2, 8, CB, m('b'));
+    mline(p, ['7a + 5a = 12a'], 520, 420, m('a', .8), CX, 42);
+    mline(p, ['−8b + b = −7b'], 1080, 420, m('b', .8), CB, 42);
+    show(T(p, '13c and −2 have no partners', { x: 800, y: 510, size: 28, fill: COL.dim, anchor: 'middle', o: 0 }), m('rest'));
+    mline(p, ['12a − 7b + 13c − 2'], 800, 640, m('ans'), COL.good, 56);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-two', prompt: ['Simplify ', $m('3p − 5q + 4q − 1'), '.'],
+    build: blanks([{ parts: ['3p + ', { box: '-1' }, 'q − 1'], why: '−5q + 4q = −1q, written −q: 3p − q − 1.', hint: 'Only the q terms combine: −5 + 4.' }]),
+  }], done) }],
+  ['dist', 'Distribute first', (m) => {
+    const p = panel(0);
+    let r = tokens(p, ['2 + 11x', { t: ' − 3', fill: COL.real }, '(x − 5)'], { x: 800, y: 200, size: 56, anchor: 'middle', o: 0 });
+    r.forEach(e => show(e, m('q')));
+    mline(p, ['= 2 + 11x − 3x + 15'], 800, 330, m('d', 1), COL.chalk, 52);
+    show(T(p, '−3 · x = −3x,   −3 · (−5) = +15', { x: 800, y: 400, size: 28, fill: COL.real, anchor: 'middle', o: 0 }), m('d', 3));
+    mline(p, ['11x − 3x = 8x'], 560, 510, m('group'), CX, 44);
+    mline(p, ['2 + 15 = 17'], 1040, 510, m('c'), C1, 44);
+    mline(p, ['8x + 17'], 800, 650, m('ans'), COL.good, 60);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-dist', prompt: ['Simplify ', $m('8y − 3(x − 2y) + 15'), '.'],
+    build: blanks([{ parts: [{ box: '-3' }, 'x + ', { box: '14' }, 'y + 15'], why: '8y − 3x + 6y + 15 = −3x + 14y + 15.', hint: '−3 times −2y is +6y.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Like terms: same variables, same exponents.', 'w1'], ['Combine by adding coefficients; keep the signs.', 'w1'],
+     ['Unlike terms stay separate.', 'w2'], ['Distribute first; finish in standard form.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 1.5 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simp', prompt: ['Simplify. Fill in the coefficients.'], build: blanks(SIMP),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-like', prompt: ['Like terms or not?'], build: grid(LIKEQ, [['y', 'Like terms', COL.good], ['n', 'Not alike', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-dist', prompt: ['Distribute, then combine.'], build: blanks(DIST),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIMP = [
+  { parts: ['9x + 2x = ', { box: '11' }, 'x'], why: '9 + 2 = 11.' },
+  { parts: ['3a − 4b + 5c + 6c + 7b − 8a = ', { box: '-5' }, 'a + ', { box: '3' }, 'b + ', { box: '11' }, 'c'], why: '3 − 8 = −5, −4 + 7 = 3, 5 + 6 = 11.' },
+  { parts: ['3x', E(2), ' − 8x + 1 + 7x − 10x', E(2), ' = ', { box: '-7' }, 'x', E(2), ' + ', { box: '-1' }, 'x + 1'], why: '3 − 10 = −7 and −8 + 7 = −1: −7x² − x + 1.' },
+  { parts: ['−6.1ab + 3c + 5.4ba = ', { box: '-0.7' }, 'ab + 3c'], why: 'ba = ab, so −6.1 + 5.4 = −0.7.' },
+  { parts: ['(4a − 3b − 5) + (9b + 12) = 4a + ', { box: '6' }, 'b + ', { box: '7' }], why: '−3b + 9b = 6b, −5 + 12 = 7.' },
+];
+const LIKEQ = [
+  { parts: ['5x   and   −2x'], ans: ['y'], why: 'Same variable, same exponent.' },
+  { parts: ['3y', E(2), '   and   3y'], ans: ['n'], why: 'Different exponents.' },
+  { parts: ['4ab   and   7ba'], ans: ['y'], why: 'ab = ba.' },
+  { parts: ['6   and   6x'], ans: ['n'], why: 'A constant and an x term.' },
+  { parts: ['−m', E(3), '   and   ', F(1, 2), 'm', E(3)], ans: ['y'], why: 'Same variable, same exponent.' },
+];
+const DIST = [
+  { parts: ['4(x + 2) + 3x = ', { box: '7' }, 'x + ', { box: '8' }], why: '4x + 8 + 3x = 7x + 8.' },
+  { parts: ['5 − 2(y − 3) = ', { box: '-2' }, 'y + ', { box: '11' }], why: '5 − 2y + 6 = −2y + 11.' },
+  { parts: ['3(2a − 1) − (a + 4) = ', { box: '5' }, 'a + ', { box: '-7' }], why: '6a − 3 − a − 4 = 5a − 7.' },
+];
+boot();
+</script>
+</body>
+</html>

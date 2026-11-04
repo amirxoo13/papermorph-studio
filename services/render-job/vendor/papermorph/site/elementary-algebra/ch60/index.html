@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Radicals — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 60, title: 'Multiplying and Dividing Radicals', minutes: 9, next: '../ch61/' };
+const OUT = COL.int, IN = COL.whole, ONE = COL.irr, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Multiplying radicals', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 11, Chapter 60', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and Dividing', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Radicals', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [R(5), ' · ', R(7), ' = ', R(35)], 800, 630, m('sub'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['mult', 'One radical sign', (m) => {
+    const p = panel(0);
+    const t = tokens(p, [[R(5)], ' · ', [R(7)]], { x: 800, y: 220, size: 80, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, m('ex')));
+    [0, 2].forEach((k, i) => pulse(t[k], m('one', -.6 + i * .2), 1.15));
+    mline(p, ['= ', R('5 · 7')], 800, 380, m('one'), COL.chalk, 80);
+    mline(p, ['= ', R(35)], 800, 530, m('ans'), HIT, 80);
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 460, y: 640, width: 680, height: 110, rx: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, r);
+    M(r, [R('a'), ' · ', R('b'), ' = ', R('ab')], { x: 800, y: 716, size: 56, fill: COL.task });
+    show(r, m('why'));
+  }],
+  ['coef', 'Coefficients outside', (m) => {
+    const p = panel(0), X = 300;
+    const row = tokens(p, [{ t: '7', fill: OUT }, [R(8)], ' · ', { t: '2', fill: OUT }, [R(10)]], { x: 800, y: 160, size: 70, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, m('ex')));
+    [0, 3].forEach(k => pulse(row[k], m('c', .2 + (k ? .4 : 0)), 1.4));
+    [1, 4].forEach(k => pulse(row[k], m('r', .2 + (k > 1 ? .4 : 0)), 1.2));
+    mline(p, ['7 · 2 = 14'], 520, 290, m('c'), OUT, 46);
+    mline(p, ['8 · 10 = 80'], 1080, 290, m('r'), IN, 46);
+    mline(p, ['= 14', R(80)], X, 420, m('mid'), COL.chalk, 60, 'start');
+    mline(p, ['= 14 · ', R(16), ' · ', R(5), ' = 14 · 4', R(5)], X, 540, m('simp'), COL.chalk, 56, 'start');
+    mline(p, ['= 56', R(5)], X, 670, m('ans'), HIT, 66, 'start');
+    text(p, 'coefficients stay outside the radical', 800, 800, m('warn'), { size: 30, fill: OUT, anchor: 'middle', weight: 600 });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-mult', prompt: ['Multiply and simplify.'],
+    build: blanks([
+      { parts: [R(7), ' · ', R(3), ' = √', { box: '21' }], why: '√(7 · 3) = √21.', hint: 'Multiply the radicands.' },
+      { parts: [R(3, 3), ' · ', R(18, 3), ' = ', { box: '3' }, ' ∛', { box: '2' }], why: '∛54 = ∛(27 · 2) = 3∛2.', hint: '3 · 18 = 54. Find the greatest perfect cube factor of 54.' },
+    ]),
+  }], done) }],
+  ['div', 'Dividing', (m) => {
+    const p = panel(0);
+    const row = tokens(p, [{ t: '12', fill: OUT }, [R(21, 5)], ' ÷ ', { t: '6', fill: OUT }, [R(3, 5)]], { x: 800, y: 180, size: 70, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, m('ex')));
+    mline(p, '12 ÷ 6 = 2', 520, 330, m('c'), OUT, 48);
+    mline(p, '21 ÷ 3 = 7', 1080, 330, m('r'), IN, 48);
+    mline(p, ['= 2', R(7, 5)], 800, 500, m('ans'), HIT, 72);
+    text(p, 'both indexes are 5', 800, 620, m('same'), { size: 30, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['order', 'Left to right', (m) => {
+    const p = panel(0), X = 320;
+    mline(p, [R(8, 3), ' ÷ ', R(2, 3), ' × ', R(10, 3)], 800, 150, m('ex'), COL.chalk, 60);
+    mline(p, ['= ', R('8 ÷ 2', 3), ' × ', R(10, 3), ' = ', R(4, 3), ' × ', R(10, 3)], X, 300, m('s1'), COL.chalk, 52, 'start');
+    mline(p, ['= ', R(40, 3)], X, 420, m('s2'), COL.chalk, 56, 'start');
+    mline(p, ['= ', R('8 · 5', 3)], X, 540, m('s3'), COL.chalk, 56, 'start');
+    mline(p, ['= 2', R(5, 3)], X, 670, m('ans'), HIT, 64, 'start');
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-div', prompt: ['Simplify.'],
+    build: blanks([
+      { parts: [R(45), ' ÷ ', R(5), ' = ', { box: '3' }], why: '√(45 ÷ 5) = √9 = 3.', hint: 'Divide the radicands first.' },
+      { parts: ['10', R(42, 3), ' ÷ ', R(7, 3), ' = ', { box: '10' }, ' ∛', { box: '6' }], why: '42 ÷ 7 = 6; the 10 stays outside.', hint: 'The 10 stays outside; divide 42 by 7 inside.' },
+    ]),
+  }], done) }],
+  ['rat', 'Rationalizing the denominator', (m) => {
+    const p = panel(0);
+    frac(p, '6', [R(7)], 300, 260, m('ex'), { size: 64 });
+    mline(p, '=', 470, 284, m('idea'), COL.chalk, 64);
+    frac(p, ['6 · ', R(7)], [R(7), ' · ', R(7)], 530, 260, m('idea', .3), { size: 64 });
+    frac(p, [R(7)], [R(7)], 1000, 260, m('idea', .8), { size: 54, fill: ONE });
+    text(p, '= 1', 1090, 290, m('idea', 1.2), { size: 40, fill: ONE, weight: 600 });
+    mline(p, '=', 300, 544, m('bot'), COL.chalk, 64, 'start');
+    frac(p, ['6', R(7)], '7', 380, 500, m('top'), { size: 64, fill: HIT });
+    text(p, '√7 · √7 = 7: no radical on the bottom', 700, 560, m('bot'), { size: 30, fill: ONE, weight: 600 });
+    text(p, 'rationalizing the denominator', 800, 740, m('name'), { size: 34, fill: COL.task, anchor: 'middle', weight: 600 });
+    mline(p, ['6 ÷ 2.6458 ≈ 2.268,     6 × 2.6458 ÷ 7 ≈ 2.268'], 800, 830, m('num'), COL.dim, 34);
+  }],
+  ['rat2', 'Simplify first', (m) => {
+    const p = panel(0);
+    frac(p, '8', [R(20)], 200, 300, m('ex'), { size: 60 });
+    mline(p, '=', 360, 324, m('s1'), COL.chalk, 60);
+    frac(p, '8', ['2', R(5)], 410, 300, m('s1'), { size: 60 });
+    mline(p, '=', 620, 324, m('s2'), COL.chalk, 60);
+    frac(p, '4', [R(5)], 670, 300, m('s2'), { size: 60 });
+    mline(p, '=', 840, 324, m('s3'), COL.chalk, 60);
+    frac(p, ['4 · ', R(5)], [R(5), ' · ', R(5)], 890, 300, m('s3'), { size: 60 });
+    mline(p, '=', 1200, 324, m('ans'), COL.chalk, 60);
+    frac(p, ['4', R(5)], '5', 1250, 300, m('ans'), { size: 60, fill: HIT });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-rat', prompt: ['Rationalize the denominator of ', $m(F(9, '√5')), '.'],
+    build: choice([[$m(F('9√5', 5))], [$m(F('9√5', 25))], [$m(F(9, 5))]], 0, 'Multiply by √5/√5: 9√5 / 5.', [null, '√5 · √5 = 5, not 25.', 'The top becomes 9√5, not 9.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Same index: multiply or divide under one radical.', 'w1', IN], ['Coefficients stay outside, combined with each other.', 'w2', OUT],
+     ['Simplify the result.', 'w3', HIT], ['Rationalize: multiply top and bottom by the radical.', 'w4', ONE]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-md', prompt: ['Simplify.'], build: blanks([
+      { parts: ['7', R(8), ' · 2', R(10), ' = ', { box: '56' }, ' √', { box: '5' }], why: '14√80 = 14 · 4√5.', hint: '7 · 2 outside, 8 · 10 inside, then simplify √80.' },
+      { parts: [R(8), ' ÷ ', R(32), ' = ', { box: '1/2' }], why: '√(8/32) = √(1/4) = 1/2.', hint: 'Divide the radicands: 8/32 = 1/4.' },
+      { parts: ['2', R(6, 3), ' · 8', R(16, 3), ' ÷ 4', R(3, 3), ' = ', { box: '8' }, ' ∛', { box: '4' }], why: '2 · 8 ÷ 4 = 4 outside, ∛(6 · 16 ÷ 3) = ∛32 = 2∛4 inside: 8∛4.', hint: 'Outside: 2 · 8 ÷ 4. Inside: 6 · 16 ÷ 3.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-rat', prompt: ['Rationalize the denominator. Write the result as a√b / c.'], build: blanks([
+      { parts: [F(10, '√8'), ' = ', { box: '5' }, ' √', { box: '2' }, '  over  ', { box: '2' }], why: '√8 = 2√2, so 10/(2√2) = 5/√2 = 5√2/2.', hint: 'Simplify √8 first.' },
+      { parts: [F(6, '√3'), ' = ', { box: '2' }, ' √', { box: '3' }, '  over  ', { box: '1' }], why: '6√3/3 = 2√3, which is 2√3 over 1.', hint: 'Multiply by √3/√3, then reduce 6/3.' },
+      { parts: [F(4, '√6'), ' = ', { box: '2' }, ' √', { box: '6' }, '  over  ', { box: '3' }], why: '4√6/6 = 2√6/3.', hint: 'Multiply by √6/√6, then reduce 4/6.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {
+    const p = panel(0);
+    const r = path(p, 'M1000 300H1460V640H1000Z', { stroke: COL.irr, 'stroke-width': 4, fill: mix(COL.board, COL.irr, .12) }, { d: 0 });
+    draw(r, .2, .8);
+    mline(p, ['9', R(18, 3)], 1230, 690, .5, IN, 40);
+    mline(p, ['7', R(4, 3)], 1480, 480, .6, OUT, 40, 'start');
+    text(p, 'feet', 1230, 730, .5, { size: 22, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 0, y: 0, w: 960, cls: 'screen' }, [{
+    id: 'p-area', prompt: ['Find the area of the rectangle.'], build: blanks([
+      { parts: ['7', R(4, 3), ' · 9', R(18, 3), ' = ', { box: '63' }, ' ∛', { box: '72' }], why: '7 · 9 = 63, 4 · 18 = 72.', hint: 'Multiply outside and inside separately.' },
+      { parts: ['= ', { box: '126' }, ' ∛', { box: '9' }, ' square feet'], why: '∛72 = ∛(8 · 9) = 2∛9, and 63 · 2 = 126.', hint: '72 = 8 · 9.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

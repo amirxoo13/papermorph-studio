@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Discriminant and the Number of Solutions — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 66, title: 'The Discriminant and the Number of Solutions', minutes: 8, next: '../ch67/' };
+const DISC = COL.task, PAR = COL.irr, TWO = COL.good, ONE = COL.whole, NONE = COL.bad;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const verdictOf = d => d > 1e-9 ? ['two real solutions', TWO] : d < -1e-9 ? ['no real solutions', NONE] : ['one real solution', ONE];
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'The discriminant', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 12, Chapter 66', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'The Discriminant and the', { x: 800, y: 400, size: 76, weight: 600, anchor: 'middle' });
+    T(g, 'Number of Solutions', { x: 800, y: 490, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['b', E(2), ' − 4ac'], 800, 630, m('sub'), COL.dim, 60);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['disc', 'Under the radical', (m) => {
+    const p = panel(0);
+    const f = G(p, { o: 0 });
+    M(f, ['x ='], { x: 520, y: 230, size: 66, anchor: 'end' });
+    M(f, ['−b ± '], { x: 540, y: 190, size: 66, anchor: 'start' });
+    const rw = mathW('−b ± ', 66);
+    M(f, [R('b² − 4ac')], { x: 540 + rw, y: 190, size: 66, anchor: 'start', fill: DISC });
+    path(f, `M540 214H${540 + rw + mathW([R('b² − 4ac')], 66) + 10}`, { stroke: COL.chalk, 'stroke-width': 3.5 });
+    M(f, ['2a'], { x: 540 + (rw + mathW([R('b² − 4ac')], 66)) / 2, y: 290, size: 66 });
+    show(f, .2);
+    const box = put(mk('rect', { x: 540 + rw + 10, y: 120, width: mathW([R('b² − 4ac')], 66) - 4, height: 90, rx: 14, fill: 'none', stroke: DISC, 'stroke-width': 3.5 }, p), { o: 0 });
+    show(box, m('part'));
+    text(p, 'the discriminant', 1260, 180, m('part', .5), { size: 34, fill: DISC, weight: 700 });
+    [['> 0', '√ is a positive number: ±  gives 2 values', 'two real solutions', TWO, 'pos'], ['= 0', '±0 is the same value', 'one real solution', ONE, 'zero'], ['< 0', '√ of a negative is not real', 'no real solutions', NONE, 'neg']].forEach(([s, why, res, c, k], i) => {
+      const y = 450 + i * 130;
+      mline(p, ['b', E(2), ' − 4ac ', s], 200, y, m(k), c, 46, 'start');
+      text(p, why, 620, y - 10, m(k, .6), { size: 28, fill: COL.dim });
+      text(p, res, 1420, y - 10, m(k, 1.2), { size: 30, fill: c, weight: 700, anchor: 'end' });
+    });
+  }],
+  ['slide', 'Watching c change', (m) => {
+    const p = panel(0), P = plane(p, { cx: 1200, cy: 560, u: 46, x0: -8, x1: 2, y0: -6, y1: 7, t0: m('fam'), labels: false });
+    P.layer = p;
+    mline(p, ['y = x', E(2), ' + 6x + c'], 120, 160, m('fam'), PAR, 52, 'start');
+    const curve = path(p, '', { stroke: PAR, 'stroke-width': 4 }, { o: 0 });
+    show(curve, m('fam', .3));
+    const cT = T(p, '', { x: 120, y: 290, size: 46, font: MATH, fill: COL.chalk, o: 0 }), dT = T(p, '', { x: 120, y: 380, size: 46, font: MATH, fill: DISC, o: 0 }), vT = T(p, '', { x: 120, y: 470, size: 38, weight: 700, o: 0 });
+    [cT, dT].forEach(e => e.setAttribute('font-style', 'normal'));
+    [cT, dT, vT].forEach(e => show(e, m('c3')));
+    const dots = [0, 1].map(() => put(mk('circle', { r: 11, fill: COL.chalk, stroke: COL.board, 'stroke-width': 2 }, p), { o: 0 }));
+    const set = c => {
+      let d = '', pen = false;
+      for (let i = 0; i <= 120; i++) { const x = -8 + 10 * i / 120, y = x * x + 6 * x + c; if (y <= 7.4) { d += `${pen ? 'L' : 'M'}${P.PX(x).toFixed(1)} ${P.PY(y).toFixed(1)}`; pen = true; } else pen = false; }
+      curve.setAttribute('d', d);
+      const D = 36 - 4 * c, [v, col] = verdictOf(D);
+      cT.textContent = `c = ${num(Math.round(c * 10) / 10)}`;
+      dT.textContent = `b² − 4ac = 36 − ${Math.round(4 * c * 10) / 10} = ${num(Math.round(D * 10) / 10)}`;
+      vT.textContent = v; vT.setAttribute('fill', col);
+      const r = D >= 0 ? Math.sqrt(D) / 2 : 0;
+      put(dots[0], { x: P.PX(-3 + r), y: P.PY(0), o: D >= -1e-9 ? 1 : 0 }); put(dots[1], { x: P.PX(-3 - r), y: P.PY(0), o: D > 1e-9 ? 1 : 0 });
+      dots.forEach(e => e.setAttribute('fill', col));
+    };
+    set(3);
+    prog(q => set(3 + 6 * q), m('up'), m('c9') - m('up') - .3, io);
+    prog(q => set(9 + 2 * q), m('c11', -1), 1.2, io);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-disc', prompt: ['Find the discriminant of ', $m('x', E(2), ' − 6x + 5 = 0'), '.'],
+    build: blanks([{ parts: ['b', E(2), ' − 4ac = ', { box: '16' }, ':   ', { box: '2' }, ' real solutions'], why: '(−6)² − 4(1)(5) = 36 − 20 = 16 > 0: two solutions (1 and 5).', hint: 'b = −6, so b² = 36. Then subtract 4 · 1 · 5.' }]),
+  }], done) }],
+  ['ex', 'Exactly zero', (m) => {
+    const p = panel(0), X = 220;
+    mline(p, [F(1, 2), 'x', E(2), ' − 8x + 32 = 0'], X, 150, m('q'), COL.chalk, 52, 'start');
+    mline(p, ['a = ', F(1, 2), ',   b = −8,   c = 32'], X, 260, m('abc'), COL.dim, 42, 'start');
+    mline(p, ['b', E(2), ' − 4ac = 64 − 4 · ', F(1, 2), ' · 32 = 64 − 64'], X, 380, m('d'), COL.chalk, 46, 'start');
+    mline(p, '= 0', X, 470, m('zero'), DISC, 54, 'start');
+    text(p, 'one real solution', X + 160, 460, m('zero', .6), { size: 32, fill: ONE, weight: 700 });
+    frac(p, ['8 ± ', R(0)], '1', X + 60, 600, m('chk'), { size: 48 });
+    mline(p, 'x =', X, 618, m('chk'), COL.chalk, 48, 'start');
+    mline(p, '= 8', X + 300, 618, m('chk', 1.5), ONE, 48, 'start');
+  }],
+  ['form', 'Standard form first', (m) => {
+    const p = panel(0), X = 220;
+    mline(p, ['−2x', E(2), ' + 7x = 8'], X, 160, m('q'), COL.chalk, 52, 'start');
+    mline(p, ['−2x', E(2), ' + 7x − 8 = 0'], X, 270, m('move'), COL.chalk, 52, 'start');
+    text(p, '−8 both sides', 1000, 260, m('move'), { size: 28, fill: COL.task, weight: 600 });
+    mline(p, ['7', E(2), ' − 4(−2)(−8) = 49 − 64 = −15'], X, 400, m('d'), DISC, 48, 'start');
+    text(p, 'negative: no real solutions', 820, 500, m('none'), { size: 34, fill: NONE, weight: 700 });
+    const P = plane(p, { cx: 1000, cy: 520, u: 50, x0: -2, x1: 5, y0: -6, y1: 3, t0: m('none', .5), labels: false });
+    P.layer = p;
+    P.fn(x => -2 * x * x + 7 * x - 8, -.6, 4.1, PAR, m('none', .8));
+    text(p, 'never reaches the x-axis', 1300, 640, m('none', 1.6), { size: 28, fill: PAR, weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-count', prompt: ['How many real solutions does ', $m('x', E(2), ' + 6x + 11 = 0'), ' have?'],
+    build: choice([['two'], ['one'], ['none']], 2, '36 − 44 = −8 < 0.', ['36 − 44 = −8 is negative.', 'The discriminant is −8, not 0.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Discriminant: b² − 4ac.', 'w1', DISC], ['Positive: 2.  Zero: 1.  Negative: no real solutions.', 'w2', TWO],
+     ['Graph: crosses twice, touches once, or misses.', 'w3', PAR], ['Standard form first, then read a, b, c.', 'w4', ONE]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-disc', prompt: ['Find the discriminant.'], build: blanks([
+      { parts: ['x', E(2), ' + 6x + 3 = 0:     ', { box: '24' }], why: '36 − 12.' },
+      { parts: ['3x', E(2), ' − 5x − 7 = 0:     ', { box: '109' }], why: '25 + 84.', hint: '−4(3)(−7) = +84.' },
+      { parts: ['−3x', E(2), ' − 5x − 7 = 0:     ', { box: '-59' }], why: '25 − 84.', hint: '−4(−3)(−7) = −84.' },
+      { parts: ['−', F(1, 2), 'x', E(2), ' = −64:     ', { box: '128' }], why: '−½x² + 64 = 0: 0 − 4(−½)(64) = 128.', hint: 'Move −64 over first; b = 0.' },
+      { parts: ['3x', E(2), ' + 75 = 30x:     ', { box: '0' }], why: '3x² − 30x + 75 = 0: 900 − 900.', hint: 'Standard form first: b = −30.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-count', prompt: ['How many real solutions?'],
+    build: grid(COUNTQ, [['2', 'Two', TWO, '2'], ['1', 'One', ONE, '1'], ['0', 'None', NONE, '0']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: [$m('x', E(2), ' + 5x − 6 = 0')], build: blanks([
+      { parts: ['discriminant = ', { box: '49' }], why: '25 + 24 = 49.' },
+      { parts: ['x = ', { box: '1' }, '  or  x = ', { box: '-6' }], test: ([p, q]) => (p === 1 && q === -6) || (p === -6 && q === 1), why: '(−5 ± 7) / 2.', hint: '√49 = 7. Use the formula, or factor: (x + 6)(x − 1).' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const COUNTQ = [
+  { parts: [$m('x', E(2), ' + 6x + 9 = 0')], ans: ['1'], why: '36 − 36 = 0.' },
+  { parts: [$m('x', E(2), ' + 6x + 11 = 0')], ans: ['0'], why: '36 − 44 = −8.' },
+  { parts: [$m('8 = 6x − 3x', E(2))], ans: ['0'], why: '−3x² + 6x − 8 = 0: 36 − 96 = −60.' },
+  { parts: [$m('2x', E(2), ' − 3x − 2 = 0')], ans: ['2'], why: '9 + 16 = 25.' },
+  { parts: [$m('4x', E(2), ' + 4x + 1 = 0')], ans: ['1'], why: '16 − 16 = 0.' },
+  { parts: [$m('x', E(2), ' = 5')], ans: ['2'], why: 'x² − 5 = 0: 0 + 20 = 20.' },
+];
+boot();
+</script>
+</body>
+</html>

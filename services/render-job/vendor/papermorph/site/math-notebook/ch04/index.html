@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factors and Greatest Common Factor — Elementary Mathematics</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render">
+<style>
+.screen .grid .row { grid-template-columns: 210px minmax(0,1fr) 40px; }
+.screen .grid .why { padding-left: 226px; }
+.screen .grid.text .row { grid-template-columns: minmax(0,1fr) auto 40px; }
+.screen .grid.text .why { padding-left: 0; }
+.screen .grid .opts { gap: 8px; }
+.screen .grid .opt { padding: 10px 12px; min-width: 56px; }
+.side .grid .row { grid-template-columns: 100px minmax(0,1fr) 34px; }
+.side .grid .why { padding-left: 116px; }
+</style>
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 4, title: 'Factors and Greatest Common Factor', minutes: 11, language: 'en', next: '../ch05/' };
+const FC_ROW = COL.whole, FC_SIZE = COL.nat;
+const fcText = (p,s,x,y,t=0,size=32,col=COL.chalk,anchor='start') => { const e=T(p,s,{x,y,size,fill:col,anchor,o:0}); show(e,t); return e; };
+const fcMath = (p,s,x,y,t=0,size=44,col=COL.chalk,anchor='middle') => { const e=M(p,[s],{x,y,size,fill:col,anchor,o:0}); show(e,t); return e; };
+const fcTitle = (p,s,sub='') => { fcText(p,s,100,125,.15,44); if(sub) fcText(p,sub,100,175,.3,26,COL.dim); };
+function fcDots(p,n,{cx=560,cy=450,cols=n,gap=52,color=COL.chalk,r=12,t=.3}={}) {
+  return Array.from({length:n},(_,i)=>{
+    const rows=Math.ceil(n/cols),e=G(p,{x:cx+(i%cols-(cols-1)/2)*gap,y:cy+(Math.floor(i/cols)-(rows-1)/2)*gap,o:0});
+    mk('circle',{r,fill:color},e); show(e,t+i*.018,.3); return e;
+  });
+}
+function fcArrange(dots,cols,t,{cx=560,cy=450,gap=64}={}) {
+  const rows=Math.ceil(dots.length/cols);
+  dots.forEach((e,i)=>tw(e,{x:cx+(i%cols-(cols-1)/2)*gap,y:cy+(Math.floor(i/cols)-(rows-1)/2)*gap},t+i*.014,1.2,io));
+}
+function fcRowLabels(p,rows,cols,t,{cx=560,cy=450,gap=64}={}) {
+  const g=G(p,{o:0}),w=(cols-1)*gap,h=(rows-1)*gap;
+  path(g,`M${cx-w/2-38} ${cy-h/2-16}h-15v${h+32}h15`,{stroke:FC_ROW,'stroke-width':3});
+  T(g,`${rows} ${rows===1?'row':'rows'}`,{x:cx-w/2-70,y:cy+10,size:28,fill:FC_ROW,anchor:'end'});
+  path(g,`M${cx-w/2-16} ${cy+h/2+38}v15h${w+32}v-15`,{stroke:FC_SIZE,'stroke-width':3});
+  T(g,`${cols} in each`,{x:cx,y:cy+h/2+98,size:28,fill:FC_SIZE,anchor:'middle'});
+  show(g,t,.5);return g;
+}
+function fcPair(p,a,b,x,y,t,size=46) {
+  const g=G(p,{o:0}); M(g,[String(a)],{x,y,size,fill:FC_ROW,anchor:'start'});
+  const x2=x+mathW([String(a)],size)+18; M(g,['×'],{x:x2,y,size,fill:COL.chalk,anchor:'start'}); const x3=x2+mathW(['×'],size)+14; M(g,[String(b)],{x:x3,y,size,fill:FC_SIZE,anchor:'start'}); M(g,[`= ${a*b}`],{x:x3+mathW([String(b)],size)+14,y,size,fill:COL.chalk,anchor:'start'});
+  show(g,t); return g;
+}
+function fcChip(p,v,x,y,t=0,color=COL.chalk) {
+  const e=G(p,{x,y,o:0});mk('rect',{x:-39,y:-31,width:78,height:62,rx:13,fill:COL.board,stroke:color,'stroke-width':2},e);
+  T(e,String(v),{y:12,size:34,fill:color,anchor:'middle'});show(e,t);return e;
+}
+const fcFactors=n=>Array.from({length:n},(_,i)=>i+1).filter(v=>n%v===0);
+function fcAligned(p,a,b,t0=0,align=0,lower=0,tB=t0) {
+  const A=fcFactors(a),B=fcFactors(b),union=[...new Set([...A,...B])].sort((a,b)=>a-b),shared=A.filter(v=>B.includes(v));
+  const dx=Math.min(135,1100/(union.length-1)),x0=330;
+  const g=G(p);fcText(g,String(a),125,325,.3,54,FC_ROW);fcText(g,String(b),125,455,.3,54,FC_SIZE);
+  const make=(arr,y,col,start)=>arr.map((v,i)=>{
+    const e=fcChip(g,v,330+i*130,y,start+i*.12,col);
+    tw(e,{x:x0+union.indexOf(v)*dx},align+i*.045,1.1,io);return {el:e,v};
+  });
+  const aa=make(A,310,FC_ROW,t0),bb=make(B,440,FC_SIZE,tB);
+  const picks=[];
+  shared.forEach((v,i)=>{
+    const x=x0+union.indexOf(v)*dx;
+    const l=path(g,`M${x} 346V404`,{stroke:COL.task,'stroke-width':3},{d:0});draw(l,lower+i*.18,.35);
+    const e=fcChip(g,v,x,585,lower+i*.18,COL.task);
+    picks.push({el:e,box:[x-45,549,90,74],label:`Common factor ${v}`});
+  });
+  fcText(g,'common',110,595,lower,28,COL.task);
+  return {aa,bb,picks,shared,union};
+}
+const FC_DIVS=[['2','2',COL.chalk,'2'],['3','3',COL.chalk,'3'],['5','5',COL.chalk,'5'],['9','9',COL.chalk,'9'],['10','10',COL.chalk,'0']];
+const FC_YN=[['y','Yes',COL.whole,'y'],['n','No',COL.nat,'n']];
+const BEATS=[
+['intro','Factors and GCF',(m,D)=>{
+ const g=G(scene,{o:0,y:24});T(g,'Unit 1 · The Number System · Chapter 4',{x:800,y:275,size:28,fill:COL.dim,anchor:'middle'});
+ T(g,'Factors and',{x:800,y:385,size:82,weight:600,anchor:'middle'});T(g,'Greatest Common Factor',{x:800,y:485,size:82,weight:600,anchor:'middle'});tw(g,{o:1,y:0},.2,1.1,out);
+ const dots=fcDots(g,12,{cx:800,cy:560,cols:6,gap:36,r:7,t:.8});
+ const s=fcText(scene,'Same objects. Different equal rows.',800,690,m('sub'),34,COL.dim,'middle');hide(g,D-.9,.8);hide(s,D-.9,.8);
+}],
+['factors','Equal rows show factors',m=>{
+ const p=panel(0);fcTitle(p,'Twelve dots. What can divide them exactly?','Positive factors: 1, 2, 3, …');
+ S.fcDots=fcDots(p,12,{cols:6});fcArrange(S.fcDots,4,m('rows'));
+ fcRowLabels(p,3,4,m('four'));fcPair(p,3,4,1010,330,m('pair'));
+ fcText(p,'both are factors',1010,390,m('pair',1),29,COL.task);
+ fcMath(p,'12 ÷ 3 = 4',1010,485,m('divide'),42,COL.chalk,'start');
+ fcText(p,'no leftovers',1010,540,m('divide',1.8),30,COL.dim);
+ fcText(p,'A factor divides exactly.',800,775,m('rule'),40,COL.task,'middle');
+}],
+['rearrange','Collect both ends of each pair',m=>{
+ const p=panel(0);fcTitle(p,'Same twelve dots — new rectangles');S.fcDots=fcDots(p,12,{cols:4,gap:64});
+ fcPair(p,3,4,1040,290,.3,40);
+ fcArrange(S.fcDots,6,m('two'),{gap:68});const a=fcRowLabels(p,2,6,m('two',1.2),{gap:68});fcPair(p,2,6,1040,375,m('two',1.4),40);
+ hide(a,m('one'));fcArrange(S.fcDots,12,m('one'),{gap:56});fcRowLabels(p,1,12,m('one',1.3),{gap:56});fcPair(p,1,12,1040,460,m('one',1.5),40);
+ fcText(p,'factors of 12',800,700,m('collect'),30,COL.dim,'middle');
+ [1,2,3,4,6,12].forEach((v,i)=>fcChip(p,v,475+i*130,770,m('list',i*.35),COL.task));
+}],
+['leftovers','Leftovers break the rectangle',m=>{
+ const p=panel(0);fcTitle(p,'Is 5 a factor of 12?','Every row must have the same number.');const d=fcDots(p,12,{cols:4,gap:64});
+ d.forEach((e,i)=>tw(e,{x:i<10?400+(i%2)*70:760+(i-10)*70,y:i<10?270+Math.floor(i/2)*70:480},m('five')+i*.02,1.1,io));
+ fcRowLabels(p,5,2,m('five',1.2),{cx:435,cy:410,gap:70});
+ const circle=path(p,'M725 448H870V511H725Z',{stroke:COL.task,'stroke-width':3},{d:0});draw(circle,m('left'),.6);
+ fcText(p,'2 left over',800,565,m('left',.4),32,COL.task,'middle');
+ fcMath(p,'5 × 2 + 2 = 12',1100,335,m('left',1),42);fcText(p,'5 is NOT a factor',1100,445,m('fail'),38,COL.task,'middle');
+ fcText(p,'Equal whole rows. No leftovers.',800,775,m('fail',2),34,COL.dim,'middle');
+}],
+['q1','Quick check',()=>{
+ const p=panel(0);fcTitle(p,'Which picture proves 4 is a factor of 12?');
+ const a=G(p),b=G(p);fcDots(a,12,{cx:430,cy:410,cols:4,gap:64,t:.2});fcDots(b,10,{cx:1090,cy:410,cols:2,gap:52,t:.2});fcDots(b,2,{cx:1300,cy:410,cols:1,gap:52,t:.2});
+ fcText(a,'3 rows of 4',430,590,.3,32,COL.dim,'middle');fcText(b,'5 rows of 2, plus 2 outside',1120,590,.3,29,COL.dim,'middle');
+ S.fcPicks=[{el:a,box:[260,285,340,265],label:'3 complete rows of 4'},{el:b,box:[990,265,355,310],label:'5 rows of 2 with 2 leftovers'}];
+},{ask:done=>quiz(BAND,[{id:'c-rectangle',prompt:'Choose the arrangement with four in each equal row and no leftovers.',build:pickEls(S.fcPicks,0,'Three equal rows of four use all twelve: 3 × 4 = 12.',()=> 'That layout leaves two outside. It does not divide twelve into equal rows.',()=>S.fcPicks[0].el.querySelectorAll('circle').forEach(e=>e.setAttribute('fill',COL.good)))}],done)}],
+['chairs','Find every factor pair',m=>{
+ const p=panel(0);fcTitle(p,'Twenty-four stools for the drama club','Find every pair, then read both ends.');const d=fcDots(p,24,{cx:570,cy:440,cols:6,gap:55,r:10});
+ [[1,24,'one',30],[2,12,'two',55],[3,8,'three',65],[4,6,'five',72]].forEach(([a,b,k,gap],i)=>{fcArrange(d,b,m(k),{cx:570,cy:440,gap});fcPair(p,a,b,1060,295+i*90,m(k,1),40);});
+ fcText(p,'6 × 4 repeats 4 × 6',1050,690,m('reverse'),28,COL.dim);
+ fcText(p,'factors of 24:',560,785,m('all'),32,COL.dim,'end');fcMath(p,'1, 2, 3, 4, 6, 8, 12, 24',590,785,m('all',1),39,COL.task,'start');
+}],
+['lastdigit','Read the last digit',m=>{
+ const p=panel(0);fcTitle(p,'Divisibility shortcuts','Divisible = no remainder');
+ const nums=[['348','even',2,'0, 2, 4, 6, 8'],['65','five',5,'0 or 5'],['230','ten',10,'0']];
+ nums.forEach(([s,k,n,rule],i)=>{const y=310+i*160;fcMath(p,s,350,y,.3,70);const x=350+mathW([s],70)/2-17;
+ draw(path(p,`M${x-20} ${y+16}H${x+22}`,{stroke:COL.task,'stroke-width':5},{d:0}),m(k),.5);
+ fcText(p,`divisible by ${n}`,570,y,m(k,.4),34,COL.task);fcText(p,`last digit: ${rule}`,1020,y,m(k,1),32,COL.dim);
+ });
+ fcText(p,'Ends in 0 → passes 5 AND 10',800,790,m('overlap'),34,COL.task,'middle');fcText(p,'65: passes 5 ✓   fails 10 ✗',800,850,m('overlap',4.8),30,COL.dim,'middle');
+}],
+['digitsum','Add the digits for 3 and 9',m=>{
+ const p=panel(0);fcTitle(p,'For 3 and 9, test the digit sum');
+ const a=[4,2].map((v,i)=>fcMath(p,String(v),285+i*65,340,.3,65));const b=[2,9,7].map((v,i)=>fcMath(p,String(v),270+i*65,520,.3,65));
+ fcText(p,'42',450,340,m('sum3'),36,COL.dim);fcText(p,'297',400,520,m('sum9'),36,COL.dim);
+ a.forEach((e,i)=>tw(e,{x:620+i*160},m('sum3'),1,io));fcMath(p,'+',700,340,m('sum3',.4),52,COL.dim);fcMath(p,'= 6',900,340,m('sum3',1),65);fcText(p,'passes 3',1210,340,m('sum3',1.7),34,COL.task);
+ b.forEach((e,i)=>tw(e,{x:570+i*150},m('sum9'),1,io));[645,795].forEach(x=>fcMath(p,'+',x,520,m('sum9',.4),48,COL.dim));fcMath(p,'= 18',1000,520,m('sum9',1),65);fcText(p,'passes 9',1210,520,m('sum9',1.7),34,COL.task);
+ fcText(p,'42: sum 6 → passes 3, fails 9',800,675,m('compare'),35,COL.task,'middle');
+ fcText(p,'Multiple of 9 → multiple of 3',800,775,m('rule'),34,COL.chalk,'middle');fcText(p,'The reverse is not always true.',800,823,m('rule',3),28,COL.dim,'middle');
+}],
+['q2','Quick check',()=>{const p=panel(0);fcTitle(p,'Which divisibility tests pass?');fcText(p,'2: even last digit     5: last digit 0 or 5     10: last digit 0',800,310,.3,30,COL.dim,'middle');fcText(p,'3 or 9: add the digits and test the sum',800,390,.5,32,COL.dim,'middle');},
+ {ask:done=>quiz({x:180,y:450,w:1240,cls:'side'},[{id:'c-shortcuts',prompt:['Select ',h('b','','every'),' divisor that works. The key 0 means 10.'],build:grid([{parts:['270'],ans:['2','3','5','9','10'],why:'270 ends in 0; its digit sum is 9. All five tests pass.'},{parts:['42'],ans:['2','3'],why:'42 ends in 2 and its digit sum is 6. It passes 2 and 3, but not 5, 9 or 10.'}],FC_DIVS)}],done)}],
+['prime','Exactly two factors',m=>{
+ const p=panel(0);fcTitle(p,'Can thirteen make another complete rectangle?');const d=fcDots(p,13,{cx:540,cy:420,cols:13,gap:47,r:11});
+ fcPair(p,1,13,1050,300,m('one'),40);
+ d.forEach((e,i)=>tw(e,{x:i<12?350+(i%6)*65:780,y:i<12?395+Math.floor(i/6)*65:460},m('try')+i*.012,1.1,io));
+ fcText(p,'2 rows of 6 + 1 outside',540,560,m('try',1.4),31,COL.task,'middle');
+ ['2 → remainder 1','3 → remainder 1','4 → remainder 1','5 → remainder 3','6 → remainder 1'].forEach((s,i)=>fcText(p,s,1060,385+i*57,m('try',2+i*.38),26,COL.dim));
+ fcChip(p,1,450,690,m('two'),COL.task);fcChip(p,13,610,690,m('two',.4),COL.task);
+ fcText(p,'PRIME = exactly two positive factors',800,815,m('prime'),38,COL.task,'middle');
+}],
+['exceptions','One and two are special',m=>{
+ const p=panel(0);fcTitle(p,'Count the different positive factors');
+ fcMath(p,'1',310,315,.3,80);fcMath(p,'2',800,315,.3,80);fcMath(p,'8',1280,315,.3,80);
+ fcChip(p,1,310,440,m('one'));fcText(p,'one factor',310,535,m('one',.7),30,COL.dim,'middle');fcText(p,'NOT prime',310,610,m('not'),34,COL.task,'middle');
+ fcChip(p,1,745,440,m('two'));fcChip(p,2,855,440,m('two',.3));fcText(p,'two factors',800,535,m('two',.8),30,COL.dim,'middle');fcText(p,'prime',800,610,m('two',1.4),34,COL.task,'middle');
+ [1,2,4,8].forEach((v,i)=>fcChip(p,v,1115+i*110,440,m('even',i*.2)));fcPair(p,2,4,1140,580,m('even',1),36);fcText(p,'an extra factor: 2',1280,655,m('even',2),28,COL.dim,'middle');
+ fcText(p,'2 is the only even prime.',800,815,m('only'),40,COL.task,'middle');
+}],
+['common','Line up shared factors',m=>{
+ const p=panel(0);fcTitle(p,'A common factor must work for BOTH numbers');S.fcMatch=fcAligned(p,12,18,m('twelve'),m('line'),m('common'),m('eighteen'));
+ fcText(p,'4 belongs only to 12.     9 belongs only to 18.',800,780,m('common',3),30,COL.dim,'middle');
+}],
+['greatest','Choose the largest common factor',m=>{
+ const p=panel(0);fcTitle(p,'Common is a start. Greatest finishes the job.');const chips=[1,2,3,6].map((v,i)=>fcChip(p,v,420+i*240,350,.3,COL.task));
+ pulse(chips[1],m('smaller'),1.2);pulse(chips[2],m('smaller',1.8),1.2);const frame=path(p,'M1090 300H1190V400H1090Z',{stroke:COL.task,'stroke-width':4},{d:0});draw(frame,m('greatest'),.6);pulse(chips[3],m('greatest'),1.35);
+ fcMath(p,'12 ÷ 6 = 2',620,550,m('divide'),48);fcMath(p,'18 ÷ 6 = 3',1050,550,m('divide',2.4),48);
+ fcText(p,'GCF of 12 and 18 = 6',800,710,m('name'),48,COL.task,'middle');fcText(p,'largest factor shared by every number',800,780,m('name',1.7),30,COL.dim,'middle');
+}],
+['q3','Quick check',()=>{const p=panel(0);fcTitle(p,'Which shared factor is the GCF of 12 and 18?');S.fcMatch=fcAligned(p,12,18,.2,.2,.2);},
+ {ask:done=>quiz(BAND,[{id:'c-greatest',prompt:'Click the greatest value in the amber common row.',build:pickEls(S.fcMatch.picks,3,'6 is shared, and it is the largest shared value.',i=>`${S.fcMatch.shared[i]} is a common factor, but a larger shared factor is still on the row.`,()=>pulseFx(S.fcMatch.picks[3].el,1.3))}],done)}],
+['groups','Make the greatest number of matching kits',m=>{
+ const p=panel(0);fcTitle(p,'Matching art kits. No counters left over.','12 coral counters + 18 blue counters');
+ const reds=fcDots(p,12,{cx:470,cy:425,cols:6,gap:46,r:11,color:FC_SIZE});const blues=fcDots(p,18,{cx:1080,cy:425,cols:6,gap:46,r:11,color:FC_ROW});
+ const box=(x,y,w,h,t)=>{const g=G(p,{o:0});mk('rect',{x:x-w/2,y:y-h/2,width:w,height:h,rx:20,fill:'none',stroke:COL.faint,'stroke-width':2.5},g);show(g,t,.5);return g;};
+ const three=[320,800,1280].map(x=>box(x,425,350,220,m('two')));
+ const moveSets=(n,t)=>{
+  const centers=n===3?[[320,425],[800,425],[1280,425]]:[[320,340],[800,340],[1280,340],[320,570],[800,570],[1280,570]];
+  [[reds,12,FC_SIZE],[blues,18,FC_ROW]].forEach(([arr,total,col],j)=>arr.forEach((e,i)=>{const each=total/n,k=Math.floor(i/each),c=i%each,[x,y]=centers[k];tw(e,{x:x+(c-(each-1)/2)*42,y:y+(j===0?-35:35)},t+i*.016,1.2,io);}));
+ };
+ moveSets(3,m('two'));const lab3=fcText(p,'3 kits: 4 coral + 6 blue in each',800,790,m('two',1.7),30,COL.dim,'middle');hide(lab3,m('four'));
+ three.forEach(e=>hide(e,m('four')));const six=[[320,340],[800,340],[1280,340],[320,570],[800,570],[1280,570]].map(([x,y])=>box(x,y,310,180,m('four')));moveSets(6,m('four'));
+ const lab6=fcText(p,'6 kits: 2 coral + 3 blue in each',800,790,m('each'),35,COL.task,'middle');
+ six.forEach(e=>hide(e,m('eight')));hide(lab6,m('eight'));
+ const badBoxes=[];for(let i=0;i<12;i++){const x=350+(i%6)*180,y=340+Math.floor(i/6)*160;badBoxes.push(box(x,y,115,100,m('eight')));tw(reds[i],{x,y:y-20},m('eight')+i*.01,1.1,io);tw(blues[i],{x,y:y+20},m('eight')+i*.01,1.1,io);}
+ blues.slice(12).forEach((e,i)=>tw(e,{x:575+i*90,y:655},m('eight')+i*.01,1.1,io));
+ const badLabel=fcText(p,'12 kits leave 6 blue counters outside.',800,745,m('eight',1.5),32,COL.task,'middle');
+ const badOutline=path(p,'M535 615H1070V695H535Z',{stroke:COL.task,'stroke-width':3},{d:0});draw(badOutline,m('eight',1.3),.6);
+ badBoxes.forEach(e=>hide(e,m('greatest')));hide(badLabel,m('greatest'));hide(badOutline,m('greatest'));six.forEach(e=>show(e,m('greatest')));moveSets(6,m('greatest'));
+ fcText(p,'Greatest number of kits = GCF(12, 18) = 6',800,800,m('greatest'),32,COL.task,'middle');
+}],
+['coprime','The GCF can be 1 — or the smaller number',m=>{
+ const p=panel(0);fcTitle(p,'Two useful edge cases');
+ fcText(p,'35:  1, 5, 7, 35',150,300,.3,40,FC_ROW);fcText(p,'64:  1, 2, 4, 8, 16, 32, 64',150,380,.3,40,FC_SIZE);
+ fcChip(p,1,1190,335,m('only'),COL.task);fcText(p,'GCF = 1',1190,435,m('one'),38,COL.task,'middle');
+ draw(path(p,'M140 505H1460',{stroke:COL.faint,'stroke-width':2},{d:0}),m('smaller'),.6);
+ fcMath(p,'16 × 3 = 48',420,610,m('smaller'),50);fcText(p,'16 divides both 16 and 48',900,610,m('smaller',1),32,COL.dim);
+ fcText(p,'GCF(16, 48) = 16',800,750,m('whole'),44,COL.task,'middle');
+}],
+['wrap','Summary',m=>{
+ const p=panel(0);const rows=[['Factors: equal whole rows, with no leftovers.','w1'],['Divisibility: last digit, or sum of the digits.','w2'],['Prime: exactly two factors. 1 is not prime; 2 is.','w3'],['GCF: largest shared factor; greatest matching groups.','w4']];
+ rows.forEach(([s,k],i)=>{const g=G(p,{x:124,y:260+i*140,o:0});mk('circle',{cx:170,cy:-12,r:26,fill:COL.task},g);T(g,String(i+1),{x:170,y:-1,size:30,fill:COL.board,anchor:'middle',weight:700});T(g,s,{x:230,size:36,weight:600});tw(g,{x:140,o:1},m(k),.6);});
+}],
+['final1','Chapter practice',()=>panel(0),{ask:done=>quiz(SCREEN,[{id:'p-factors',prompt:['Select ',h('b','','every'),' positive factor of each number.'],build:grid([
+ {parts:['18'],ans:['1','2','3','6','9','18'],why:'18 = 1×18 = 2×9 = 3×6. Collect both ends of each pair.'},
+ {parts:['24'],ans:['1','2','3','4','6','8','12','24'],why:'24 = 1×24 = 2×12 = 3×8 = 4×6.'}
+ ],[1,2,3,4,6,8,9,12,18,24].map((v,i)=>[String(v),String(v),COL.chalk,String((i+1)%10)]))}],done,'Chapter practice · set 1 of 4')}],
+['final2','Chapter practice',()=>panel(0),{ask:done=>quiz(SCREEN,[{id:'p-divisibility',prompt:'Is each statement true?',build:grid([
+ {parts:['462 is divisible by 2.'],ans:['y'],why:'Its last digit is 2, which is even.'},
+ {parts:['537 is divisible by 3.'],ans:['y'],why:'5 + 3 + 7 = 15, and 15 is divisible by 3.'},
+ {parts:['729 is divisible by 9.'],ans:['y'],why:'7 + 2 + 9 = 18, and 18 is divisible by 9.'},
+ {parts:['2,145 is divisible by 10.'],ans:['n'],why:'The last digit must be 0, not 5.'},
+ {parts:['51 is divisible by 9.'],ans:['n'],why:'5 + 1 = 6. It passes 3, but fails 9.'},
+ {parts:['Every multiple of 9 is a multiple of 3.'],ans:['y'],why:'9 = 3×3, so any whole number of nines is also a whole number of threes.'}
+ ],FC_YN,{multi:false,text:true})}],done,'Chapter practice · set 2 of 4')}],
+['final3','Chapter practice',()=>panel(0),{ask:done=>quiz(SCREEN,[{id:'p-gcf',prompt:'Find each greatest common factor.',build:blanks([
+ {parts:['GCF(14, 35) = ',{box:'7'}],why:'Shared factors: 1 and 7. The greatest is 7.'},
+ {parts:['GCF(35, 64) = ',{box:'1'}],why:'35 has factors 1,5,7,35; 64 has factors 1,2,4,8,16,32,64. Only 1 is shared.'},
+ {parts:['GCF(16, 48) = ',{box:'16'}],why:'16 itself divides 48: 16 × 3 = 48.'},
+ {parts:['GCF(20, 50) = ',{box:'10'}],why:'Shared factors: 1,2,5,10. The greatest is 10.'}
+ ])}],done,'Chapter practice · set 3 of 4')}],
+['final4','Chapter practice',()=>panel(0),{ask:done=>quiz(SCREEN,[
+ {id:'p-kits',prompt:['An art club has ',h('b','','15 blue counters'),' and ',h('b','','25 coral counters'),'. Make the greatest number of identical kits, with no leftovers.'],build:blanks([
+ {parts:['number of kits = ',{box:'5'}],why:'GCF(15,25) = 5. A smaller common factor would not give the greatest number of kits.'},
+ {parts:['blue in each = ',{box:'3'}],why:'15 ÷ 5 = 3 blue counters per kit.'},
+ {parts:['coral in each = ',{box:'5'}],why:'25 ÷ 5 = 5 coral counters per kit. The blue/coral counts can differ; the kits match.'}
+ ])},
+ {id:'p-primes',prompt:'Is each number prime?',build:grid([{parts:['1'],ans:['n'],why:'1 has only one positive factor, so it is not prime.'},{parts:['2'],ans:['y'],why:'2 has exactly two positive factors: 1 and 2.'}],FC_YN,{multi:false})}
+ ],done,'Chapter practice · set 4 of 4')}],
+['finish','Finished',()=>panel(0),{ask:finishCard}]
+].map(([id,title,run,extra])=>({id,title,run,...extra}));
+boot();
+</script>
+</body>
+</html>

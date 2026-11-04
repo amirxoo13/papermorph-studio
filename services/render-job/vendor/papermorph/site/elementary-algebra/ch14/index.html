@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Percent — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 14, title: 'Percent', minutes: 7, next: '../ch15/' };
+const PC = COL.irr, WH = COL.whole, PT = COL.nat;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// 10 × 10 grid; shade(n, t0) fills the first n cells column by column.
+function hundred(p, x, y, s, t0, color = PC) {
+  const u = s / 10, g = G(p, { o: 0 }), cells = [];
+  for (let c = 0; c < 10; c++) for (let r = 0; r < 10; r++) {
+    const cell = put(mk('rect', { x: x + c * u + 2, y: y + r * u + 2, width: u - 4, height: u - 4, rx: 3, fill: color }, p), { o: 0 });
+    cells.push(cell);
+  }
+  mk('rect', { x, y, width: s, height: s, fill: 'none', stroke: COL.chalk, 'stroke-width': 2.5 }, g);
+  for (let i = 1; i < 10; i++) path(g, `M${x + i * u} ${y}V${y + s}M${x} ${y + i * u}H${x + s}`, { stroke: COL.faint, 'stroke-width': 1.2 });
+  show(g, t0);
+  return { cells, shade(n, t, step = .02, run = tw) { cells.slice(0, n).forEach((c, i) => run(c, { o: .85 }, t + i * step, .15)); } };
+}
+// Percent bar: whole bar = 100 %, with value labels above and percent labels below.
+function pbar(p, { x = 220, y = 360, w = 1160, h = 70, t0 = .2, total, label = '' }) {
+  const g = G(p, { o: 0 });
+  mk('rect', { x, y, width: w, height: h, rx: 8, fill: 'none', stroke: WH, 'stroke-width': 3 }, g);
+  T(g, '0%', { x, y: y + h + 40, size: 24, fill: COL.dim, anchor: 'middle' });
+  T(g, '100%', { x: x + w, y: y + h + 40, size: 24, fill: COL.dim, anchor: 'middle' });
+  if (total !== undefined) T(g, label || String(total), { x: x + w, y: y - 16, size: 28, fill: WH, font: MATH, anchor: 'middle' });
+  show(g, t0);
+  const X = pc => x + w * pc / 100;
+  return {
+    X,
+    fill(pc, color, t, run = tw) { const r = put(mk('rect', { x, y: y + 4, height: h - 8, rx: 6, fill: color, 'fill-opacity': .6 }, p), { o: 1, a_width: 0 }); run(r, { a_width: w * pc / 100 }, t, .8); return r; },
+    tick(pc, top, bottom, t, color = COL.task, run = tw) {
+      const m = G(p, { o: 0 });
+      path(m, `M${X(pc)} ${y - 8}V${y + h + 8}`, { stroke: color, 'stroke-width': 2.5 });
+      if (top) T(m, top, { x: X(pc), y: y - 16, size: 26, fill: color, font: MATH, anchor: 'middle' });
+      if (bottom) T(m, bottom, { x: X(pc), y: y + h + 40, size: 24, fill: color, anchor: 'middle' });
+      run(m, { o: 1 }, t, .3);
+    },
+  };
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Percent', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 14', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Percent', { x: 800, y: 430, size: 100, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['% = per 100'], 800, 580, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['define', 'Per hundred', (m) => {
+    const p = panel(0);
+    const H = hundred(p, 240, 170, 440, m('grid'));
+    H.shade(25, m('shade'));
+    mline(p, ['25%'], 1100, 250, m('pct'), PC, 80);
+    mline(p, ['= ', F(25, 100), ' = 0.25'], 1100, 380, m('forms'), COL.chalk, 56);
+    mline(p, ['= ', F(1, 4)], 1100, 490, m('simp'), COL.chalk, 56);
+    mline(p, ['125% = 1.25'], 1100, 640, m('over'), COL.dim, 46);
+  }],
+  ['convert', 'Converting', (m) => {
+    const p = panel(0);
+    const rows = [['p2f', ['75% = ', F(75, 100), ' = ', F(3, 4)], 'percent → fraction: put over 100, simplify'],
+      ['p2d', ['45% = 0.45'], 'percent → decimal: ÷ 100, point 2 places left'],
+      ['d2p', ['0.3 = 30%'], 'decimal → percent: × 100, point 2 places right'],
+      ['f2p', [F(3, 5), ' = 3 ÷ 5 = 0.6 = 60%'], 'fraction → percent: divide, then × 100']];
+    rows.forEach(([mark, parts, note], i) => {
+      const y = 200 + i * 150;
+      show(T(p, note, { x: 200, y: y + 10, size: 26, fill: COL.task, weight: 600, o: 0 }), m(mark));
+      mline(p, parts, 1050, y + 18, m(mark, 1), COL.chalk, 50);
+    });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-convert', prompt: ['Write 35% as a decimal and as a fraction in simplest form.'],
+    build: blanks([{ parts: ['35% = ', { box: '0.35' }, ' = ', { box: '7/20', lowest: true }], why: '35 ÷ 100 = 0.35, and 35/100 = 7/20.', hint: 'Divide by 100 for the decimal. For the fraction, simplify 35/100.' }]),
+  }], done) }],
+  ['ofNumber', 'A percent of a number', (m) => {
+    const p = panel(0);
+    mline(p, ['15% of 95'], 800, 170, .2, COL.chalk, 56);
+    const B = pbar(p, { total: 95, t0: m('bar') });
+    B.fill(10, PC, m('ten')); B.tick(10, '9.5', '10%', m('ten', .6));
+    B.tick(15, '14.25', '15%', m('add', .5), COL.good);
+    const f5 = put(mk('rect', { x: B.X(10), y: 364, height: 62, fill: PT, 'fill-opacity': .6 }, p), { o: 1, a_width: 0 });
+    tw(f5, { a_width: B.X(5) - B.X(0) }, m('five'), .6);
+    show(T(p, '5% = 4.75', { x: B.X(12.5), y: 520, size: 26, fill: PT, font: MATH, anchor: 'middle', o: 0 }), m('five', .6));
+    mline(p, ['0.15 × 95 = 14.25'], 800, 640, m('calc'), COL.good, 52);
+    caption(p, 'percent of a number: change to a decimal, then multiply', m('rule'), 740, COL.task);
+  }],
+  ['whatPercent', 'What percent?', (m) => {
+    const p = panel(0);
+    mline(p, ['5 is what percent of 20?'], 800, 150, m('q'), COL.chalk, 50);
+    mline(p, [F('part', 'whole'), ' = ', F('percent', 100)], 480, 280, m('set'), COL.task, 48);
+    mline(p, [F(5, 20), ' = ', F('x', 100)], 480, 420, m('fill'), COL.chalk, 52);
+    mline(p, ['20x = 500,   x = 25'], 480, 530, m('solve'), COL.chalk, 44);
+    mline(p, ['5 is 25% of 20'], 480, 640, m('ans'), COL.good, 50);
+    const B = pbar(p, { x: 900, y: 360, w: 560, total: 20, t0: m('bar') });
+    for (let k = 1; k < 4; k++) B.tick(25 * k, String(5 * k), `${25 * k}%`, m('bar', .5 + k * .3), COL.faint);
+    B.fill(25, PC, m('bar', 1.5));
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-pct', prompt: ['9 of the 40 students walk to school. What percent is that?'],
+    build: blanks([{ parts: [F(9, 40), ' = ', F('x', 100), ':   x = ', { box: '22.5' }, '%'], why: '40x = 900, so x = 22.5.', hint: 'Cross-multiply: 40 × x = 9 × 100.' }]),
+  }], done) }],
+  ['whole', 'Finding the whole', (m) => {
+    const p = panel(0);
+    mline(p, ['20% of what number is 40?'], 800, 150, m('q'), COL.chalk, 50);
+    const B = pbar(p, { t0: m('bar') });
+    const qm = T(p, '?', { x: B.X(100), y: 344, size: 30, fill: COL.task, font: MATH, anchor: 'middle', o: 0 });
+    show(qm, m('bar')); hide(qm, m('ten', 1.4), .2);
+    B.fill(20, PC, m('bar', .4)); B.tick(20, '40', '20%', m('bar', .8), PC);
+    for (let k = 2; k <= 5; k++) B.tick(20 * k, String(40 * k), `${20 * k}%`, m('ten', (k - 2) * .4), k === 5 ? COL.good : COL.faint);
+    mline(p, ['5 × 40 = 200'], 800, 580, m('ans'), COL.good, 52);
+    mline(p, [F(40, 'x'), ' = ', F(20, 100), ':   20x = 4000,   x = 200'], 800, 700, m('prop'), COL.dim, 42);
+  }],
+  ['big', 'More than 100%', (m) => {
+    const p = panel(0);
+    mline(p, ['130% of what number is 143?'], 800, 150, m('q'), COL.chalk, 50);
+    mline(p, [F(143, 'x'), ' = ', F(130, 100)], 800, 290, m('set'), COL.chalk, 54);
+    mline(p, ['130x = 14300,   x = 110'], 800, 410, m('solve'), COL.good, 48);
+    const x0 = 300, u = 7;
+    const w = G(p, { o: 0 }); mk('rect', { x: x0, y: 520, width: 110 * u, height: 50, rx: 6, fill: WH, 'fill-opacity': .5 }, w); T(w, 'whole: 110 (100%)', { x: x0 + 110 * u + 20, y: 555, size: 26, fill: WH }); show(w, m('check'));
+    const pt = G(p, { o: 0 }); mk('rect', { x: x0, y: 600, width: 143 * u, height: 50, rx: 6, fill: PT, 'fill-opacity': .5 }, pt); T(pt, 'part: 143 (130%)', { x: x0 + 143 * u + 20, y: 635, size: 26, fill: PT }); show(pt, m('check', 1.5));
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-whole', prompt: ['120% of what number is 90?'],
+    build: blanks([{ parts: [F(90, 'x'), ' = ', F(120, 100), ':   x = ', { box: '75' }], why: '120x = 9000, so x = 75. The part 90 is bigger than the whole, as it should be.', hint: 'Cross-multiply: 120 × x = 90 × 100.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Percent means per hundred.', 'w1'], ['Convert: ÷ 100 or × 100 (move the point two places).', 'w1'],
+     ['A percent of a number: multiply.', 'w2'], ['Missing percent or whole: part/whole = percent/100.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 1 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-convert', prompt: ['Convert. Give fractions in simplest form.'], build: blanks(CONVERT),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: ['Solve.'], build: blanks(SOLVE),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CONVERT = [
+  { parts: ['85% as a fraction = ', { box: '17/20', lowest: true }], why: '85/100 = 17/20.' },
+  { parts: ['17% as a decimal = ', { box: '0.17' }], why: '17 ÷ 100 = 0.17.' },
+  { parts: [F(8, 20), ' as a percent = ', { box: '40' }, '%'], why: '8 ÷ 20 = 0.4 = 40%.' },
+  { parts: ['0.065 as a percent = ', { box: '6.5' }, '%'], why: '0.065 × 100 = 6.5.' },
+  { parts: ['250% as a decimal = ', { box: '2.5' }], why: '250 ÷ 100 = 2.5.' },
+];
+const SOLVE = [
+  { parts: ['17% of 30 = ', { box: '5.1' }], why: '0.17 × 30 = 5.1.' },
+  { parts: ['20% of 300 = ', { box: '60' }], why: '0.2 × 300 = 60.' },
+  { parts: ['6 of every 8 juice boxes are orange: ', { box: '75' }, '%'], why: '6/8 = 0.75 = 75%.' },
+  { parts: ['40% of what number is 18? ', { box: '45' }], why: '18/x = 40/100, so 40x = 1800 and x = 45.' },
+  { parts: ['150 requests were 120% of the tickets. Tickets: ', { box: '125' }], why: '150/x = 120/100, so 120x = 15000 and x = 125.' },
+];
+const TFQ = [
+  { parts: ['50% of a number is half of it.'], ans: ['t'], why: '50/100 = 1/2.' },
+  { parts: ['A percent can never be greater than 100%.'], ans: ['f'], why: '125% means 1.25 times the whole.' },
+  { parts: [$m('0.7 = 7%')], ans: ['f'], why: '0.7 × 100 = 70%.' },
+  { parts: ['10% of 65 is 6.5.'], ans: ['t'], why: '65 ÷ 10 = 6.5.' },
+  { parts: ['If 25% of a number is 10, the number is 40.'], ans: ['t'], why: 'Four blocks of 25% make 100%: 4 × 10 = 40.' },
+  { parts: [$m(F(3, 4)), ' is 34%.'], ans: ['f'], why: '3 ÷ 4 = 0.75 = 75%.' },
+];
+boot();
+</script>
+</body>
+</html>

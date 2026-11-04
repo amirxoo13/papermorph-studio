@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Displaying Data — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 41, title: 'Displaying Data', minutes: 10, next: '../ch42/' };
+const REV = COL.whole, SKIP = COL.nat, MED = COL.rat, QC = COL.int, END = COL.nat, BAR = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// Table grid: xs and ys are the column and row edges. Returns cell centres and click boxes.
+function grid2(p, xs, ys, t0) {
+  let d = '';
+  ys.forEach(y => { d += `M${xs[0]} ${y}H${xs.at(-1)}`; });
+  xs.forEach(x => { d += `M${x} ${ys[0]}V${ys.at(-1)}`; });
+  show(path(p, d, { stroke: COL.faint, 'stroke-width': 2 }, { o: 0 }), t0);
+  return {
+    C: (i, j) => [(xs[j] + xs[j + 1]) / 2, (ys[i] + ys[i + 1]) / 2],
+    box: (i, j) => [xs[j] + 5, ys[i] + 5, xs[j + 1] - xs[j] - 10, ys[i + 1] - ys[i] - 10],
+    strip: (i, j1, j2, color, t0, run = tw, into = p) => {
+      const r = put(mk('rect', { x: xs[j1] + 4, y: ys[i] + 4, width: xs[j2 + 1] - xs[j1] - 8, height: ys[i + 1] - ys[i] - 8, rx: 10, fill: color }, into), { o: 0 });
+      into.insertBefore(r, into.firstChild);
+      run(r, { o: .22 }, t0, .3);
+      return r;
+    },
+    stripV: (j, i1, i2, color, t0, run = tw, into = p) => {
+      const r = put(mk('rect', { x: xs[j] + 4, y: ys[i1] + 4, width: xs[j + 1] - xs[j] - 8, height: ys[i2 + 1] - ys[i1] - 8, rx: 10, fill: color }, into), { o: 0 });
+      into.insertBefore(r, into.firstChild);
+      run(r, { o: .22 }, t0, .3);
+      return r;
+    },
+  };
+}
+// A number in a table cell; pops in at t0.
+function cellNum(p, G2, i, j, v, t0, fill = COL.chalk, size = 40) {
+  const [x, y] = G2.C(i, j);
+  const e = M(p, [String(v)], { x, y: y + size * .34, size, fill, s: .5, o: 0 });
+  pop(e, t0);
+  return e;
+}
+function cellText(p, G2, i, j, str, t0, fill = COL.dim, size = 24) {
+  const [x, y] = G2.C(i, j);
+  return text(p, str, x, y + size * .36, t0, { size, fill, anchor: 'middle', weight: 600 });
+}
+// Histogram: bins of equal width on a baseline; bars grow with grow(bin, count, t0).
+function histo(p, { x0, y0, bw, u, labels, top, t0, title }) {
+  const n = labels.length, g = G(p, { o: 0 });
+  path(g, `M${x0} ${y0}H${x0 + n * bw + 30}`, { stroke: COL.dim, 'stroke-width': 3 });
+  path(g, `M${x0} ${y0}V${y0 - top * u - 30}`, { stroke: COL.dim, 'stroke-width': 3 });
+  for (let c = 0; c <= top; c++) {
+    path(g, `M${x0 - 8} ${y0 - c * u}H${x0}`, { stroke: COL.dim, 'stroke-width': 2 });
+    T(g, String(c), { x: x0 - 16, y: y0 - c * u + 8, size: 20, fill: COL.dim, font: MATH, anchor: 'end' });
+  }
+  labels.forEach((l, i) => T(g, l, { x: x0 + (i + .5) * bw, y: y0 + 36, size: 22, fill: COL.dim, font: MATH, anchor: 'middle' }));
+  T(g, 'frequency', { x: x0, y: y0 - top * u - 46, size: 22, fill: COL.dim, anchor: 'middle' });
+  if (title) T(g, title, { x: x0 + n * bw / 2, y: y0 + 76, size: 24, fill: COL.dim, anchor: 'middle' });
+  show(g, t0);
+  const bars = labels.map((l, i) => put(mk('rect', { x: x0 + i * bw, width: bw, fill: mix(COL.board, BAR, .45), stroke: BAR, 'stroke-width': 2.5 }, p), { a_y: y0, a_height: 0, c_stroke: BAR, 'a_stroke-width': 2.5 }));
+  return { bars, grow: (i, c, t0, run = tw, dur = .25) => run(bars[i], { a_y: y0 - c * u, a_height: c * u }, t0, dur, out) };
+}
+// Box plot pieces on a data line D, centred at height yc.
+const BH = 50;
+function boxBar(p, D, v, yc, color, t0, run = tw, h = BH) {
+  const l = path(p, `M${D.V(v)} ${yc - h}V${yc + h}`, { stroke: color, 'stroke-width': 4 }, { d: 0 });
+  run(l, { d: 1 }, t0, .4);
+  return l;
+}
+function boxEdges(p, D, q1, q3, yc, t0, run = tw) {
+  const l = path(p, `M${D.V(q1)} ${yc - BH}H${D.V(q3)}M${D.V(q1)} ${yc + BH}H${D.V(q3)}`, { stroke: COL.chalk, 'stroke-width': 4 }, { d: 0 });
+  run(l, { d: 1 }, t0, .6);
+  return l;
+}
+function whiskers(p, D, [mn, q1, , q3, mx], yc, t0, run = tw) {
+  const l = path(p, `M${D.V(q1)} ${yc}H${D.V(mn)}M${D.V(q3)} ${yc}H${D.V(mx)}`, { stroke: COL.chalk, 'stroke-width': 4 }, { d: 0 });
+  run(l, { d: 1 }, t0, .7);
+  return [l, boxBar(p, D, mn, yc, END, t0 + .6, run, 28), boxBar(p, D, mx, yc, END, t0 + .6, run, 28)];
+}
+// Recolour a dot (circle) from its current fill.
+function tint(d, color, t0, run = tw) { put(d, { c_fill: d.getAttribute('fill') }); run(d, { c_fill: color }, t0, .4); }
+// Small scatter plot in a 360×250 frame at (x, y) top-left. pts in [0, 1]².
+function mini(p, x, y, pts, color, t0, run = tw) {
+  const g = G(p, { o: 0 }), W = 360, H = 250;
+  path(g, `M${x} ${y}V${y + H}H${x + W}`, { stroke: COL.chalk, 'stroke-width': 3 });
+  run(g, { o: 1 }, t0, .4);
+  const ds = pts.map(([u, v], i) => { const d = put(mk('circle', { cx: x + 20 + u * (W - 40), cy: y + H - 20 - v * (H - 40), r: 8, fill: color }, p), { o: 0 }); run(d, { o: 1 }, t0 + .2 + i * .04, .2); return d; });
+  return { g, ds, box: [x - 16, y - 16, W + 32, H + 32] };
+}
+// Fixed scatter patterns (no randomness: a replayed step must look the same).
+const hash = i => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+const wob = i => (hash(i) - .5) * .3;
+const POSP = Array.from({ length: 14 }, (_, i) => { const u = (i + .5) / 14; return [u, .12 + .76 * u + wob(i)]; });
+const NEGP = Array.from({ length: 14 }, (_, i) => { const u = (i + .5) / 14; return [u, .88 - .76 * u + wob(i + 3)]; });
+const NONEP = Array.from({ length: 14 }, (_, i) => [(i + .5) / 14, .08 + .84 * hash(i + 40)]);
+
+/* ---------- data ---------- */
+const TWX = [220, 540, 820, 1100, 1380], TWY = [140, 230, 320, 410, 500];
+const PETS = [0, 2, 1, 1, 3, 0, 1, 2, 1, 4, 0, 1];
+const HW = [5, 12, 18, 23, 27, 31, 8, 15, 22, 25, 29, 35, 14, 19, 21, 26, 38, 44, 11, 47];
+const BOXD = [2, 5, 6, 8, 9, 11, 12, 14, 15, 18, 24], FIVE = [2, 6, 11, 15, 24];
+const STUDY = [[0.5, 58], [1, 65], [1.5, 62], [2, 70], [2.5, 74], [3, 71], [3.5, 80], [4, 84], [4.5, 79], [5, 90]];
+const bestFit = (() => {
+  const n = STUDY.length, mx = STUDY.reduce((a, [x]) => a + x, 0) / n, my = STUDY.reduce((a, [, y]) => a + y, 0) / n;
+  const m = STUDY.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0) / STUDY.reduce((a, [x]) => a + (x - mx) ** 2, 0);
+  return x => my + m * (x - mx);
+})();
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Displaying data', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 7, Chapter 41', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Displaying Data', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'tables  ·  line plots  ·  histograms  ·  box plots  ·  scatter plots', 800, 600, m('sub'), { size: 32, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['twoway', 'Two-way tables', (m) => {
+    const p = panel(0), G2 = grid2(p, TWX, TWY, m('q'));
+    text(p, '36 students took a test', 220, 100, m('q'), { size: 28, fill: COL.dim });
+    cellText(p, G2, 0, 1, 'Did the review', m('cols'), REV);
+    cellText(p, G2, 0, 2, 'Skipped it', m('cols', .3), SKIP);
+    cellText(p, G2, 0, 3, 'Total', m('tot'), COL.dim);
+    cellText(p, G2, 1, 0, 'Passed', m('rows'));
+    cellText(p, G2, 2, 0, 'Did not pass', m('rows', .3));
+    cellText(p, G2, 3, 0, 'Total', m('tot', 3), COL.dim);
+    const V = [[18, 6], [3, 9]], n = {};
+    V.forEach((row, i) => row.forEach((v, j) => { n[`${i + 1}${j + 1}`] = cellNum(p, G2, i + 1, j + 1, v, m('cells', .2 + (i * 2 + j) * .25)); }));
+    tw(n[11], { s: 1.35 }, m('cells', 2.6), .3, out); tw(n[11], { s: 1 }, m('cells', 3.1), .4);
+    [[1, 24], [2, 12]].forEach(([i, v], k) => {
+      hide(G2.strip(i, 1, 2, COL.task, m('tot', k * 1.2)), m('tot', 1.4 + k * 1.2));
+      n[`${i}3`] = cellNum(p, G2, i, 3, v, m('tot', .6 + k * 1.2), COL.task);
+    });
+    [[1, 21], [2, 15]].forEach(([j, v], k) => {
+      hide(G2.stripV(j, 1, 2, COL.task, m('tot', 3 + k * 1.2)), m('tot', 4.4 + k * 1.2));
+      n[`3${j}`] = cellNum(p, G2, 3, j, v, m('tot', 3.6 + k * 1.2), COL.task);
+    });
+    n[33] = cellNum(p, G2, 3, 3, 36, m('all'), COL.good);
+    mline(p, '24 + 12 = 36 = 21 + 15', 800, 570, m('all', .5), COL.dim, 34);
+    S.tw = { G2, n };
+    const c = S.cmp = G(p);
+    [[640, 'did the review', REV, 18, 21, 'cmp'], [720, 'skipped it', SKIP, 6, 15, 'cmp2']].forEach(([y, lab, col, a, b, mk2]) => {
+      text(c, lab, 220, y + 10, m(mk2), { size: 26, fill: col, weight: 600 });
+      show(rect(c, 460, y - 22, 520, 44, 'none', 0, COL.faint), m(mk2));
+      const f = put(rect(c, 460, y - 22, 0, 44, mix(COL.board, col, .6), 1), { a_width: 0 });
+      tw(f, { a_width: 520 * a / b }, m(mk2, .4), .9, out);
+      text(c, `${a} of ${b} passed`, 1010, y + 10, m(mk2, 1), { size: 28, weight: 600 });
+    });
+    text(c, 'More likely to pass after the review.', 220, 810, m('rel'), { size: 28, fill: COL.good, weight: 600 });
+  }],
+  ['q1', 'Quick check', () => { hide(S.cmp, 0, .4); }, { ask: done => quiz(BAND, [{
+    id: 'c-cell', prompt: ['Click the cell that counts students who skipped the review but still passed.'],
+    build: pickEls([[1, 1, 18], [1, 2, 6], [2, 1, 3], [2, 2, 9], [1, 3, 24]].map(([i, j, v]) => ({ el: S.tw.n[`${i}${j}`], box: S.tw.G2.box(i, j), label: String(v) })), 1,
+      'Row Passed, column Skipped it: 6 students.',
+      i => ['18 is in the Did the review column. Look in the Skipped it column.', null, '3 did the review and did not pass.', '9 skipped the review and did not pass. Look in the Passed row.', '24 is everyone who passed, with or without the review.'][i],
+      () => pulseFx(S.tw.n[12], 1.5)),
+  }], done) }],
+  ['lineplot', 'Line plots', (m) => {
+    const p = panel(0);
+    text(p, 'frequency: how often a value occurs', 800, 110, .3, { size: 28, fill: COL.dim, anchor: 'middle' });
+    text(p, 'pets owned by 12 students', 800, 170, m('data'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    const cs = PETS.map((v, i) => { const c = chip(p, [String(v)], COL.chalk, { x: 250 + i * 100, y: 240, size: 34, s: 0, o: 0 }); pop(c, m('data', .3 + i * .08)); return c; });
+    const D = dataLine(p, { lo: 0, hi: 5, x0: 360, x1: 1160, y: 680, t0: m('line'), r: 16, shape: 'x' });
+    text(p, 'pets', 1240, 728, m('line'), { size: 24, fill: COL.dim });
+    const gap = (m('read') - m('marks') - .6) / PETS.length;
+    PETS.forEach((v, i) => {
+      const t = m('marks', i * gap), x = st(D.dot(v, COL.task, t + .45)).x, y = D.top(v);
+      tw(cs[i], { x, y, s: .7 }, t, .45);
+      hide(cs[i], t + .4, .15);
+    });
+    const box = put(mk('rect', { x: D.V(1) - 30, y: 470, width: 60, height: 200, rx: 18, fill: 'none', stroke: COL.int, 'stroke-width': 3.5 }, p), { o: 0 });
+    show(box, m('mode'));
+    mline(p, 'mode = 1', 1240, 470, m('mode', .3), COL.int, 44, 'start');
+    D.span(0, 4, 420, 'range', COL.real, m('range'));
+    mline(p, 'range = 4 − 0 = 4', 1240, 550, m('range', .4), COL.real, 44, 'start');
+  }],
+  ['histogram', 'Histograms', (m) => {
+    const p = panel(0);
+    text(p, 'homework time (minutes)', 130, 150, m('data'), { size: 28, fill: COL.dim });
+    const vs = HW.map((v, i) => { const t = T(p, String(v), { x: 160 + (i % 5) * 100, y: 230 + Math.floor(i / 5) * 70, size: 40, font: MATH, anchor: 'middle', o: 0 }); show(t, m('data', .3 + i * .05), .3); return t; });
+    const H = S.h = histo(p, { x0: 800, y0: 700, bw: 140, u: 52, top: 7, labels: ['0–9', '10–19', '20–29', '30–39', '40–49'], t0: m('bins'), title: 'minutes of homework' });
+    const cnt = [0, 0, 0, 0, 0], gap = (m('gap') - m('fill') - .5) / HW.length;
+    HW.forEach((v, i) => {
+      const b = Math.floor(v / 10), t = m('fill', i * gap);
+      tw(vs[i], { c_fill: BAR }, t, .1); put(vs[i], { c_fill: COL.chalk });
+      tw(vs[i], { o: .3 }, t + .15, .3);
+      H.grow(b, ++cnt[b], t);
+    });
+    const n = S.hn = G(p);
+    const edges = path(n, [1, 2, 3, 4].map(k => `M${800 + k * 140} ${700 - 7 * 52}V${700}`).join(''), { stroke: COL.task, 'stroke-width': 4 }, { o: 0 });
+    tw(edges, { o: 1 }, m('gap'), .3); tw(edges, { o: 0 }, m('gap', 2.5), .5);
+    text(n, 'Bars touch: the intervals leave no gaps.', 130, 590, m('gap'), { size: 26, fill: COL.task, weight: 600 });
+    tw(H.bars[2], { c_stroke: COL.task, 'a_stroke-width': 5 }, m('read'), .4);
+    text(n, 'Most common: 20–29 minutes.', 130, 650, m('read', .4), { size: 26, fill: COL.task, weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { hide(S.hn, 0, .4); }, { ask: done => quiz({ x: 100, y: 470, w: 600, cls: 'side' }, [{
+    id: 'c-h30', prompt: ['How many students did homework for 30 minutes or more?'],
+    build: blanks([{ parts: [{ box: '5' }, ' students'], why: 'The 30–39 bar is 3 and the 40–49 bar is 2: 3 + 2 = 5.', hint: 'Add the heights of the bars from 30 minutes up.',
+      fx: () => [3, 4].forEach(i => fx(S.h.bars[i], { c_stroke: COL.good, 'a_stroke-width': 6 }, 0, .4)) }]),
+  }, {
+    id: 'c-h20', prompt: ['How many did less than 20 minutes?'],
+    build: blanks([{ parts: [{ box: '8' }, ' students'], why: 'The 0–9 bar is 2 and the 10–19 bar is 6: 2 + 6 = 8.', hint: 'Add the heights of the first two bars.',
+      fx: () => [0, 1].forEach(i => fx(S.h.bars[i], { c_stroke: COL.good, 'a_stroke-width': 6 }, 0, .4)) }]),
+  }], done) }],
+  ['boxplot', 'Box plots', (m) => {
+    const p = panel(0), B = S.bp = G(scene), yc = 420;
+    const D = S.bD = dataLine(B, { lo: 0, hi: 25, x0: 200, x1: 1400, y: 740, every: 5, t0: m('data'), r: 14 });
+    const ds = BOXD.map((v, i) => D.dot(v, COL.whole, m('data', .4 + i * .12)));
+    const at = v => ds[BOXD.indexOf(v)];
+    tint(at(11), MED, m('med'));
+    const lab = (v, str, color, t0) => text(B, str, D.V(v), 680, t0, { size: 24, fill: color, anchor: 'middle', weight: 600 });
+    lab(11, 'median', MED, m('med', .3));
+    const halves = [D.span(2, 9, 620, 'lower half', COL.dim, m('med', 3)), D.span(12, 24, 620, 'upper half', COL.dim, m('med', 3.4))];
+    tint(at(6), QC, m('q1')); lab(6, 'Q1', QC, m('q1', .3));
+    tint(at(15), QC, m('q3')); lab(15, 'Q3', QC, m('q3', .3));
+    tint(at(2), END, m('ends')); lab(2, 'min', END, m('ends', .3));
+    tint(at(24), END, m('ends', 1.4)); lab(24, 'max', END, m('ends', 1.7));
+    halves.forEach(h => hide(h, m('box')));
+    const drops = path(B, FIVE.map(v => `M${D.V(v)} ${yc + BH + 8}V${720}`).join(''), { stroke: COL.dim, 'stroke-width': 2, 'stroke-dasharray': '5 7' }, { o: 0 });
+    show(drops, m('box'));
+    boxBar(B, D, 6, yc, QC, m('box', .3)); boxBar(B, D, 15, yc, QC, m('box', .5));
+    boxEdges(B, D, 6, 15, yc, m('box', .9));
+    boxBar(B, D, 11, yc, MED, m('box', 1.8));
+    S.wh = whiskers(B, D, FIVE, yc, m('wh'));
+    FIVE.forEach((v, i) => mline(B, String(v), D.V(v), yc - BH - 22, m(i % 4 ? 'box' : 'wh', 2.2 + i * .1), [END, QC, MED, QC, END][i], 34));
+  }],
+  ['quarters', 'Four parts', (m) => {
+    const p = panel(0), D = S.bD, yc = 420;
+    [[2, 6], [6, 11], [11, 15], [15, 24]].forEach(([a, b], i) => D.span(a, b, 290, '¼', COL.task, m('four', i * .4), { into: p }));
+    text(p, 'each part: about a quarter of the values', 800, 200, m('four', 1.8), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+    const mid = put(mk('rect', { x: D.V(6), y: yc - BH, width: D.V(15) - D.V(6), height: 2 * BH, fill: QC }, p), { o: 0 });
+    p.insertBefore(mid, p.firstChild);
+    tw(mid, { o: .25 }, m('mid'), .5);
+    text(p, 'middle half', (D.V(6) + D.V(11)) / 2, yc + 9, m('mid', .3), { size: 22, fill: COL.chalk, anchor: 'middle', weight: 600 });
+    const rw = path(p, `M${D.V(15)} ${yc}H${D.V(24)}`, { stroke: COL.nat, 'stroke-width': 10 }, { d: 0, 'a_stroke-width': 10 });
+    draw(rw, m('long'), .8);
+    text(p, 'long: spread out', (D.V(15) + D.V(24)) / 2, yc + 46, m('long', .5), { size: 24, fill: COL.nat, anchor: 'middle', weight: 600 });
+    draw(path(p, `M${D.V(2)} ${yc}H${D.V(6)}`, { stroke: COL.whole, 'stroke-width': 10 }, { d: 0 }), m('short'), .6);
+    text(p, 'short: bunched', (D.V(2) + D.V(6)) / 2, yc + 46, m('short', .4), { size: 24, fill: COL.whole, anchor: 'middle', weight: 600 });
+    tw(rw, { 'a_stroke-width': 18 }, m('ex'), .3, out); tw(rw, { 'a_stroke-width': 10 }, m('ex', .35), .5);
+    text(p, 'the largest values are the most spread out', (D.V(15) + D.V(24)) / 2, yc + 82, m('ex', .5), { size: 22, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0);
+    hide(S.bp, 0, .4);
+    text(p, 'seven values', 240, 170, .2, { size: 28, fill: COL.dim });
+    const D = S.qD = dataLine(p, { lo: 0, hi: 16, x0: 240, x1: 1360, y: 560, every: 2, t0: .3, r: 15 });
+    D.dots([3, 4, 6, 8, 9, 12, 14], COL.whole, .5, .1);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-box', prompt: ['Find the quartiles and the median.'],
+    build: blanks([{ parts: ['Q1 = ', { box: '4' }, '      median = ', { box: '8' }, '      Q3 = ', { box: '12' }],
+      why: 'The median is the 4th value, 8. Lower half 3, 4, 6 has median 4; upper half 9, 12, 14 has median 12.',
+      hint: 'Find the middle value first. Then find the middle of each half: 3, 4, 6 and 9, 12, 14.',
+      fx: () => {
+        const L = S.q || qlayer(), D = S.qD, yc = 330;
+        boxBar(L, D, 4, yc, QC, 0, fx); boxBar(L, D, 12, yc, QC, .2, fx); boxEdges(L, D, 4, 12, yc, .5, fx);
+        boxBar(L, D, 8, yc, MED, 1, fx); whiskers(L, D, [3, 4, 8, 12, 14], yc, 1.3, fx);
+      } }]),
+  }], done) }],
+  ['scatter', 'Scatter plots', (m) => {
+    const p = panel(0);
+    const A = S.ax = axes(p, { x0: 170, y0: 760, w: 720, h: 520, xs: [0, 6, 1], ys: [50, 100, 10], xl: 'hours studied', yl: 'test score', t0: m('tab'), ybreak: true });
+    text(p, 'hours', 1150, 200, m('tab'), { size: 24, fill: COL.whole, anchor: 'middle', weight: 600 });
+    text(p, 'score', 1330, 200, m('tab'), { size: 24, fill: COL.nat, anchor: 'middle', weight: 600 });
+    const rows = STUDY.map(([h, s], i) => {
+      const y = 250 + i * 50, g = G(p, { o: 0 });
+      M(g, [String(h)], { x: 1150, y: y + 10, size: 30 }); M(g, [String(s)], { x: 1330, y: y + 10, size: 30 });
+      show(g, m('tab', .4 + i * .06));
+      return y;
+    });
+    const plot = (i, t) => {
+      const [h, s] = STUDY[i], hl = put(mk('rect', { x: 1060, y: rows[i] - 22, width: 360, height: 44, rx: 10, fill: COL.task }, p), { o: 0 });
+      tw(hl, { o: .25 }, t, .2); tw(hl, { o: 0 }, t + .6, .3);
+      const d = put(mk('circle', { cx: A.PX(h), cy: A.PY(s), r: 10, fill: COL.task, stroke: COL.board, 'stroke-width': 2 }, p), { o: 0 });
+      show(d, t + .2, .3);
+    };
+    const [h0, s0] = STUDY[0];
+    const guide = path(p, `M${A.PX(h0)} 760V${A.PY(s0)}H170`, { stroke: COL.dim, 'stroke-width': 2.5, 'stroke-dasharray': '6 6' }, { o: 0 });
+    tw(guide, { o: 1 }, m('pt', .5), .4); tw(guide, { o: 0 }, m('all'), .4);
+    hide(mline(p, '(0.5, 58)', A.PX(h0) + 18, A.PY(s0) - 18, m('pt', 1.2), COL.task, 30, 'start'), m('all'));
+    plot(0, m('pt', 1));
+    for (let i = 1; i < STUDY.length; i++) plot(i, m('all', (i - 1) * .17));
+    const ar = path(p, `M${A.PX(.8)} ${A.PY(56)}L${A.PX(5.2)} ${A.PY(96)}`, { stroke: COL.good, 'stroke-width': 3, 'stroke-dasharray': '4 10' }, { o: 0 });
+    tw(ar, { o: .8 }, m('trend'), .5); tw(ar, { o: 0 }, m('fit'), .4);
+    draw(path(p, `M${A.PX(0)} ${A.PY(bestFit(0))}L${A.PX(6)} ${A.PY(bestFit(6))}`, { stroke: COL.good, 'stroke-width': 4 }, { d: 0 }), m('fit'), 1);
+    text(p, 'line of best fit', A.PX(6) + 12, A.PY(bestFit(6)) + 8, m('fit', .8), { size: 22, fill: COL.good, weight: 600 });
+  }],
+  ['corr', 'Correlation', (m) => {
+    const p = panel(0);
+    [[140, POSP, 'Positive', 'hours studied and score', COL.whole, 'pos'], [620, NEGP, 'Negative', "a car's age and its price", COL.nat, 'neg'],
+     [1100, NONEP, 'No correlation', 'shoe size and birthday month', COL.dim, 'none']].forEach(([x, pts, name, ex, col, mk2]) => {
+      mini(p, x, 210, pts, col, m(mk2));
+      text(p, name, x + 180, 530, m(mk2, .4), { size: 32, fill: col, anchor: 'middle', weight: 600 });
+      text(p, ex, x + 180, 575, m(mk2, .8), { size: 24, fill: COL.dim, anchor: 'middle' });
+    });
+    draw(path(p, 'M170 430L470 230', { stroke: COL.whole, 'stroke-width': 3, 'stroke-dasharray': '4 9' }, { d: 0 }), m('pos', 1.4));
+    draw(path(p, 'M650 230L950 430', { stroke: COL.nat, 'stroke-width': 3, 'stroke-dasharray': '4 9' }, { d: 0 }), m('neg', 1.4));
+    text(p, '“Tends to”: the overall pattern, not every point.', 800, 720, m('tend'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q4', 'Quick check', () => {
+    const p = panel(0);
+    S.minis = [NONEP.map(([u, v]) => [u, 1 - v]), POSP.map(([u, v]) => [1 - u, v]), NEGP.map(([u, v]) => [1 - u, v])].map((pts, i) => {
+      text(p, 'ABC'[i], 320 + i * 480, 160, .3, { size: 32, anchor: 'middle', weight: 700 });
+      return mini(p, 140 + i * 480, 200, pts, COL.chalk, .3 + i * .2);
+    });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-corr', prompt: ['Click the scatter plot that shows a negative correlation.'],
+    build: pickEls(S.minis.map((g, i) => ({ el: g.g, box: g.box, label: 'Plot ' + 'ABC'[i] })), 1, 'As x goes up, the points tend to go down.',
+      i => i === 0 ? 'These points show no trend at all: no correlation.' : 'These points rise from left to right: a positive correlation.',
+      () => S.minis[1].ds.forEach((d, k) => tint(d, COL.nat, k * .04, fx))),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Two-way table: one group counted by two categories.', 'w1', REV], ['Line plot, histogram: how often values occur.', 'w2', BAR],
+     ['Box plot: min, Q1, median, Q3, max.', 'w3', QC], ['Scatter plot: are two data sets related?', 'w4', SKIP]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => {
+    const p = panel(0), xs = [830, 1090, 1240, 1390, 1540], ys = [230, 320, 400, 480, 560], G2 = S.f1 = grid2(p, xs, ys, .2);
+    text(p, '50 students: do they bike to school?', 830, 180, .2, { size: 26, fill: COL.dim });
+    [['Bikes', REV], ["Doesn't bike", SKIP], ['Total', COL.dim]].forEach(([s, c], j) => cellText(p, G2, 0, j + 1, s, .3, c, 22));
+    ['Within 2 miles', 'Farther away', 'Total'].forEach((s, i) => cellText(p, G2, i + 1, 0, s, .3, i === 2 ? COL.dim : COL.chalk, 22));
+    [[14, 10, 24], [3, 23, 26], [17, 33, 50]].forEach((r, i) => r.forEach((v, j) => cellNum(p, G2, i + 1, j + 1, v, .4 + (i * 3 + j) * .04, j === 2 || i === 2 ? COL.task : COL.chalk, 34)));
+  }, { ask: done => quiz({ x: 0, y: 0, w: 800, cls: 'screen' }, [
+    { id: 'p-t1', prompt: ['How many students bike to school but live farther than 2 miles away?'], build: blanks([{ parts: [{ box: '3' }, ' students'], why: 'Column Bikes, row Farther away: 3.', hint: 'Find the Bikes column and the Farther away row.', fx: () => S.f1.strip(2, 1, 1, COL.good, 0, fx, S.q || qlayer()) }]) },
+    { id: 'p-t2', prompt: ['How many students live within 2 miles?'], build: blanks([{ parts: [{ box: '24' }, ' students'], why: 'The row total for Within 2 miles: 14 + 10 = 24.', hint: 'Use the total of the Within 2 miles row.', fx: () => S.f1.strip(1, 3, 3, COL.good, 0, fx, S.q || qlayer()) }]) },
+    { id: 'p-t3', prompt: ['Of the 17 students who bike, how many live within 2 miles?'], build: blanks([{ parts: [{ box: '14' }, ' students'], why: 'Column Bikes, row Within 2 miles: 14 of the 17.', hint: 'Stay in the Bikes column.', fx: () => S.f1.strip(1, 1, 1, COL.good, 0, fx, S.q || qlayer()) }]) },
+  ], done, 'Chapter practice 1 of 4,  question') }],
+  ['final2', 'Chapter practice', () => {
+    const p = panel(0);
+    text(p, 'points a team scored in 30 games', 1180, 200, .2, { size: 26, fill: COL.dim, anchor: 'middle' });
+    const H = S.f2 = histo(p, { x0: 880, y0: 700, bw: 120, u: 34, top: 11, labels: ['0–9', '10–19', '20–29', '30–39', '40–49'], t0: .2, title: 'points scored' });
+    [3, 8, 11, 6, 2].forEach((c, i) => H.grow(i, c, .4 + i * .1, tw, .5));
+  }, { ask: done => quiz({ x: 0, y: 0, w: 800, cls: 'screen' }, [
+    { id: 'p-h1', prompt: ['In how many games did the team score fewer than 20 points?'], build: blanks([{ parts: [{ box: '11' }, ' games'], why: '3 + 8 = 11.', hint: 'Add the bars for 0–9 and 10–19.', fx: () => [0, 1].forEach(i => fx(S.f2.bars[i], { c_stroke: COL.good, 'a_stroke-width': 6 }, 0, .4)) }]) },
+    { id: 'p-h2', prompt: ['In how many games did they score 30 or more points?'], build: blanks([{ parts: [{ box: '8' }, ' games'], why: '6 + 2 = 8.', hint: 'Add the bars from 30 up.', fx: () => [3, 4].forEach(i => fx(S.f2.bars[i], { c_stroke: COL.good, 'a_stroke-width': 6 }, 0, .4)) }]) },
+    { id: 'p-h3', prompt: ['Which interval has the greatest frequency? Type its lowest value.'], build: blanks([{ parts: ['the interval starting at ', { box: '20' }], why: 'The tallest bar, 11 games, is 20–29.', hint: 'Find the tallest bar.', fx: () => fx(S.f2.bars[2], { c_stroke: COL.good, 'a_stroke-width': 6 }, 0, .4) }]) },
+  ], done, 'Chapter practice 2 of 4,  question') }],
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-corr', prompt: ['What kind of correlation would you expect?'],
+    build: grid(CORRQ, [['p', 'Positive', COL.whole], ['n', 'Negative', COL.nat], ['o', 'None', COL.dim]], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 4') }],
+  ['final4', 'Chapter practice', () => {
+    const p = panel(0);
+    const D = S.f4 = dataLine(p, { lo: 0, hi: 20, x0: 900, x1: 1500, y: 660, every: 5, t0: .2, r: 11 });
+    D.dots([4, 6, 7, 9, 10, 12, 13, 15, 20], COL.whole, .3, .06);
+    S.f4n = 0;
+  }, { ask: done => quiz({ x: 0, y: 0, w: 820, cls: 'screen' }, [{
+    id: 'p-five', prompt: ['Data: ', $m('12, 4, 9, 15, 7, 20, 10, 6, 13'), '. Find the five numbers.'], build: blanks(FIVEQ),
+  }], done, 'Chapter practice   4 of 4') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CORRQ = [
+  { parts: ['minutes of practice and free throws made'], ans: ['p'], why: 'More practice tends to mean more baskets.' },
+  { parts: ['outside temperature and cups of hot cocoa sold'], ans: ['n'], why: 'Warmer days tend to mean less cocoa sold.' },
+  { parts: ['height and the last digit of your phone number'], ans: ['o'], why: 'The two have nothing to do with each other.' },
+  { parts: ["a car's age and its price"], ans: ['n'], why: 'Older cars tend to cost less.' },
+  { parts: ['height and arm span'], ans: ['p'], why: 'Taller people tend to have longer arm spans.' },
+  { parts: ['number of absences and test score'], ans: ['n'], why: 'More absences tend to go with lower scores.' },
+];
+// Each right answer draws its piece of the box plot; the last one completes it.
+const f4piece = draw => () => {
+  const L = S.q || qlayer(), D = S.f4, yc = 470;
+  draw(L, D, yc);
+  if (++S.f4n === 5) { boxEdges(L, D, 6.5, 14, yc, .3, fx); whiskers(L, D, [4, 6.5, 10, 14, 20], yc, .6, fx); }
+};
+const FIVEQ = [
+  { parts: ['minimum = ', { box: '4' }], why: 'In order: 4, 6, 7, 9, 10, 12, 13, 15, 20. The least value is 4.', hint: 'Put the values in order.', fx: f4piece((L, D, yc) => boxBar(L, D, 4, yc, END, 0, fx, 28)) },
+  { parts: ['Q1 = ', { box: '6.5' }], why: 'Lower half 4, 6, 7, 9: (6 + 7) ÷ 2 = 6.5.', hint: 'The lower half is 4, 6, 7, 9. Its median is the mean of its two middle values.', fx: f4piece((L, D, yc) => boxBar(L, D, 6.5, yc, QC, 0, fx)) },
+  { parts: ['median = ', { box: '10' }], why: 'The 5th of 9 values is 10.', hint: 'With 9 values, the median is the 5th one in order.', fx: f4piece((L, D, yc) => boxBar(L, D, 10, yc, MED, 0, fx)) },
+  { parts: ['Q3 = ', { box: '14' }], why: 'Upper half 12, 13, 15, 20: (13 + 15) ÷ 2 = 14.', hint: 'The upper half is 12, 13, 15, 20.', fx: f4piece((L, D, yc) => boxBar(L, D, 14, yc, QC, 0, fx)) },
+  { parts: ['maximum = ', { box: '20' }], why: 'The greatest value is 20.', hint: 'Which value is greatest?', fx: f4piece((L, D, yc) => boxBar(L, D, 20, yc, END, 0, fx, 28)) },
+];
+boot();
+</script>
+</body>
+</html>

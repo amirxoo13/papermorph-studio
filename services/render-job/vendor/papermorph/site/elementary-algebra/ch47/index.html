@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application of Functions — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 47, title: 'Application of Functions', minutes: 9, next: '../ch48/' };
+const LIN = COL.whole, NON = COL.nat, PT = COL.task;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// An x/y table: rows of [x, y] at (x, y0); returns the row centres.
+function xyTable(p, rows, x, y0, t0, { gap = 54, w = 100, size = 32, head = ['x', 'y'], step = .25, color = COL.chalk } = {}) {
+  const g = G(p, { o: 0 });
+  path(g, `M${x - w} ${y0 + 16}H${x + w}M${x} ${y0 - 30}V${y0 + 16 + rows.length * gap}`, { stroke: COL.faint, 'stroke-width': 2 });
+  M(g, [head[0]], { x: x - w / 2, y: y0, size: 30, fill: COL.dim }); M(g, [head[1]], { x: x + w / 2, y: y0, size: 30, fill: COL.dim });
+  show(g, t0);
+  return rows.map(([a, b], i) => {
+    const y = y0 + 16 + (i + .7) * gap, t = t0 + .3 + i * step;
+    mline(p, typeof a === 'number' ? num(a) : a, x - w / 2, y, t, COL.chalk, size);
+    mline(p, typeof b === 'number' ? num(b) : b, x + w / 2, y, t + step * .5, color, size);
+    return y;
+  });
+}
+// A small number flies from (x1, y1) into a plotted point at (x2, y2).
+function flyPt(p, label, x1, y1, x2, y2, t0, color = PT) {
+  const c = M(p, [label], { x: x1, y: y1, size: 26, fill: color, o: 0 });
+  show(c, t0, .1); tw(c, { x: x2 - x1, y: y2 - y1 }, t0, .6); hide(c, t0 + .6, .2);
+}
+const sq = x => x * x, cube = x => x * x * x, ball = t => 20 * t - 5 * t * t;
+// Maya's walk: distance (km) from home after t minutes.
+const WALK = [[0, 0], [20, 2], [45, 2], [55, 0]];
+const walkAt = t => { for (let i = 1; i < WALK.length; i++) { const [a, da] = WALK[i - 1], [b, db] = WALK[i]; if (t <= b) return da + (db - da) * (t - a) / (b - a); } return 0; };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Using functions', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 8, Chapter 47', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Application of Functions', { x: 800, y: 430, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'lines, curves, and real situations', 800, 580, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['kinds', 'Linear or nonlinear', (m) => {
+    const p = panel(0);
+    const A = plane(p, { cx: 400, cy: 520, u: 46, x0: -3, x1: 3, y0: -5, y1: 7, t0: m('lin') }), B = plane(p, { cx: 1200, cy: 520, u: 46, x0: -3, x1: 3, y0: -5, y1: 7, t0: m('sq') });
+    A.layer = B.layer = p;
+    mline(p, 'y = 2x + 1', 400, 100, m('lin'), LIN, 46);
+    mline(p, ['y = x', E(2)], 1200, 100, m('sq'), NON, 46);
+    [-2, -1, 0, 1, 2].forEach((x, i) => A.dot(x, 2 * x + 1, LIN, m('lsteps', i * .3)));
+    [-2, -1, 0, 1].forEach((x, i) => A.stair(x, 2 * x + 1, 2, 1, m('lsteps', 1.6 + i * .5), { labels: i === 0 }));
+    A.line(-2.8, -4.6, 2.8, 6.6, LIN, m('lline'));
+    text(p, 'equal steps: linear', 400, 860, m('lline', .5), { size: 28, fill: LIN, anchor: 'middle', weight: 600 });
+    [-2, -1, 0, 1, 2].forEach((x, i) => B.dot(x, sq(x), NON, m('sq', .6 + i * .2)));
+    [-2, -1, 0, 1].forEach((x, i) => {
+      const d = sq(x + 1) - sq(x);
+      B.arrow(x, sq(x), x, sq(x + 1), COL.irr, m('qsteps', i * 1.4), { label: (d > 0 ? '+' : '') + num(d) });
+      B.arrow(x, sq(x + 1), x + 1, sq(x + 1), COL.real, m('qsteps', i * 1.4 + .5));
+    });
+    B.fn(sq, -2.6, 2.6, NON, m('qcurve'));
+    text(p, 'changing steps: nonlinear', 1200, 860, m('qcurve', .5), { size: 28, fill: NON, anchor: 'middle', weight: 600 });
+    mline(p, 'linear:  y = mx + b', 800, 520, m('form'), COL.task, 32);
+  }],
+  ['table', 'From a table to a curve', (m) => {
+    const p = panel(0), P = S.P = plane(S.pg = G(scene), { cx: 1050, cy: 640, u: 54, x0: -4, x1: 4, y0: -2, y1: 10, t0: .2 });
+    P.layer = p;
+    mline(p, ['y = x', E(2)], 300, 120, .2, NON, 50);
+    const xs = [-3, -2, -1, 0, 1, 2, 3], ys = xyTable(p, xs.map(x => [x, sq(x)]), 300, 210, m('rows'), { step: .9, color: NON });
+    xs.forEach((x, i) => { flyPt(p, `(${num(x)}, ${sq(x)})`, 300, ys[i], P.PX(x), P.PY(sq(x)), m('pts', i * .3)); P.dot(x, sq(x), PT, m('pts', .5 + i * .3)); });
+    P.fn(sq, -3.2, 3.2, NON, m('curve'), { dur: 1.6 });
+    text(p, 'parabola', P.PX(2.4) + 16, P.PY(sq(2.4)), m('name'), { size: 30, fill: NON, weight: 700 });
+  }],
+  ['q1', 'Quick check', () => {
+    S.P.layer = panel(0);
+    mline(S.P.layer, ['y = x', E(2), ' − 3'], 300, 120, .2, NON, 50);
+    xyTable(S.P.layer, [[-2, '?'], [-1, -2], [0, -3], [1, -2], [2, 1]], 300, 210, .3, { step: .1, color: NON });
+  }, { ask: done => quiz({ x: 80, y: 560, w: 500, cls: 'side' }, [{
+    id: 'c-plot', prompt: ['Plot the point for ', $m('x = −2'), '.'],
+    build: pickPoint(S.P, [-2, 1], '(−2)² − 3 = 4 − 3 = 1, so the point is (−2, 1).',
+      (x, y) => x !== -2 ? `The input is −2, so the point needs x = −2.` : y === -7 ? '(−2)² is 4, not −4.' : 'Find y: (−2)² − 3.'),
+  }], done) }],
+  ['cubic', 'Other shapes', (m) => {
+    const p = panel(0);
+    hide(S.pg, 0, .4);
+    const P = plane(p, { cx: 1100, cy: 470, u: 42, x0: -4, x1: 4, y0: -9, y1: 9, t0: .2, step: 2 });
+    P.layer = p;
+    mline(p, ['y = x', E(3)], 300, 140, m('cube'), COL.irr, 50);
+    const xs = [-2, -1, 0, 1, 2];
+    xyTable(p, xs.map(x => [x, cube(x)]), 300, 230, m('vals'), { step: 1.2, color: COL.irr });
+    xs.forEach((x, i) => P.dot(x, cube(x), PT, m('vals', .6 + i * 1.2)));
+    P.fn(cube, -2.1, 2.1, COL.irr, m('s'), { dur: 1.6 });
+    const ng = put(mk('rect', { x: P.PX(-4), y: P.PY(0), width: 4 * 42, height: 9 * 42, fill: COL.nat }, p), { o: 0 });
+    p.insertBefore(ng, p.firstChild);
+    tw(ng, { o: .12 }, m('neg'), .5);
+    text(p, 'negative in, negative out', P.PX(-4) - 24, P.PY(-5), m('neg', .3), { size: 26, fill: COL.nat, weight: 600, anchor: 'end' });
+    text(p, 'steeper and steeper', P.PX(2.1) + 16, P.PY(8), m('steep'), { size: 24, fill: COL.irr, weight: 600 });
+  }],
+  ['walk', 'Reading a real graph', (m) => {
+    const p = panel(0);
+    const A = S.wA = axes(S.wg = G(scene), { x0: 200, y0: 720, w: 900, h: 480, xs: [0, 60, 10], ys: [0, 3, 1], xl: 'minutes', yl: 'km from home', t0: m('story') });
+    const seg = (i, t0) => draw(path(p, `M${A.PX(WALK[i][0])} ${A.PY(WALK[i][1])}L${A.PX(WALK[i + 1][0])} ${A.PY(WALK[i + 1][1])}`, { stroke: PT, 'stroke-width': 5 }, { d: 0 }), t0, 1.2);
+    seg(0, m('go')); text(p, 'walking there', A.PX(4), A.PY(1.2), m('go', .8), { size: 24, fill: COL.dim });
+    seg(1, m('stay')); text(p, 'at her friend’s house', A.PX(32.5), A.PY(2) - 18, m('stay', .8), { size: 24, fill: COL.dim, anchor: 'middle' });
+    seg(2, m('back')); text(p, 'home, faster', A.PX(50) + 30, A.PY(1.2), m('back', .8), { size: 24, fill: COL.dim });
+    const r = path(p, `M${A.PX(10)} ${A.PY(0)}V${A.PY(1)}H${A.PX(0)}`, { stroke: COL.whole, 'stroke-width': 3, 'stroke-dasharray': '7 6' }, { d: 0 });
+    draw(r, m('read'), 1.2);
+    show(put(mk('circle', { r: 9, fill: COL.whole }, p), { x: A.PX(10), y: A.PY(1), o: 0 }), m('read', .6));
+    text(p, '10 minutes: 1 km', 1180, 300, m('read', 1.2), { size: 30, fill: COL.whole, weight: 600 });
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0), A = S.wA;
+    path(p, WALK.map(([t, d], i) => `${i ? 'L' : 'M'}${A.PX(t)} ${A.PY(d)}`).join(''), { stroke: PT, 'stroke-width': 5 });
+  }, { ask: done => quiz({ x: 1150, y: 160, w: 420, cls: 'side' }, [{
+    id: 'c-read', prompt: ['How far from home is Maya at 50 minutes? How long does she stay at her friend’s?'],
+    build: blanks([
+      { parts: ['distance:  ', { box: '1' }], why: 'Halfway down the last segment: 1 kilometer.', hint: 'Go up from 50 minutes to the graph, then across.' },
+      { parts: ['stay:  ', { box: '25' }, ' minutes'], why: 'From 20 to 45 minutes: 25 minutes.', hint: 'The flat part runs from 20 to 45 minutes.' },
+    ]),
+  }], done) }],
+  ['ball', 'A tossed ball', (m) => {
+    const p = panel(0);
+    hide(S.wg, 0, .4);
+    mline(p, ['h = 20t − 5t', E(2)], 280, 140, m('toss'), COL.irr, 46);
+    const ts = [0, 1, 2, 3, 4];
+    const A = axes(p, { x0: 680, y0: 740, w: 760, h: 520, xs: [0, 4, 1], ys: [0, 25, 5], xl: 'seconds', yl: 'meters high', t0: m('toss', .5) });
+    xyTable(p, ts.map(t => [t, ball(t)]), 280, 230, m('tab'), { head: ['t', 'h'], step: .25, color: COL.irr });
+    ts.forEach((t, i) => pop(put(mk('circle', { r: 10, fill: PT, stroke: COL.board, 'stroke-width': 2 }, p), { x: A.PX(t), y: A.PY(ball(t)), s: 0, o: 0 }), m('curve', i * .25)));
+    let d = '';
+    for (let i = 0; i <= 80; i++) { const t = 4 * i / 80; d += `${i ? 'L' : 'M'}${A.PX(t).toFixed(1)} ${A.PY(ball(t)).toFixed(1)}`; }
+    draw(path(p, d, { stroke: COL.irr, 'stroke-width': 4 }, { d: 0 }), m('curve', 1.4), 1.6);
+    const ball0 = put(mk('circle', { r: 16, fill: COL.int }, p), { x: 600, y: A.PY(0), o: 0 });
+    show(ball0, m('curve', 1.4), .2);
+    prog(q => put(ball0, { y: A.PY(ball(4 * q)) }), m('curve', 1.4), 3, lin);
+    hide(ball0, m('curve', 4.5), .4);
+    const h15 = path(p, `M${A.PX(0)} ${A.PY(15)}H${A.PX(4)}`, { stroke: COL.task, 'stroke-width': 3, 'stroke-dasharray': '9 7' }, { o: 0 });
+    show(h15, m('twice'));
+    [1, 3].forEach((t, i) => { draw(path(p, `M${A.PX(t)} ${A.PY(15)}V${A.PY(0)}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), m('twice', 1.5 + i * 2), .5); text(p, `${t} s`, A.PX(t), A.PY(15) - 20, m('twice', 1.5 + i * 2), { size: 26, fill: COL.task, anchor: 'middle', weight: 700 }); });
+    text(p, '15 meters high twice', 280, 570, m('twice', 2), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q3', 'Quick check', () => {}, { ask: done => quiz({ x: 60, y: 610, w: 560, cls: 'side' }, [{
+    id: 'c-top', prompt: ['When is the ball highest?'],
+    build: choice([[$m('t = 1')], [$m('t = 2')], [$m('t = 4')]], 1, 'h = 20 at t = 2, the top of the curve.',
+      ['At t = 1 the ball is 15 meters high and still rising.', null, 'At t = 4 the ball is back on the ground: h = 0.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Linear: equal steps, straight line. Nonlinear: steps change, curved graph.', 'w1', LIN], ['Graph any function: table, points, smooth curve.', 'w2', NON],
+     ['Read a real graph: up from the input, across to the output.', 'w3', PT]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 150, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 150, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 210, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-table', prompt: ['Complete the table for ', $m('y = ', F(1, 2), 'x', E(3), ' + 4'), '.'], build: blanks([
+      { parts: ['x = −2:    y = ', { box: '0' }], why: '½(−8) + 4 = 0.', hint: '(−2)³ = −8.' },
+      { parts: ['x = −1:    y = ', { box: '7/2' }], why: '½(−1) + 4 = 3½.', hint: '(−1)³ = −1. The answer may be a fraction.' },
+      { parts: ['x = 0:    y = ', { box: '4' }], why: '½(0) + 4 = 4.', hint: '0³ = 0.' },
+      { parts: ['x = 1:    y = ', { box: '9/2' }], why: '½(1) + 4 = 4½.', hint: '1³ = 1.' },
+      { parts: ['x = 2:    y = ', { box: '8' }], why: '½(8) + 4 = 8.', hint: '2³ = 8.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['Is the function linear or nonlinear?'],
+    build: grid(KINDQ, [['l', 'Linear', LIN, 'L'], ['n', 'Nonlinear', NON, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {
+    const p = panel(0), A = S.fA = axes(p, { x0: 900, y0: 700, w: 600, h: 440, xs: [0, 10, 1], ys: [0, 6, 1], xl: 'hours', yl: 'miles from home', t0: .2 });
+    path(p, [[0, 0], [4, 3], [9, 3], [10, 0]].map(([t, d], i) => `${i ? 'L' : 'M'}${A.PX(t)} ${A.PY(d)}`).join(''), { stroke: PT, 'stroke-width': 5 });
+    text(p, 'Tom bikes to a lake, fishes, and rides home.', 1200, 170, .2, { size: 22, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 0, y: 0, w: 860, cls: 'screen' }, [{
+    id: 'p-read', prompt: ['Read the graph.'], build: blanks([
+      { parts: ['miles from home after 2 hours:  ', { box: '1.5' }], why: 'Halfway up the first segment: 1.5 miles.', hint: 'Go up from 2 hours to the line.' },
+      { parts: ['hours spent at the lake:  ', { box: '5' }], why: 'From 4 to 9 hours.', hint: 'Find where the graph is flat.' },
+      { parts: ['Tom gets home after  ', { box: '10' }, '  hours'], why: 'The distance returns to 0 at 10 hours.', hint: 'When is the distance 0 again?' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: [$m('y = 3x − 4')], ans: ['l'], why: 'It has the form y = mx + b.' },
+  { parts: [$m('y = x', E(2), ' + 1')], ans: ['n'], why: 'x is squared: the graph is a parabola.' },
+  { parts: [$m('y = −', F(1, 2), 'x')], ans: ['l'], why: 'm = −½, b = 0.' },
+  { parts: [$m('y = x', E(3))], ans: ['n'], why: 'x is cubed: an S-shaped curve.' },
+  { parts: ['x: 0, 1, 2, 3   y: 5, 8, 11, 14'], ans: ['l'], why: 'y goes up by 3 every time.' },
+  { parts: ['x: 0, 1, 2, 3   y: 1, 2, 4, 8'], ans: ['n'], why: 'The steps are 1, 2, 4: they change.' },
+];
+boot();
+</script>
+</body>
+</html>

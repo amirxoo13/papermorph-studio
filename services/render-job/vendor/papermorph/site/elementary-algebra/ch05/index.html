@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subtracting Positive and Negative Numbers — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 5, title: 'Subtracting positive and negative numbers', minutes: 6, next: '../ch06/' };
+AXIS.o = 800; AXIS.u = 82;                      // number line −8…8
+
+/* ---------- chapter drawing helpers ---------- */
+const showAll = (els, t0, step = 0) => els.forEach((e, i) => show(e, t0 + i * step, .45));
+const row = (p, items, y = 250, size = 68, x = 800) => tokens(p, items, { x, y, size, anchor: 'middle', o: 0 });
+const caption = (p, str, t0, y = 150, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+// "Add the opposite": turn a − b into a + (−b), one change at a time. Returns the new row.
+function addOpposite(E, opp, t0, live = false) {
+  E = collapse(E, 1, 1, [' + '], t0, { color: COL.task, live });
+  return collapse(E, 2, 2, [opp.t], t0 + (live ? .9 : 1.4), { color: COL.task, fill: opp.fill, live });
+}
+const after = (p, E, str, t0, fill = COL.chalk) => show(M(p, [str], { x: E.x + E.w / 2 + 16, y: E.y, size: E.size, fill, anchor: 'start', o: 0 }), t0);
+function marker(p, x, y, label, color, t0) {
+  const g = G(p, { x, y, o: 0, s: .6 });
+  mk('circle', { r: 13, fill: color, stroke: COL.board, 'stroke-width': 2 }, g);
+  T(g, label, { x: 24, y: 9, size: 26, fill: color, weight: 600 });
+  tw(g, { o: 1, s: 1 }, t0, .45, back);
+  return g;
+}
+function vbrace(p, x, y1, y2, label, color, t0, run = tw) {
+  const b = path(p, `M${x - 10} ${y1}H${x}V${y2}H${x - 10}`, { stroke: color, 'stroke-width': 3 }, { d: 0 });
+  const t = T(p, label, { x: x + 14, y: (y1 + y2) / 2 + 9, size: 26, fill: color, weight: 600, o: 0 });
+  run(b, { d: 1 }, t0, .6); run(t, { o: 1 }, t0 + .4, .4);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Subtracting positive and negative numbers', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 5', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Subtracting positive and negative numbers', { x: 800, y: 390, size: 62, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const ex = G(scene);
+    const a = M(ex, ['7 − 3 = 4'], { x: 800, y: 560, size: 56, o: 0 }), b = M(ex, ['7 + (−3) = 4'], { x: 800, y: 650, size: 56, o: 0 });
+    show(a, .6); show(b, m('b'));
+    pulse(a, m('key'), 1.12); pulse(b, m('key', .2), 1.12);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(ex, D - .9, .8);
+  }],
+  ['inverse', 'Opposites', (m) => {
+    const p = panel(0);
+    numberLine(.1);
+    caption(p, 'Additive inverse: the number you add to get 0', m('def'), 150, COL.chalk);
+    const mirrorArc = (v, t0) => draw(path(p, `M${X(v)} ${Y0 - 16}Q${X(0)} ${Y0 - 16 - 2 * (40 + 18 * v)} ${X(-v)} ${Y0 - 16}`, { stroke: COL.dim, 'stroke-width': 2.5 }, { d: 0 }), t0, .8);
+    landDot(p, 3, m('ex1'), POS); landDot(p, -3, m('ex1', .6), NEG); mirrorArc(3, m('ex1', .3));
+    show(M(p, ['3 + (−3) = 0'], { x: 450, y: 270, size: 46, o: 0 }), m('ex1', 1));
+    landDot(p, -6, m('ex2'), NEG); landDot(p, 6, m('ex2', .6), POS); mirrorArc(6, m('ex2', .3));
+    show(M(p, ['−6 + 6 = 0'], { x: 1150, y: 270, size: 46, o: 0 }), m('ex2', 1));
+    draw(path(p, `M${X(0)} ${Y0 + 40}V${Y0 - 290}`, { stroke: COL.task, 'stroke-width': 2.5 }, { d: 0 }), m('mirror'), .7);
+    show(T(p, 'mirror at 0', { x: X(0), y: Y0 - 300, size: 24, fill: COL.task, anchor: 'middle', o: 0 }), m('mirror', .5));
+  }],
+  ['rule', 'Add the opposite', (m) => {
+    const p = panel(0);
+    caption(p, 'Subtracting a number = adding its opposite', m('r'), 150, COL.chalk, 34);
+    let E = row(p, [{ t: '7', fill: POS }, ' − ', { t: '3', fill: POS }]);
+    showAll(E, m('ex'));
+    const keep = put(mk('rect', { rx: 10, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, p),
+      { o: 0, a_x: E[0]._px - E[0]._w / 2 - 8, a_y: E.y - 64, a_width: E[0]._w + 16, a_height: 88 });
+    show(keep, m('keep'), .3); hide(keep, m('chg1'), .3);
+    E = collapse(E, 1, 1, [' + '], m('chg1'), { color: COL.task });
+    E = collapse(E, 2, 2, ['(−3)'], m('chg2'), { color: COL.task, fill: NEG });
+    ['keep', 'change', 'change'].forEach((w, i) => show(T(p, w, { x: E[i]._px, y: i === 1 ? 372 : 336, size: 24, fill: i ? COL.task : COL.good, anchor: 'middle', o: 0 }), m(['keep', 'chg1', 'chg2'][i], .3)));
+    move(p, 0, 7, Y0 - 90, m('m1')); move(p, 7, 4, Y0 - 170, m('m2'));
+    landDot(p, 4, m('land'));
+    after(p, E, '= 4', m('land'));
+  }],
+  ['ex1', '−3 − 5', (m) => {
+    const p = panel(0);
+    let E = row(p, [{ t: '−3', fill: NEG }, ' − ', { t: '5', fill: POS }]);
+    showAll(E, .2);
+    E = addOpposite(E, { t: '(−5)', fill: NEG }, m('rw'));
+    move(p, 0, -3, Y0 - 90, m('m1')); move(p, -3, -8, Y0 - 170, m('m2'));
+    landDot(p, -8, m('land'));
+    after(p, E, '= −8', m('land'));
+  }],
+  ['ex2', '−7 − (−6)', (m) => {
+    const p = panel(0), moves = G(p);
+    let E = row(p, [{ t: '−7', fill: NEG }, ' − ', { t: '(−6)', fill: NEG }], 220);
+    showAll(E, .2);
+    E = addOpposite(E, { t: '6', fill: POS }, m('rw'));
+    move(moves, 0, -7, Y0 - 90, m('rw', 1.4)); move(moves, -7, -1, Y0 - 170, m('rw', 2.6));
+    landDot(moves, -1, m('land'));
+    after(p, E, '= −1', m('land'));
+    hide(moves, m('why'), .5); hide(S.line, m('why'), .5);
+    const t = tiles(p, 7, -1, 590, 470);
+    popAll(t, m('tiles'));
+    t.slice(1).forEach((e, i) => tw(e, { y: 330, o: 0 }, m('take', .3 + i * .12), .7));
+    show(T(p, 'take away 6 minus tiles', { x: 975, y: 410, size: 26, fill: NEG, anchor: 'middle', o: 0 }), m('take'));
+    pulse(t[0], m('left'), 1.3);
+    show(M(p, ['−1'], { x: 590, y: 580, size: 44, fill: NEG, o: 0 }), m('left', .3));
+    caption(p, 'Taking away a debt leaves you better off.', m('debt'), 680, COL.dim, 28);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.q1 = row(p, [{ t: '4', fill: POS }, ' − ', { t: '(−9)', fill: NEG }], 330, 80);
+    showAll(S.q1, .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-rewrite', prompt: ['Which addition is the same as ', $m('4 − (−9)'), '?'],
+    build: choice([[$m('4 + 9')], [$m('4 + (−9)')], [$m('−4 + 9')]], 0, 'Keep 4, change − to +, and change −9 to its opposite, 9.',
+      [null, 'You changed − to +, but −9 must also change to its opposite.', 'Keep the first number as it is: 4 stays 4.'],
+      () => { S.q1 = addOpposite(S.q1, { t: '9', fill: POS }, 0, true); }),
+  }, {
+    id: 'c-sub', prompt: ['Now find the difference.'],
+    build: blanks([{ parts: ['4 − (−9) = ', { box: '13' }], why: '4 − (−9) = 4 + 9 = 13.', hint: 'Add the opposite: 4 + 9.' }]),
+  }], done) }],
+  ['temp', 'A falling temperature', (m) => {
+    hide(S.line, 0, .3);
+    const p = panel(0);
+    const th = thermometer(p, { x: 460, lo: -10, hi: 10, value: 5, bottom: 600, top: 200 });
+    show(th.g, .1, .01);
+    show(T(p, 'afternoon', { x: 500, y: th.Yt(5) + 9, size: 24, fill: POS, o: 0 }), .4);
+    th.set(-7, m('fall'), tw, 2);
+    show(T(p, 'night', { x: 500, y: th.Yt(-7) + 9, size: 24, fill: NEG, o: 0 }), m('fall', 2));
+    let E = row(p, [{ t: '5', fill: POS }, ' − ', { t: '12', fill: POS }], 300, 64, 1080);
+    showAll(E, m('expr'));
+    E = addOpposite(E, { t: '(−12)', fill: NEG }, m('rw'));
+    E = collapse(E, 0, 2, ['−7'], m('ans'), { color: NEG });
+    caption(p, '−7 degrees at night', m('ans', 1.4), 420, COL.good, 32, 1080);
+  }],
+  ['distance', 'Distance apart', (m) => {
+    const p = panel(0), x = 420, Yf = v => 470 - 3 * v;
+    mk('rect', { x: x - 120, y: Yf(0), width: 400, height: Yf(-60) - Yf(0) + 20, fill: POS, 'fill-opacity': .1 }, G(p));
+    vAxis(p, { x, Yf, lo: -60, hi: 100, step: 20 });
+    show(T(p, 'lake surface', { x: x + 270, y: Yf(0) - 10, size: 22, fill: POS, anchor: 'end', o: 0 }), .6);
+    marker(p, x, Yf(90), 'drone, 90 m up', POS, m('drone'));
+    marker(p, x, Yf(-40), 'diver, 40 m down', NEG, m('diver'));
+    let E = row(p, [{ t: '90', fill: POS }, ' − ', { t: '(−40)', fill: NEG }], 270, 64, 1100);
+    showAll(E, m('expr'));
+    E = addOpposite(E, { t: '40', fill: POS }, m('rw', -.8));
+    E = collapse(E, 0, 2, ['130'], m('ans'), { color: COL.good });
+    caption(p, '130 m apart', m('ans', 1.4), 390, COL.good, 32, 1100);
+    vbrace(p, x + 300, Yf(90), Yf(0), '90 m', POS, m('see'));
+    vbrace(p, x + 300, Yf(0), Yf(-40), '40 m', NEG, m('see', 1));
+    vbrace(p, x + 420, Yf(90), Yf(-40), '130 m', COL.good, m('see', 2));
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0), x = 500, Yf = v => 420 - 10 * v;
+    mk('rect', { x: x - 120, y: Yf(0), width: 380, height: Yf(-12) - Yf(0), fill: POS, 'fill-opacity': .1 }, G(p));
+    vAxis(p, { x, Yf, lo: -10, hi: 30, step: 5 });
+    marker(p, x, Yf(25), 'hawk', POS, .5);
+    marker(p, x, Yf(-8), 'fish', NEG, .7);
+    S.q2 = { p, x, Yf };
+  }, { ask: done => quiz(TOPR, [{
+    id: 'c-dist', prompt: ['A hawk flies 25 m above sea level. A fish swims 8 m below sea level. How far apart are they?'],
+    build: blanks([{ parts: ['25 − (−8) = ', { box: '33' }, ' meters'], why: '25 − (−8) = 25 + 8 = 33 meters.',
+      hint: 'Subtract the lower position from the higher one, then add the opposite.',
+      fx: () => { const { p, x, Yf } = S.q2; vbrace(S.q || qlayer(), x + 240, Yf(25), Yf(-8), '33 m', COL.good, 0, fx); } }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['To subtract, add the opposite: keep, change, change.', 'a − b = a + (−b)', 'w1'],
+     ['Subtracting a positive number moves you left.', '2 − 5 = 2 + (−5) = −3', 'w2'],
+     ['Subtracting a negative number moves you right.', '2 − (−5) = 2 + 5 = 7', 'w3']].forEach(([str, ex, mark], i) => {
+      const g = G(p, { x: -16, y: 220 + i * 170, o: 0 });
+      T(g, str, { x: 200, size: 34, weight: 600 });
+      M(g, [ex], { x: 200, y: 60, size: 40, fill: COL.dim, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-diffs', prompt: ['Find each difference.'], build: blanks(DIFFS),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-rewrite', prompt: ['Write each subtraction as adding the opposite.'], build: blanks(REWRITE),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const DIFFS = [
+  { parts: ['3 − 10 = ', { box: '-7' }], why: '3 + (−10) = −7.' },
+  { parts: ['6 − 9 = ', { box: '-3' }], why: '6 + (−9) = −3.' },
+  { parts: ['−4 − 7 = ', { box: '-11' }], why: '−4 + (−7) = −11.' },
+  { parts: ['7 − (−6) = ', { box: '13' }], why: '7 + 6 = 13.' },
+  { parts: ['−5 − (−11) = ', { box: '6' }], why: '−5 + 11 = 6.' },
+  { parts: ['12 − (−15) = ', { box: '27' }], why: '12 + 15 = 27.' },
+  { parts: ['−14 − (−9) = ', { box: '-5' }], why: '−14 + 9 = −5.' },
+];
+const REWRITE = [
+  { parts: ['9 − 4 = 9 + ', { box: '-4' }], why: 'The opposite of 4 is −4.' },
+  { parts: ['−3 − 7 = −3 + ', { box: '-7' }], why: 'The opposite of 7 is −7.' },
+  { parts: ['6 − (−2) = 6 + ', { box: '2' }], why: 'The opposite of −2 is 2.' },
+  { parts: ['−5 − (−8) = −5 + ', { box: '8' }], why: 'The opposite of −8 is 8.' },
+  { parts: ['0 − 11 = 0 + ', { box: '-11' }], why: 'The opposite of 11 is −11.' },
+];
+const TFQ = [
+  { parts: ['Subtracting a number is the same as adding its opposite.'], ans: ['t'], why: 'a − b = a + (−b).' },
+  { parts: [$m('5 − (−3) = 2')], ans: ['f'], why: '5 − (−3) = 5 + 3 = 8.' },
+  { parts: ['The additive inverse of ', $m('−12'), ' is ', $m('12'), '.'], ans: ['t'], why: '−12 + 12 = 0.' },
+  { parts: [$m('−4 − 6 = −2')], ans: ['f'], why: '−4 − 6 = −4 + (−6) = −10.' },
+  { parts: ['Subtracting a negative number makes the result larger.'], ans: ['t'], why: 'It is the same as adding a positive number.' },
+  { parts: [$m('0 − 9 = 9')], ans: ['f'], why: '0 − 9 = 0 + (−9) = −9.' },
+];
+boot();
+</script>
+</body>
+</html>

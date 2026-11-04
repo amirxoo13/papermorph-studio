@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Quadratic Equations by Graphing — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 68, title: 'Solving Quadratic Equations by Graphing', minutes: 9 };
+const PAR = COL.irr, ROOT = COL.nat, VTX = COL.task, AXC = COL.rat, HIT = COL.good, XAX = COL.whole;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// Glow the x-axis of plane P: the line y = 0.
+const xGlow = (p, P, t0) => { const l = path(p, `M${P.PX(P.x0 - .4)} ${P.PY(0)}H${P.PX(P.x1 + .4)}`, { stroke: XAX, 'stroke-width': 7, 'stroke-opacity': .7 }, { d: 0 }); draw(l, t0, .8); return l; };
+const axisLine = (p, P, x, t0) => { const l = path(p, `M${P.PX(x)} ${P.PY(P.y1 + .3)}V${P.PY(P.y0 - .3)}`, { stroke: AXC, 'stroke-width': 3, 'stroke-dasharray': '10 8' }, { o: 0 }); show(l, t0); return l; };
+const two = (u, v) => ([p, q]) => Math.abs(p - u) + Math.abs(q - v) < 1e-9 || Math.abs(p - v) + Math.abs(q - u) < 1e-9;
+// Draw a small graph of f on the right side of a practice screen (fresh for each question).
+function sideGraph(f, x0, x1, y0, y1, label) {
+  const L = qlayer(), u = Math.min(640 / (x1 - x0), 560 / (y1 - y0));
+  const P = plane(L, { cx: 1180 - (x0 + x1) / 2 * u, cy: 470 + (y0 + y1) / 2 * u, u, x0, x1, y0, y1, t0: 0, labels: true });
+  put(P.g, { o: 1 }); P.layer = L;
+  P.fn(f, x0, x1, PAR, 0, { run: fx, dur: .8 });
+  M(L, label, { x: 1180, y: 130, size: 36, fill: PAR });
+  return P;
+}
+const withGraph = (draw, build) => (body, api) => { draw(); return build(body, api); };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Solving by graphing', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 13, Chapter 68', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving Quadratic Equations', { x: 800, y: 400, size: 76, weight: 600, anchor: 'middle' });
+    T(g, 'by Graphing', { x: 800, y: 490, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = text(scene, 'solutions = x-intercepts', 800, 620, m('sub'), { size: 36, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['idea', 'Solutions are x-intercepts', (m) => {
+    const p = panel(0), P = plane(p, { cx: 1150, cy: 500, u: 58, x0: -5, x1: 4, y0: -4, y1: 6, t0: .2 });
+    P.layer = p;
+    const t = tokens(p, [{ t: 'y', fill: COL.chalk }, [' = ax', E(2), ' + bx + c']], { x: 140, y: 170, size: 50, o: 0 });
+    t.forEach(e => show(e, .2));
+    const z = M(p, ['0'], { x: t[0]._px, y: 170, size: 50, fill: XAX, o: 0 });
+    tw(t[0], { o: 0, y: 140 }, m('zero'), .5); show(z, m('zero', .3)); put(z, { y: 200 }); tw(z, { y: 170 }, m('zero', .3), .5, back);
+    xGlow(p, P, m('axis'));
+    text(p, 'y = 0 is the x-axis', 140, 280, m('axis'), { size: 30, fill: XAX, weight: 600 });
+    text(p, 'solutions = x-intercepts', 140, 360, m('ex'), { size: 34, fill: ROOT, weight: 700 });
+    const f = x => -2 / 3 * x * x - 2 / 3 * x + 4;
+    mline(p, ['y = −', F(2, 3), 'x', E(2), ' − ', F(2, 3), 'x + 4'], 140, 480, m('read', -1), PAR, 44, 'start');
+    P.fn(f, -4.2, 3.2, PAR, m('read', -.8));
+    P.dot(-3, 0, ROOT, m('read', 1.5), { label: '−3', dx: -12, dy: -16, anchor: 'end' });
+    P.dot(2, 0, ROOT, m('read', 2.2), { label: '2', dx: 12, dy: -16 });
+    mline(p, 'x = −3   or   x = 2', 140, 580, m('read', 3), ROOT, 46, 'start');
+    mline(p, ['−', F(2, 3), '(4) − ', F(2, 3), '(2) + 4 = 0  ✓'], 140, 700, m('chk'), COL.dim, 40, 'start');
+  }],
+  ['count', 'How many solutions?', (m) => {
+    const p = panel(0);
+    [[x => -.6 * x * x + 2.5, 'two', 'two', HIT], [x => 2 / 3 * (x + 2) ** 2, 'one', 'one', VTX], [x => x * x - 3 * x + 4, 'none', 'no real solution', COL.bad]].forEach(([f, k, lab, c], i) => {
+      const P = plane(p, { cx: 300 + i * 500, cy: 460, u: 44, x0: -4, x1: 4, y0: -4, y1: 5, t0: m(k), labels: false });
+      P.layer = p;
+      xGlow(p, P, m(k, .2));
+      P.fn(f, -4, 4, PAR, m(k, .4));
+      if (i === 0) [-Math.sqrt(2.5 / .6), Math.sqrt(2.5 / .6)].forEach(r => P.dot(r, 0, ROOT, m(k, 1.4)));
+      if (i === 1) P.dot(-2, 0, ROOT, m(k, 1.4));
+      text(p, lab, 300 + i * 500, 700, m(k, 1.4), { size: 32, fill: c, anchor: 'middle', weight: 700 });
+    });
+    mline(p, ['y = ', F(2, 3), '(x + 2)', E(2)], 800, 150, m('one', .5), VTX, 36);
+    mline(p, ['y = x', E(2), ' − 3x + 4'], 1300, 150, m('none', .5), COL.bad, 36);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0), P = S.P = plane(p, { cx: 1000, cy: 560, u: 56, x0: -2, x1: 7, y0: -4, y1: 5, t0: .2 });
+    P.layer = p;
+    P.fn(x => -x * x + 6 * x - 5, .2, 5.8, PAR, .3);
+    mline(p, ['y = −x', E(2), ' + 6x − 5'], 200, 180, .2, PAR, 46, 'start');
+  }, { ask: done => quiz({ x: 80, y: 280, w: 520, cls: 'side' }, [{
+    id: 'c-root', prompt: ['Click one solution of ', $m('−x', E(2), ' + 6x − 5 = 0'), '.'],
+    build: pickPoint(S.P, [1, 0], (x) => `x = ${x}: the parabola crosses the x-axis there.`, (x, y) => y !== 0 ? 'A solution is on the x-axis, where y = 0.' : 'The parabola doesn’t cross the x-axis there.', null, (x, y) => y === 0 && (x === 1 || x === 5)),
+  }], done) }],
+  ['sym', 'Using symmetry', (m) => {
+    const p = panel(0), P = plane(p, { cx: 1250, cy: 360, u: 56, x0: -8, x1: 1, y0: -4, y1: 4, t0: .2 });
+    P.layer = p;
+    text(p, 'vertex (−4, −3), one root (−6, 0)', 140, 180, m('given'), { size: 32, weight: 600 });
+    P.dot(-4, -3, VTX, m('given', 1)); P.dot(-6, 0, ROOT, m('given', 3.5));
+    axisLine(p, P, -4, m('axis'));
+    text(p, 'axis of symmetry  x = −4', 140, 270, m('axis'), { size: 30, fill: AXC, weight: 600 });
+    P.arrow(-4, .5, -6, .5, ROOT, m('dist'), { label: '2' });
+    P.arrow(-4, .5, -2, .5, HIT, m('mirror'), { label: '2' });
+    P.dot(-2, 0, HIT, m('mirror', .8));   // named in the text on the left: a label here sat on the tick numbers
+    P.fn(x => .75 * (x + 4) ** 2 - 3, -6.3, -1.7, PAR, m('mirror', 1.4));
+    text(p, 'other root: (−2, 0)', 140, 360, m('mirror', 1), { size: 34, fill: HIT, weight: 700 });
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0), P = S.P = plane(p, { cx: 760, cy: 330, u: 44, x0: -6, x1: 10, y0: -6, y1: 3, t0: .2 });
+    P.layer = p;
+    P.dot(2, -5, VTX, .3, { label: 'vertex (2, −5)', dx: 14, dy: 30 });
+    P.dot(8, 0, ROOT, .5, { label: '(8, 0)', dx: 0, dy: -18, anchor: 'middle' });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-other', prompt: ['Click the other root.'],
+    build: pickPoint(S.P, [-4, 0], '8 is 6 units right of the axis x = 2, so the other root is 6 units left: −4.', (x, y) => y !== 0 ? 'A root is on the x-axis.' : 'Use the axis of symmetry, x = 2: how far is 8 from it?',
+      () => { axisLine(S.q || qlayer(), S.P, 2, 0); }),
+  }], done) }],
+  ['ball', 'A kicked ball', (m) => {
+    const p = panel(0), A = axes(p, { x0: 720, y0: 720, w: 760, h: 480, xs: [0, 5, 1], ys: [0, 12, 2], xl: 'distance (meters)', yl: 'height (meters)', t0: m('kick') });
+    const f = x => -2 * x * x + 9 * x;
+    mline(p, ['y = −2x', E(2), ' + 9x'], 140, 170, m('kick'), PAR, 50, 'start');
+    let d = '';
+    for (let i = 0; i <= 80; i++) { const x = 4.5 * i / 80; d += `${i ? 'L' : 'M'}${A.PX(x).toFixed(1)} ${A.PY(f(x)).toFixed(1)}`; }
+    draw(path(p, d, { stroke: PAR, 'stroke-width': 4 }, { d: 0 }), m('kick', 1.5), 2);
+    const ball = put(mk('circle', { r: 16, fill: COL.chalk, stroke: COL.board, 'stroke-width': 3 }, p), { x: A.PX(0), y: A.PY(0) - 16, o: 0 });
+    show(ball, m('kick', 1.5), .2); hide(ball, m('kick', 3.8), .3);
+    prog(q => put(ball, { x: A.PX(4.5 * q), y: A.PY(f(4.5 * q)) - 16 }), m('kick', 1.5), 2, lin);
+    text(p, 'on the ground: y = 0', 140, 280, m('ground'), { size: 30, fill: XAX, weight: 600 });
+    mline(p, 'x(−2x + 9) = 0', 140, 380, m('fac'), COL.chalk, 46, 'start');
+    mline(p, ['x = 0   or   x = ', F(9, 2), ' = 4.5'], 140, 480, m('two'), COL.chalk, 46, 'start');
+    [[0, 'kick'], [4.5, 'lands']].forEach(([x, s], i) => { show(put(mk('circle', { r: 11, fill: i ? HIT : COL.dim }, p), { x: A.PX(x), y: A.PY(0), o: 0 }), m('two', .5 + i * .4)); text(p, s, A.PX(x) + (i ? 0 : 40), A.PY(0) - 30, m(i ? 'mean' : 'two', .6), { size: 24, fill: i ? HIT : COL.dim, anchor: 'middle', weight: 600 }); });
+    text(p, 'lands 4.5 meters away', 140, 600, m('mean', .5), { size: 34, fill: HIT, weight: 700 });
+  }],
+  ['approx', 'Estimating', (m) => {
+    const p = panel(0), P = plane(p, { cx: 1100, cy: 420, u: 60, x0: -3, x1: 5, y0: -5, y1: 4, t0: .2 });
+    P.layer = p;
+    mline(p, ['y = x', E(2), ' − 2x − 4'], 140, 170, .2, PAR, 48, 'start');
+    P.fn(x => x * x - 2 * x - 4, -2.2, 4.2, PAR, .3);
+    [[3, 4], [-2, -1]].forEach(([a, b], i) => { const r = put(mk('rect', { x: P.PX(a), y: P.PY(0) - 18, width: P.u * (b - a), height: 36, rx: 10, fill: ROOT }, p), { o: 0 }); p.insertBefore(r, p.firstChild); tw(r, { o: .3 }, m('ex', 1 + i * 1.5), .4); });
+    const r1 = 1 + Math.sqrt(5), r2 = 1 - Math.sqrt(5);
+    P.dot(r1, 0, ROOT, m('est')); P.dot(r2, 0, ROOT, m('est', .3));
+    mline(p, 'x ≈ 3.2   or   x ≈ −1.2', 140, 330, m('est'), ROOT, 44, 'start');
+    mline(p, ['x = 1 ± ', R(5)], 140, 460, m('exact'), HIT, 52, 'start');
+    text(p, 'graph: estimate.  algebra: exact.', 140, 560, m('exact', 1.5), { size: 28, fill: COL.dim });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-cannon', prompt: ['A cannonball’s path is ', $m('y = −4x', E(2), ' + 31x'), ' (x and y in miles). How far away does it land?'],
+    build: blanks([{ parts: [{ box: '31/4' }, ' miles'], why: 'x(−4x + 31) = 0: x = 0 is the launch, x = 31/4 = 7.75 is the landing.', hint: 'Set y = 0 and factor out x.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Solutions of ax² + bx + c = 0 are the x-intercepts of the graph.', 'w1', ROOT], ['Two crossings, one touch, or none.', 'w2', HIT],
+     ['Roots are symmetric about the axis of symmetry.', 'w3', AXC], ['A graph estimates; algebra makes it exact.', 'w4', PAR]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 170, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 170, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 230, size: 33, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => {
+    const p = panel(0), P = S.F = plane(p, { cx: 1050, cy: 360, u: 40, x0: -9, x1: 7, y0: -4, y1: 4, t0: .2 });
+    P.layer = p;
+    P.fn(x => x * x / 8 + x / 4 - 3, -8.6, 6.6, PAR, .3);
+    mline(p, ['y = ', F(1, 8), 'x', E(2), ' + ', F(1, 4), 'x − 3'], 1050, 120, .2, PAR, 40);
+  }, { ask: done => quiz({ x: 60, y: 520, w: 640, cls: 'side' }, [
+    { id: 'p-neg', prompt: ['Click the negative solution.'], build: pickPoint(S.F, [-6, 0], 'x = −6.', (x, y) => y !== 0 ? 'Solutions are on the x-axis.' : 'Look where the curve crosses left of 0.', () => S.F.dot(-6, 0, ROOT, 0, { run: fx, into: S.F.layer })) },
+    { id: 'p-pos', prompt: ['Click the positive solution.'], build: pickPoint(S.F, [4, 0], 'x = 4. Check: (x + 6)(x − 4) = x² + 2x − 24.', (x, y) => y !== 0 ? 'Solutions are on the x-axis.' : 'Look where the curve crosses right of 0.') },
+  ], done, 'Chapter practice 1 of 3,  point') }],
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz({ x: 0, y: 0, w: 820, cls: 'screen' }, [
+    { id: 'p-a', prompt: ['Solve ', $m('−x', E(2), ' + 6x − 5 = 0'), '.'], build: withGraph(() => sideGraph(x => -x * x + 6 * x - 5, -1, 7, -5, 5, ['y = −x', E(2), ' + 6x − 5']),
+      blanks([{ parts: ['x = ', { box: '1' }, '  or  x = ', { box: '5' }], test: two(1, 5), why: '−(x − 1)(x − 5) = 0.', hint: 'Read the x-intercepts, or factor.' }])) },
+    { id: 'p-b', prompt: ['Solve ', $m(F(2, 3), 'x', E(2), ' + ', F(8, 3), 'x + ', F(8, 3), ' = 0'), '.'], build: withGraph(() => sideGraph(x => 2 / 3 * (x + 2) ** 2, -5, 2, -1, 5, [F(2, 3), '(x + 2)', E(2)]),
+      blanks([{ parts: ['x = ', { box: '-2' }], why: '⅔(x + 2)² = 0: one solution.', hint: 'The vertex touches the x-axis.' }])) },
+    { id: 'p-c', prompt: ['How many real solutions does ', $m('−x', E(2), ' − 4 = 0'), ' have?'], build: withGraph(() => sideGraph(x => -x * x - 4, -3, 3, -7, 1, ['y = −x', E(2), ' − 4']),
+      choice([['two'], ['one'], ['none']], 2, 'The parabola stays below the x-axis: x² = −4 has no real solution.', ['The graph never reaches the x-axis.', 'The vertex is at (0, −4), below the axis.', null])) },
+  ], done, 'Chapter practice 2 of 3,  question') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-sym', prompt: ['Use symmetry and set y = 0.'], build: blanks([
+      { parts: ['vertex (−1, 4), one root (3, 0):  other root x = ', { box: '-5' }], why: '3 is 4 units right of x = −1, so the other root is 4 units left.', hint: 'How far is 3 from the axis x = −1?' },
+      { parts: ['vertex (5, −2), one root (6, 0):  other root x = ', { box: '4' }], why: '6 is 1 unit right of x = 5.', hint: 'The axis is x = 5.' },
+      { parts: ['ball path y = −x', E(2), ' + 12x (meters): lands ', { box: '12' }, ' meters away'], why: 'x(−x + 12) = 0: x = 12.', hint: 'Set y = 0 and factor out x.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

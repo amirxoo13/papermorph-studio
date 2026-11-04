@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proportion — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 13, title: 'Proportion', minutes: 6, next: '../ch14/' };
+const A = COL.whole, B = COL.nat, X1 = COL.int, X2 = COL.real;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A circle cut into n equal slices, k shaded.
+function pie(p, x, y, r, n, k, color, t0) {
+  const g = G(p, { x, y, o: 0 });
+  for (let i = 0; i < n; i++) {
+    const a0 = -Math.PI / 2 + i * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
+    const d = `M0 0L${r * Math.cos(a0)} ${r * Math.sin(a0)}A${r} ${r} 0 0 1 ${r * Math.cos(a1)} ${r * Math.sin(a1)}Z`;
+    mk('path', { d, fill: i < k ? mix(COL.board, color, .7) : COL.board, stroke: COL.chalk, 'stroke-width': 2.5 }, g);
+  }
+  show(g, t0);
+  return g;
+}
+// Cross-multiplication arrows over a pair of fractions drawn with fracRow at slots 0 and 2.
+function crossArrows(p, row, t0, t1, c1 = X1, c2 = X2, run = tw) {
+  const a = row[0].cx, b = row[2].cx, y = row.y, s = row.size;
+  const l1 = path(p, `M${a + s * .25} ${y - s * .45}L${b - s * .25} ${y + s * .55}`, { stroke: c1, 'stroke-width': 3.5 }, { d: 0 });
+  const l2 = path(p, `M${a + s * .25} ${y + s * .55}L${b - s * .25} ${y - s * .45}`, { stroke: c2, 'stroke-width': 3.5 }, { d: 0 });
+  run(l1, { d: 1 }, t0, .5); run(l2, { d: 1 }, t1, .5);
+}
+function table(p, x, y, rows, t0) {
+  const g = G(p, { o: 0 }), cw = 150, rh = 70;
+  rows.forEach((r, i) => r.forEach((c, j) => {
+    const w = j ? cw : 260, cx = j ? x + 260 + (j - 1) * cw : x;
+    mk('rect', { x: cx, y: y + i * rh, width: w, height: rh, fill: j ? 'none' : mix(COL.board, COL.chalk, .06), stroke: COL.dim, 'stroke-width': 2 }, g);
+    T(g, String(c), { x: cx + w / 2, y: y + i * rh + 46, size: 30, fill: j ? COL.chalk : COL.dim, font: j ? MATH : UI, anchor: 'middle' });
+  }));
+  show(g, t0);
+  return g;
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Proportion', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 13', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Proportion', { x: 800, y: 430, size: 100, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [F(4, 1), ' = ', F('x', 3)], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['define', 'Equal ratios', (m) => {
+    const p = panel(0);
+    pie(p, 480, 330, 140, 2, 1, COL.int, m('a', -1.5));
+    mline(p, [F(1, 2)], 480, 560, m('a'), COL.int, 64);
+    pie(p, 1120, 330, 140, 4, 2, COL.int, m('b'));
+    mline(p, [F(2, 4)], 1120, 560, m('b', 1), COL.int, 64);
+    show(T(p, '=', { x: 800, y: 350, size: 90, fill: COL.good, font: MATH, anchor: 'middle', o: 0 }), m('same'));
+    mline(p, [F(1, 2), ' = ', F(2, 4)], 800, 560, m('eq'), COL.chalk, 64);
+    caption(p, 'proportion: an equation saying two ratios are equal', m('def'), 680, COL.task);
+    mline(p, ['1 : 2 = 2 : 4'], 800, 770, m('forms', 2), COL.dim, 44);
+  }],
+  ['cross', 'Cross products', (m) => {
+    const p = panel(0);
+    const r1 = fracRow(p, [{ f: [2, 3] }, '      ', { f: [8, 12] }], { x: 460, y: 280, size: 80 });
+    show(r1.g, m('q'));
+    crossArrows(p, r1, m('x1'), m('x2'));
+    mline(p, ['2 × 12 = 24'], 460, 450, m('x1', .5), X1, 42);
+    mline(p, ['3 × 8 = 24'], 460, 510, m('x2', .5), X2, 42);
+    mline(p, [F(2, 3), ' = ', F(8, 12), '  ✓'], 460, 640, m('eq'), COL.good, 50);
+    const r2 = fracRow(p, [{ f: [3, 4] }, '      ', { f: [4, 8] }], { x: 1140, y: 280, size: 80 });
+    show(r2.g, m('q2'));
+    crossArrows(p, r2, m('y1'), m('y2'));
+    mline(p, ['3 × 8 = 24'], 1140, 450, m('y1', .5), X1, 42);
+    mline(p, ['4 × 4 = 16'], 1140, 510, m('y2', .5), X2, 42);
+    mline(p, [F(3, 4), ' ≠ ', F(4, 8), '  ✗'], 1140, 640, m('no'), COL.bad, 50);
+  }],
+  ['why', 'Why cross products work', (m) => {
+    const p = panel(0);
+    const rows = [[[F('a', 'b'), ' = ', F('c', 'd')], 'start'], [[F('a', 'b'), ' × b × d = ', F('c', 'd'), ' × b × d'], 'mul'],
+      [['a × d = c × b'], 'res']];
+    rows.forEach(([parts, mark], i) => mline(p, parts, 800, 220 + i * 170, m(mark), i === 2 ? COL.good : COL.chalk, 60));
+    show(T(p, 'b cancels', { x: 560, y: 470, size: 26, fill: COL.task, anchor: 'middle', o: 0 }), m('cancel'));
+    show(T(p, 'd cancels', { x: 1060, y: 470, size: 26, fill: COL.task, anchor: 'middle', o: 0 }), m('cancel', 1.8));
+    caption(p, 'Doing the same thing to both sides keeps an equation true.', m('rule'), 700, COL.dim);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.r = fracRow(p, [{ f: [4, 5] }, '      ', { f: [12, 15] }], { x: 800, y: 300, size: 90 });
+    show(S.r.g, .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-cross', prompt: ['Do ', $m(F(4, 5)), ' and ', $m(F(12, 15)), ' form a proportion?'],
+    build: choice([['Yes'], ['No']], 0, '4 × 15 = 60 and 5 × 12 = 60. The cross products are equal.',
+      [null, 'Multiply diagonally: 4 × 15 and 5 × 12. Compare them.'],
+      () => { crossArrows(S.q || qlayer(), S.r, 0, .4, X1, X2, fx); }),
+  }], done) }],
+  ['unknown', 'Finding a missing number', (m) => {
+    const p = panel(0);
+    caption(p, '4 cups of water for every lemon', m('recipe'), 140, COL.chalk);
+    caption(p, 'How much water for 3 lemons?', m('q'), 200, COL.dim);
+    mline(p, [F('4 cups', '1 lemon'), ' = ', F('x cups', '3 lemons')], 800, 340, m('set'), COL.chalk, 52);
+    show(T(p, 'x = the unknown number', { x: 800, y: 440, size: 26, fill: COL.task, anchor: 'middle', o: 0 }), m('x'));
+    mline(p, ['1 × x = 4 × 3'], 800, 540, m('cross'), COL.chalk, 50);
+    mline(p, ['x = 12 cups'], 800, 640, m('ans'), COL.good, 56);
+    mline(p, [F(12, 3), ' = ', F(4, 1), '  ✓'], 800, 750, m('check'), COL.dim, 44);
+  }],
+  ['solve', 'Solving a proportion', (m) => {
+    const p = panel(0);
+    const r = fracRow(p, [{ f: [3, 4] }, '      ', { f: ['x', 12] }], { x: 800, y: 220, size: 80 });
+    show(r.g, m('q'));
+    crossArrows(p, r, m('cross'), m('cross', .6));
+    mline(p, ['4 × x = 3 × 12 = 36'], 800, 420, m('cross', 1), COL.chalk, 50);
+    mline(p, ['x = 36 ÷ 4'], 800, 510, m('div'), COL.chalk, 50);
+    mline(p, ['x = 9'], 800, 600, m('ans'), COL.good, 56);
+    mline(p, [F('3 × 3', '4 × 3'), ' = ', F(9, 12)], 800, 720, m('see'), COL.dim, 46);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-solve', prompt: ['Solve for x.'],
+    build: blanks([{ parts: [F(2, 8), ' = ', F(6, 'x'), ':   x = ', { box: '24' }], why: '2 × x = 8 × 6 = 48, so x = 24.', hint: 'Cross-multiply: 2 × x = 8 × 6.' }]),
+  }], done) }],
+  ['constant', 'Constant of proportionality', (m) => {
+    const p = panel(0);
+    table(p, 360, 170, [['laps', 3, 5, 8], ['minutes', 18, 30, '']], m('t'));
+    const qm = T(p, '?', { x: 360 + 260 + 2 * 150 + 75, y: 170 + 70 + 46, size: 30, fill: COL.task, font: MATH, anchor: 'middle', o: 0 });
+    show(qm, m('t')); hide(qm, m('use', .9), .1);
+    const q = T(p, '48', { x: 360 + 260 + 2 * 150 + 75, y: 170 + 70 + 46, size: 30, fill: COL.good, font: MATH, anchor: 'middle', o: 0 });
+    mline(p, ['18 ÷ 3 = 6'], 560, 470, m('k1'), COL.chalk, 46);
+    mline(p, ['30 ÷ 5 = 6'], 1040, 470, m('k2'), COL.chalk, 46);
+    caption(p, 'The same ratio every row: the constant of proportionality', m('def'), 580, COL.task, 30);
+    mline(p, ['8 × 6 = 48 minutes'], 800, 680, m('use'), COL.good, 50);
+    show(q, m('use', 1));
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-word', prompt: ['It takes 16 minutes to trim 6 bushes. At that rate, how long for 30 bushes?'],
+    build: blanks([{ parts: [F('16 minutes', '6 bushes'), ' = ', F('x minutes', '30 bushes'), ':   x = ', { box: '80' }], why: '6 × x = 16 × 30 = 480, so x = 80 minutes.', hint: 'Cross-multiply, then divide by 6.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A proportion says two ratios are equal.', 'w1'], ['Check with cross products: a × d = b × c.', 'w1'],
+     ['Find a missing number: match units, cross-multiply, divide.', 'w2'], ['Proportional tables share one constant ratio.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 1.5 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-solve', prompt: ['Solve for x.'], build: blanks(SOLVE),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-prop', prompt: ['Do the ratios form a proportion?'], build: grid(PROPQ, [['y', 'Yes', COL.good], ['n', 'No', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-word', prompt: ['Solve each problem.'], build: blanks(WORD),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SOLVE = [
+  { parts: [F(5, 20), ' = ', F('x', 28), ':   x = ', { box: '7' }], why: '20x = 5 × 28 = 140, so x = 7.' },
+  { parts: [F(1, 'x'), ' = ', F(7, 35), ':   x = ', { box: '5' }], why: '7x = 35, so x = 5.' },
+  { parts: [F('x', 5), ' = ', F(16, 40), ':   x = ', { box: '2' }], why: '40x = 80, so x = 2.' },
+  { parts: [F(9, 'x'), ' = ', F(3, 4), ':   x = ', { box: '12' }], why: '3x = 36, so x = 12.' },
+  { parts: [F(6, 10), ' = ', F('x', 25), ':   x = ', { box: '15' }], why: '10x = 150, so x = 15.' },
+];
+const PROPQ = [
+  { parts: [F(3, 4), '   and   ', F(6, 12)], ans: ['n'], why: '3 × 12 = 36, 4 × 6 = 24.' },
+  { parts: [F(2, 3), '   and   ', F(10, 15)], ans: ['y'], why: '2 × 15 = 30, 3 × 10 = 30.' },
+  { parts: [F(4, 5), '   and   ', F(12, 20)], ans: ['n'], why: '4 × 20 = 80, 5 × 12 = 60.' },
+  { parts: [F(1, 9), '   and   ', F(4, 36)], ans: ['y'], why: '1 × 36 = 36, 9 × 4 = 36.' },
+  { parts: [F(7, 2), '   and   ', F(21, 6)], ans: ['y'], why: '7 × 6 = 42, 2 × 21 = 42.' },
+];
+const WORD = [
+  { parts: ['5 notebooks cost $15. 8 notebooks cost $', { box: '24' }], why: '15/5 = x/8, so 5x = 120 and x = 24.' },
+  { parts: ['A car goes 180 km in 2 hours. In 5 hours it goes ', { box: '450' }, ' km'], why: '180/2 = x/5, so 2x = 900 and x = 450.' },
+  { parts: ['3 cups of rice feed 4 people. For 10 people you need ', { box: '7.5' }, ' cups'], why: '3/4 = x/10, so 4x = 30 and x = 7.5.' },
+  { parts: ['On a map, 2 cm stands for 15 km. 6 cm stands for ', { box: '45' }, ' km'], why: '2/15 = 6/x, so 2x = 90 and x = 45.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exponents — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 19, title: 'Exponents', minutes: 6, next: '../ch20/' };
+const BS = COL.whole, EX = COL.nat, VL = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// Isometric unit cube at grid position (i, j, k), size u, origin (x, y).
+function cube(p, x, y, i, j, k, u, color) {
+  const dx = u * .5, dy = u * .28;
+  const g = G(p, { o: 0 });
+  const px = x + i * u + j * dx, py = y - k * u - j * dy;
+  mk('path', { d: `M${px} ${py}h${u}v${-u}h${-u}Z`, fill: mix(COL.board, color, .55), stroke: COL.board, 'stroke-width': 1.5 }, g);
+  mk('path', { d: `M${px} ${py - u}l${dx} ${-dy}h${u}l${-dx} ${dy}Z`, fill: mix(COL.board, color, .8), stroke: COL.board, 'stroke-width': 1.5 }, g);
+  mk('path', { d: `M${px + u} ${py}l${dx} ${-dy}v${-u}l${-dx} ${dy}Z`, fill: mix(COL.board, color, .35), stroke: COL.board, 'stroke-width': 1.5 }, g);
+  return g;
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Exponents', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 4, Chapter 19', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Exponents', { x: 800, y: 430, size: 100, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['4', E(3), ' = 4 × 4 × 4'], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['define', 'Base and exponent', (m) => {
+    const p = panel(0);
+    mline(p, ['4 × 4 × 4'], 800, 200, .2, COL.chalk, 60);
+    const b = M(p, ['4'], { x: 760, y: 420, size: 150, fill: BS, o: 0 }), e = M(p, ['3'], { x: 845, y: 340, size: 90, fill: EX, o: 0 });
+    show(b, m('short')); show(e, m('short', .4));
+    draw(path(p, 'M640 470Q600 520 520 520', { stroke: BS, 'stroke-width': 3 }, { d: 0 }), m('base'), .5);
+    show(T(p, 'base', { x: 500, y: 530, size: 34, fill: BS, weight: 600, anchor: 'end', o: 0 }), m('base', .3));
+    show(T(p, 'multiply 4', { x: 500, y: 570, size: 24, fill: COL.dim, anchor: 'end', o: 0 }), m('base', .6));
+    draw(path(p, 'M900 300Q960 260 1040 270', { stroke: EX, 'stroke-width': 3 }, { d: 0 }), m('exp'), .5);
+    show(T(p, 'exponent', { x: 1060, y: 280, size: 34, fill: EX, weight: 600, o: 0 }), m('exp', .3));
+    show(T(p, 'how many copies', { x: 1060, y: 320, size: 24, fill: COL.dim, o: 0 }), m('exp', .6));
+    caption(p, '“four to the third power”   or   “four cubed”', m('read'), 650, COL.task);
+    mline(p, ['4', E(3), ' = 16 × 4 = 64'], 800, 750, m('val'), VL, 52);
+  }],
+  ['square', 'Squared and cubed', (m) => {
+    const p = panel(0), u = 60;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const r = rect(p, 220 + j * u, 250 + i * u, u - 4, u - 4, BS); r.setAttribute('fill-opacity', .6);
+      show(r, m('sq', .5 + (i * 3 + j) * .08), .2);
+    }
+    mline(p, ['3', E(2), ' = 3 × 3 = 9'], 310, 520, m('sq', 1.5), COL.chalk, 46);
+    show(T(p, 'squared', { x: 310, y: 580, size: 28, fill: BS, weight: 600, anchor: 'middle', o: 0 }), m('sq', 1.5));
+    const cs = [];
+    for (let k = 0; k < 3; k++) for (let j = 2; j >= 0; j--) for (let i = 0; i < 3; i++) cs.push([k, cube(p, 800, 470, i, j, k, 64, EX)]);
+    cs.forEach(([k, c], n) => show(c, m(k === 0 ? 'cube' : 'layers', (k ? (k - 1) * .6 : 0) + (n % 9) * .05), .2));
+    mline(p, ['3', E(3), ' = 3 × 3 × 3 = 27'], 1030, 620, m('cube', 3), COL.chalk, 46);
+    show(T(p, 'cubed: 3 layers of 9', { x: 1030, y: 680, size: 28, fill: EX, weight: 600, anchor: 'middle', o: 0 }), m('layers'));
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-pow', prompt: ['Find each power.'],
+    build: blanks([{ parts: ['5', E(3), ' = ', { box: '125' }, ',   2', E(5), ' = ', { box: '32' }], why: '5 × 5 × 5 = 125, and 2 × 2 × 2 × 2 × 2 = 32.', hint: 'The exponent is the number of copies. 5³ is not 5 × 3.' }]),
+  }], done) }],
+  ['oneZero', 'Exponents 1 and 0', (m) => {
+    const p = panel(0);
+    mline(p, ['7', E(1), ' = 7'], 800, 150, m('one'), COL.chalk, 56);
+    const rows = [['4', '16', 'pat'], ['3', '8', 'p3'], ['2', '4', 'p2'], ['1', '2', 'p1'], ['0', '1', 'p0']];
+    rows.forEach(([e, v, mark], i) => {
+      mline(p, ['2', E(e), ' ='], 700, 260 + i * 100, m(mark), i === 4 ? COL.good : COL.chalk, 52, 'end');
+      mline(p, [v], 730, 260 + i * 100, m(mark, i === 4 ? .3 : .6), i === 4 ? COL.good : VL, 52, 'start');
+      if (i) {
+        draw(path(p, `M860 ${160 + i * 100}Q920 ${210 + i * 100} 860 ${250 + i * 100}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), i < 4 ? m('step', (i - 1) * .4) : m('p0', -.4), .4);
+        show(T(p, '÷ 2', { x: 930, y: 218 + i * 100, size: 26, fill: COL.task, font: MATH, o: 0 }), i < 4 ? m('step', (i - 1) * .4 + .3) : m('p0', -.2));
+      }
+    });
+    caption(p, 'Any nonzero number to the zero power is 1.', m('rule'), 770, COL.task);
+  }],
+  ['negBase', 'What is the base?', (m) => {
+    const p = panel(0);
+    mline(p, ['(−2)', E(4)], 450, 220, m('q'), COL.chalk, 72);
+    show(T(p, 'base: −2', { x: 450, y: 300, size: 30, fill: BS, weight: 600, anchor: 'middle', o: 0 }), m('q', 2));
+    mline(p, ['(−2)(−2)(−2)(−2)'], 450, 420, m('calc'), COL.dim, 44);
+    mline(p, ['= 16'], 450, 510, m('calc', 2.5), VL, 56);
+    mline(p, ['−2', E(4)], 1150, 220, m('q2'), COL.chalk, 72);
+    show(T(p, 'base: 2', { x: 1150, y: 300, size: 30, fill: BS, weight: 600, anchor: 'middle', o: 0 }), m('q2', 2));
+    mline(p, ['−(2 × 2 × 2 × 2)'], 1150, 420, m('calc2'), COL.dim, 44);
+    mline(p, ['= −16'], 1150, 510, m('calc2', 2.5), COL.bad, 56);
+    caption(p, 'Always ask: what exactly is the base?', m('rule'), 680, COL.task, 32);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-base', prompt: ['What is ', $m('−3', E(2)), '?'],
+    build: choice([['9'], ['−9'], ['−6']], 1, 'Without parentheses, the base is 3: −(3 × 3) = −9.',
+      ['That is (−3)², where the base is −3. Here there are no parentheses.', null, '3² means 3 × 3, not 3 × 2.']),
+  }], done) }],
+  ['negExp', 'Negative exponents', (m) => {
+    const p = panel(0);
+    const rows = [['0', ['1'], 'p0'], ['−1', [F(1, 2)], 'pm1'], ['−2', [F(1, 4)], 'pm2']];
+    rows.forEach(([e, v, mark], i) => {
+      mline(p, ['2', E(e), ' ='], 520, 200 + i * 110, m(mark), COL.chalk, 52, 'end');
+      mline(p, v, 550, 200 + i * 110, m(mark, .4), VL, 52, 'start');
+      if (i) {
+        draw(path(p, `M640 ${110 + i * 110}Q700 ${155 + i * 110} 640 ${200 + i * 110}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), m(mark, -.3), .4);
+        show(T(p, '÷ 2', { x: 710, y: 164 + i * 110, size: 26, fill: COL.task, font: MATH, o: 0 }), m(mark));
+      }
+    });
+    mline(p, ['2', E('−n'), ' = ', F(1, '2ⁿ')], 1150, 260, m('rule'), COL.task, 56);
+    mline(p, ['3', E('−2'), ' = ', F(1, '3²'), ' = ', F(1, 9)], 800, 600, m('ex'), COL.chalk, 56);
+    caption(p, 'A negative exponent does not make the number negative.', m('sign'), 740, COL.bad, 30);
+  }],
+  ['fracExp', 'Fractions', (m) => {
+    const p = panel(0);
+    mline(p, ['(', F(3, 4), ')', E('−2')], 480, 350, m('q'), COL.chalk, 72);
+    mline(p, ['= (', F(4, 3), ')', E(2)], 820, 350, m('flip'), COL.task, 72);
+    mline(p, ['= ', F(16, 9)], 1160, 350, m('ans'), VL, 72);
+    caption(p, 'Flip the fraction, and the exponent becomes positive.', m('flip'), 560, COL.dim);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-neg', prompt: ['Simplify. Fractions are fine.'],
+    build: blanks([{ parts: ['3', E('−4'), ' = ', { box: '1/81' }, ',   (', F(2, 5), ')', E('−3'), ' = ', { box: '125/8' }],
+      why: '3⁻⁴ = 1/3⁴ = 1/81, and (2/5)⁻³ = (5/2)³ = 125/8.', hint: 'Take the reciprocal, then use a positive exponent.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['The exponent counts copies of the base.', 'w1'], ['a¹ = a,   a⁰ = 1 (a ≠ 0)', 'w1'],
+     ['(−2)⁴ = 16,   −2⁴ = −16', 'w2'], ['a⁻ⁿ = 1/aⁿ: take the reciprocal.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 1.5 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simp', prompt: ['Simplify each expression.'], build: blanks(SIMP),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['What kind of number is each value?'],
+    build: grid(KINDQ, [['p', 'Greater than 1', VL], ['f', 'Between 0 and 1', COL.int], ['n', 'Negative', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIMP = [
+  { parts: ['(−', F(3, 8), ')', E(0), ' = ', { box: '1' }], why: 'Any nonzero number to the zero power is 1.' },
+  { parts: ['(−2)', E(6), ' = ', { box: '64' }], why: 'Six negative signs: positive 64.' },
+  { parts: ['−2', E(6), ' = ', { box: '-64' }], why: 'The base is 2: −(2⁶) = −64.' },
+  { parts: ['2', E('−6'), ' = ', { box: '1/64' }], why: '1/2⁶ = 1/64.' },
+  { parts: ['(', F(1, 6), ')', E('−3'), ' = ', { box: '216' }], why: '(6/1)³ = 216.' },
+  { parts: ['(', F(4, 3), ')', E('−3'), ' = ', { box: '27/64' }], why: '(3/4)³ = 27/64.' },
+];
+const KINDQ = [
+  { parts: ['5', E('−2')], ans: ['f'], why: '1/25.' },
+  { parts: ['(−5)', E(2)], ans: ['p'], why: '25.' },
+  { parts: ['−5', E(2)], ans: ['n'], why: '−25.' },
+  { parts: ['(', F(1, 2), ')', E('−2')], ans: ['p'], why: '2² = 4.' },
+  { parts: ['(−2)', E(3)], ans: ['n'], why: 'Three negative signs: −8.' },
+];
+const TFQ = [
+  { parts: [$m('4', E(3)), ' means 4 × 3.'], ans: ['f'], why: 'It means 4 × 4 × 4 = 64.' },
+  { parts: [$m('9', E(0), ' = 0')], ans: ['f'], why: 'Any nonzero number to the zero power is 1.' },
+  { parts: [$m('(−3)', E(2)), ' and ', $m('−3', E(2)), ' are equal.'], ans: ['f'], why: '(−3)² = 9, but −3² = −9.' },
+  { parts: [$m('10', E('−1'), ' = 0.1')], ans: ['t'], why: '1/10 = 0.1.' },
+  { parts: ['A negative exponent always makes the value negative.'], ans: ['f'], why: '2⁻¹ = 1/2 is positive.' },
+];
+boot();
+</script>
+</body>
+</html>

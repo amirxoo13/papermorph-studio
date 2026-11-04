@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order of Operations — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 3, title: 'Order of operations', minutes: 7, next: '../ch04/' };
+
+// One colour per level: parentheses, multiply/divide, add/subtract.
+const LP = COL.irr, LM = COL.real, LA = COL.nat;
+
+/* ---------- chapter drawing helpers ---------- */
+const showAll = (els, t0, step = 0) => els.forEach((e, i) => show(e, t0 + i * step, .45));
+const row = (p, items, y = 340, size = 72, x = 800) => tokens(p, items, { x, y, size, anchor: 'middle', o: 0 });
+const caption = (p, str, t0, fill = COL.dim, y = 200) => show(T(p, str, { x: 800, y, size: 30, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+// Written record under an expression: one line per step.
+const record = (p, lines, t0s, y0 = 470) => lines.forEach((l, k) => show(M(p, [l], { x: 800, y: y0 + k * 58, size: 38, fill: COL.dim, o: 0 }), t0s[k]));
+function arrowLine(p, x1, x2, y, color, t0) {
+  draw(path(p, `M${x1} ${y}H${x2}`, { stroke: color, 'stroke-width': 3 }, { d: 0 }), t0, .5);
+  show(path(p, `M${x2 - 12} ${y - 8}L${x2} ${y}L${x2 - 12} ${y + 8}`, { stroke: color, 'stroke-width': 3 }, { o: 0 }), t0 + .4, .2);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Order of operations', (m) => {
+    const p = panel(0);
+    const t = G(p, { o: 0 });
+    T(t, 'Unit 1, Chapter 3', { x: 800, y: 110, size: 26, fill: COL.dim, anchor: 'middle' });
+    T(t, 'Order of operations', { x: 800, y: 180, size: 60, weight: 600, anchor: 'middle' });
+    show(t, .2, .8);
+    showAll(row(p, ['2', ' + ', '3', ' × ', '4'], 350, 76), m('q'));
+    draw(path(p, 'M760 395L500 480', { stroke: COL.faint, 'stroke-width': 2.5 }, { d: 0 }), m('a'), .5);
+    draw(path(p, 'M840 395L1100 480', { stroke: COL.faint, 'stroke-width': 2.5 }, { d: 0 }), m('b'), .5);
+    show(T(p, 'Left to right', { x: 450, y: 530, size: 30, fill: COL.dim, weight: 600, anchor: 'middle', o: 0 }), m('a'));
+    let L = row(p, ['2', ' + ', '3', ' × ', '4'], 630, 58, 450);
+    showAll(L, m('a'));
+    L = collapse(L, 0, 2, ['5'], m('a1'), { color: LA });
+    L = collapse(L, 0, 2, ['20'], m('a2'), { color: LM });
+    show(T(p, 'Multiply first', { x: 1150, y: 530, size: 30, fill: COL.dim, weight: 600, anchor: 'middle', o: 0 }), m('b'));
+    let R = row(p, ['2', ' + ', '3', ' × ', '4'], 630, 58, 1150);
+    showAll(R, m('b'));
+    R = collapse(R, 2, 4, ['12'], m('b1'), { color: LM });
+    R = collapse(R, 0, 2, ['14'], m('b2'), { color: LA });
+    show(T(p, '✗', { x: 530, y: 634, size: 40, fill: COL.bad, weight: 700, o: 0 }), m('agree'));
+    tw(L[0], { o: .45 }, m('agree'), .5);
+    show(T(p, '✓ the agreed answer', { x: 1150, y: 720, size: 28, fill: COL.good, weight: 600, anchor: 'middle', o: 0 }), m('right'));
+  }],
+  ['ladder', 'Four levels', (m) => {
+    const p = panel(0);
+    [['1', 'Parentheses and brackets', '( )    [ ]', LP, 'l1'],
+     ['2', 'Powers', '3²', COL.faint, 'l2'],
+     ['3', 'Multiply and divide', '×    ÷', LM, 'l3'],
+     ['4', 'Add and subtract', '+    −', LA, 'l4']].forEach(([n, name, sym, c, mark], i) => {
+      const y = 190 + i * 150, g = G(p, { y: y + 16, o: 0 });
+      mk('rect', { x: 250, y: -62, width: 1100, height: 112, rx: 20, fill: mix(COL.board, c, .12), stroke: c, 'stroke-width': 2 }, g);
+      mk('circle', { cx: 318, cy: -6, r: 26, fill: c }, g);
+      T(g, n, { x: 318, y: 4, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, name, { x: 372, y: 6, size: 34, fill: i === 1 ? COL.dim : COL.chalk, weight: 600 });
+      M(g, [sym], { x: 1170, y: 8, size: 48, fill: c });
+      if (i === 1) T(g, 'in a later chapter', { x: 372, y: 38, size: 22, fill: COL.dim });
+      tw(g, { o: 1, y }, m(mark), .6, out);
+    });
+    for (const [i, mark] of [[2, 'l3b'], [3, 'l4b']]) {
+      const y = 190 + i * 150 + 34, c = i === 2 ? LM : LA;
+      arrowLine(p, 1090, 1260, y, c, m(mark));
+      show(T(p, 'left to right', { x: 1070, y: y + 8, size: 22, fill: c, anchor: 'end', o: 0 }), m(mark, .3));
+    }
+  }],
+  ['leftRight', 'Same level: left to right', (m) => {
+    const p = panel(0);
+    let E = row(p, ['7', ' − ', '4', ' + ', '1']);
+    showAll(E, m('q'));
+    caption(p, '+ and − share a level: left to right', m('lvl'), LA);
+    E = collapse(E, 0, 2, ['3'], m('s1'), { color: LA });
+    E = collapse(E, 0, 2, ['4'], m('s2'), { color: LA });
+    show(M(p, ['7 − (4 + 1) = 7 − 5 = 2'], { x: 800, y: 540, size: 44, fill: COL.bad, o: 0 }), m('warn'));
+    show(T(p, '✗ adding first breaks the rule', { x: 800, y: 600, size: 26, fill: COL.bad, anchor: 'middle', o: 0 }), m('warn', 1));
+  }],
+  ['mulFirst', 'Multiply before subtracting', (m) => {
+    const p = panel(0);
+    let E = row(p, ['10', ' − ', '3', ' × ', '2']);
+    showAll(E, m('q'));
+    caption(p, '× is on a higher level than −', m('lvl'), LM);
+    E = collapse(E, 2, 4, ['6'], m('s1'), { color: LM });
+    E = collapse(E, 0, 2, ['4'], m('s2'), { color: LA });
+    record(p, ['= 10 − 6', '= 4'], [m('s1', 1.8), m('s2', 1.8)]);
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    S.q1 = row(p, ['18', ' − ', '6', ' ÷ ', '3', ' + ', '1'], 360);
+    showAll(S.q1, .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-first', prompt: ['Tap the operation you should do first.'],
+    build: tapEls(S.q1, [1, 3, 5], 3, 'Division is on a higher level than subtraction and addition.',
+      i => (i === 1 ? 'Subtraction' : 'Addition') + ' waits. Division is on a higher level.',
+      () => collapse(S.q1, 2, 4, ['2'], 0, { color: LM, live: true })),
+  }, {
+    id: 'c-value', prompt: ['Now finish it.'],
+    build: blanks([{ parts: ['18 − 6 ÷ 3 + 1 = ', { box: '17' }], why: '6 ÷ 3 = 2, then 18 − 2 = 16, and 16 + 1 = 17.', hint: 'After the division, go left to right: subtract, then add.' }]),
+  }], done) }],
+  ['parens', 'Parentheses first', (m) => {
+    const p = panel(0);
+    let E = row(p, [{ t: '(', fill: LP }, '9', ' + ', '3', { t: ')', fill: LP }, ' ÷ ', '4']);
+    showAll(E, m('q'));
+    caption(p, 'Parentheses come first', m('p'), LP);
+    E = collapse(E, 0, 4, ['12'], m('s1'), { color: LP });
+    E = collapse(E, 0, 2, ['3'], m('s2'), { color: LM });
+    record(p, ['= 12 ÷ 4', '= 3'], [m('s1', 1.8), m('s2', 1.8)]);
+  }],
+  ['chain', 'A longer expression', (m) => {
+    const p = panel(0);
+    let E = row(p, ['84', ' − ', '72', ' ÷ ', '6', ' × ', '2', ' + ', '1'], 340, 64);
+    showAll(E, m('q'));
+    const c1 = T(p, '× ÷ level, left to right', { x: 800, y: 200, size: 30, fill: LM, weight: 600, anchor: 'middle', o: 0 });
+    show(c1, m('md')); hide(c1, m('as'), .3);
+    E = collapse(E, 2, 4, ['12'], m('s1'), { color: LM });
+    E = collapse(E, 2, 4, ['24'], m('s2'), { color: LM });
+    caption(p, '+ − level, left to right', m('as', .3), LA);
+    E = collapse(E, 0, 2, ['60'], m('s3'), { color: LA });
+    E = collapse(E, 0, 2, ['61'], m('s4'), { color: LA });
+    record(p, ['= 84 − 12 × 2 + 1', '= 84 − 24 + 1', '= 60 + 1', '= 61'], [m('s1', 1.8), m('s2', 1.8), m('s3', 1.8), m('s4', 1.8)], 450);
+  }],
+  ['pemdas', 'About PEMDAS', (m) => {
+    const p = panel(0);
+    const rows = [['P', 'Parentheses', LP, 'p'], ['E', 'Exponents (powers)', COL.faint, 'e'], ['M', 'Multiplication', LM, 'm'],
+      ['D', 'Division', LM, 'm'], ['A', 'Addition', LA, 'a'], ['S', 'Subtraction', LA, 'a']].map(([l, w, c, mark], i) => {
+      const g = G(p, { x: 200, y: 180 + i * 80, o: 0 });
+      T(g, l, { size: 54, fill: c, weight: 700, anchor: 'middle' });
+      T(g, w, { x: 44, y: -2, size: 28, fill: COL.chalk });
+      show(g, m(mark, i === 3 || i === 5 ? .5 : 0));
+      return g;
+    });
+    show(T(p, 'Handy, but it can mislead you.', { x: 200, y: 670, size: 28, fill: COL.bad, o: 0 }), m('trap'));
+    tw(rows[3], { x: 560, y: 340 }, m('md'), 1);
+    tw(rows[4], { y: 420 }, m('md'), 1); tw(rows[5], { y: 500 }, m('md'), 1);
+    arrowLine(p, 180, 880, 366, LM, m('md', 1.2));
+    tw(rows[5], { x: 560, y: 420 }, m('as'), 1);
+    arrowLine(p, 180, 880, 446, LA, m('as', 1.2));
+    let E = row(p, ['12', ' ÷ ', '3', ' × ', '2'], 320, 60, 1220);
+    showAll(E, m('ex'));
+    E = collapse(E, 0, 2, ['4'], m('ex1'), { color: LM });
+    E = collapse(E, 0, 2, ['8'], m('ex2'), { color: LM });
+    show(M(p, ['= 4 × 2'], { x: 1220, y: 400, size: 34, fill: COL.dim, o: 0 }), m('ex1', 1.8));
+    show(M(p, ['= 8'], { x: 1220, y: 450, size: 34, fill: COL.dim, o: 0 }), m('ex2', 1.8));
+    show(M(p, ['12 ÷ (3 × 2) = 2'], { x: 1220, y: 560, size: 38, fill: COL.bad, o: 0 }), m('wrong'));
+    show(T(p, '✗ multiplying first', { x: 1220, y: 610, size: 24, fill: COL.bad, anchor: 'middle', o: 0 }), m('wrong', .6));
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    S.q2 = row(p, ['8', ' × ', '5', ' ÷ ', '4', ' − ', '3'], 360);
+    showAll(S.q2, .2);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-md', prompt: ['Tap the operation you should do first.'],
+    build: tapEls(S.q2, [1, 3, 5], 1, '× and ÷ share a level, and × comes first here.',
+      i => i === 3 ? '÷ shares a level with ×, but × comes first from left to right.' : 'Subtraction is on a lower level.',
+      () => collapse(S.q2, 0, 2, ['40'], 0, { color: LM, live: true })),
+  }, {
+    id: 'c-md-value', prompt: ['Now finish it.'],
+    build: blanks([{ parts: ['8 × 5 ÷ 4 − 3 = ', { box: '7' }], why: '8 × 5 = 40, 40 ÷ 4 = 10, and 10 − 3 = 7.', hint: 'Go left to right through × and ÷, then do the −.' }]),
+  }], done) }],
+  ['brackets', 'Brackets', (m) => {
+    const p = panel(0);
+    show(T(p, 'Maya’s team: 7 two-point baskets, 3 three-point baskets', { x: 160, y: 130, size: 28, fill: COL.whole, o: 0 }), m('story'));
+    show(T(p, 'Leo’s team: 9 two-point baskets, 1 three-point basket', { x: 160, y: 180, size: 28, fill: COL.nat, o: 0 }), m('story2'));
+    show(T(p, 'How many more points did Maya’s team score?', { x: 160, y: 240, size: 28, fill: COL.dim, o: 0 }), m('q'));
+    let E = row(p, [{ t: '[', fill: COL.whole }, '(7 × 2)', ' + ', '(3 × 3)', { t: ']', fill: COL.whole }, ' − ',
+      { t: '[', fill: COL.nat }, '(9 × 2)', ' + ', '(1 × 3)', { t: ']', fill: COL.nat }], 330, 52);
+    showAll(E, m('expr'), .08);
+    E = collapse(E, 1, 1, ['14'], m('s1', 1.5), { color: LP });
+    E = collapse(E, 3, 3, ['9'], m('s1', 3.2), { color: LP });
+    E = collapse(E, 0, 4, ['23'], m('s2'), { color: COL.whole });
+    E = collapse(E, 3, 3, ['18'], m('s3'), { color: LP });
+    E = collapse(E, 5, 5, ['3'], m('s3', 2.4), { color: LP });
+    E = collapse(E, 2, 6, ['21'], m('s3', 5), { color: COL.nat });
+    E = collapse(E, 0, 2, ['2'], m('s4'), { color: LA });
+    record(p, ['= [14 + 9] − [(9 × 2) + (1 × 3)]', '= 23 − [18 + 3]', '= 23 − 21', '= 2'], [m('s2'), m('s3', 1.6), m('s3', 6.8), m('s4', 1.8)], 430);
+    show(T(p, 'Maya’s team scored 2 more points.', { x: 800, y: 660, size: 32, fill: COL.good, weight: 600, anchor: 'middle', o: 0 }), m('s4', 2.5));
+  }],
+  ['q3', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-tickets', prompt: ['Tickets cost $8 for adults and $5 for kids. What do 2 adults and 3 kids pay?'],
+    build: blanks([{ parts: ['2 × 8 + 3 × 5 = ', { box: '31' }], why: '2 × 8 = 16 and 3 × 5 = 15, so 16 + 15 = 31. They pay $31.', hint: 'Do both multiplications before you add.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['1', 'Parentheses and brackets, from the inside out', LP, 'w1'],
+     ['2', 'Multiply and divide, from left to right', LM, 'w2'],
+     ['3', 'Add and subtract, from left to right', LA, 'w3']].forEach(([n, str, c, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 290, cy: -12, r: 28, fill: c }, g);
+      T(g, n, { x: 290, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 350, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simplify', prompt: ['Simplify each expression.'], build: blanks(SIMPLIFY),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-first', prompt: ['Which operation do you do first?'],
+    build: grid(FIRST, [['p', 'Parentheses', LP], ['m', '×', LM], ['d', '÷', LM], ['a', '+', LA], ['s', '−', LA]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIMPLIFY = [
+  { parts: ['11 − 18 ÷ 6 = ', { box: '8' }], why: '18 ÷ 6 = 3, and 11 − 3 = 8.' },
+  { parts: ['24 − 4 × 3 + 5 = ', { box: '17' }], why: '4 × 3 = 12; 24 − 12 = 12; 12 + 5 = 17.' },
+  { parts: ['4 × (15 − 9) ÷ 3 = ', { box: '8' }], why: '15 − 9 = 6; 4 × 6 = 24; 24 ÷ 3 = 8.' },
+  { parts: ['50 − 30 ÷ 5 × 2 = ', { box: '38' }], why: '30 ÷ 5 = 6; 6 × 2 = 12; 50 − 12 = 38.' },
+  { parts: ['(6 + 2) × (7 − 4) = ', { box: '24' }], why: '8 × 3 = 24.' },
+  { parts: ['2 + [3 × (8 − 5)] = ', { box: '11' }], why: '8 − 5 = 3; 3 × 3 = 9; 2 + 9 = 11.' },
+  { parts: ['1.5 × 4 − 0.5 = ', { box: '5.5' }], why: '1.5 × 4 = 6, and 6 − 0.5 = 5.5.' },
+];
+const FIRST = [
+  { parts: [$m('6 + 10 ÷ 2')], ans: ['d'], why: '÷ is on a higher level than +.' },
+  { parts: [$m('8 − 3 + 1')], ans: ['s'], why: '+ and − share a level, and − comes first.' },
+  { parts: [$m('4 × (2 + 5)')], ans: ['p'], why: 'Parentheses come first.' },
+  { parts: [$m('12 ÷ 3 × 2')], ans: ['d'], why: '× and ÷ share a level, and ÷ comes first.' },
+  { parts: [$m('9 + 6 × 2 − 1')], ans: ['m'], why: '× is on a higher level than + and −.' },
+  { parts: [$m('20 − 5 − 3')], ans: ['s'], why: 'Left to right: the first − comes first.' },
+];
+const TFQ = [
+  { parts: ['Multiplication always comes before division.'], ans: ['f'], why: 'They share a level. Whichever comes first, from left to right, goes first.' },
+  { parts: ['In ', $m('10 − 4 + 3'), ', you subtract first.'], ans: ['t'], why: '+ and − share a level, and − comes first.' },
+  { parts: [$m('2 + 3 × 4 = 20')], ans: ['f'], why: 'Multiply first: 2 + 12 = 14.' },
+  { parts: [$m('(2 + 3) × 4 = 20')], ans: ['t'], why: 'Parentheses first: 5 × 4 = 20.' },
+  { parts: [$m('18 ÷ 3 × 2 = 3')], ans: ['f'], why: 'Left to right: 18 ÷ 3 = 6, and 6 × 2 = 12.' },
+  { parts: ['Work inside parentheses before anything else.'], ans: ['t'], why: 'Parentheses are the first level.' },
+];
+boot();
+</script>
+</body>
+</html>

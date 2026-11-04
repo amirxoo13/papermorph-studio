@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solving Quadratic Equations by Taking Square Roots — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 63, title: 'Solving Quadratic Equations by Taking Square Roots', minutes: 9, next: '../ch64/' };
+const PAR = COL.irr, LINE = COL.task, POSC = COL.whole, NEGC = COL.nat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const steps = (p, lines, X, y0, gap, size = 50) => lines.forEach(([parts, t0, note, fill]) => {
+  mline(p, parts, X, y0, t0, fill || COL.chalk, size, 'start');
+  if (note) text(p, note, 1060, y0 - 8, t0, { size: 26, fill: COL.task, weight: 600 });
+  y0 += gap;
+});
+// The parabola y = x² on a tall grid; returns the plane.
+function cup(p, t0, cx = 1150) {
+  const P = plane(p, { cx, cy: 790, u: 24, x0: -6, x1: 6, y0: -3, y1: 26, t0, labels: false });
+  P.layer = p;
+  T(P.g, '5', { x: P.PX(5), y: 818, size: 18, fill: COL.dim, font: MATH, anchor: 'middle' });
+  T(P.g, '−5', { x: P.PX(-5), y: 818, size: 18, fill: COL.dim, font: MATH, anchor: 'middle' });
+  [10, 20].forEach(v => T(P.g, String(v), { x: cx - 10, y: P.PY(v) + 6, size: 18, fill: COL.dim, font: MATH, anchor: 'end' }));
+  P.fn(x => x * x, -5.1, 5.1, PAR, t0 + .3, { dur: 1.2 });
+  return P;
+}
+// Accept answers h ± k√n written either way round: the boxes are h, k, n.
+const pmRow = (lead, h, k, n, why, hint, x = 'x') => ({ parts: [...[].concat(lead), `:     ${x} = `, { box: String(h) }, ' ± ', { box: String(k) }, ' √', { box: String(n) }], why, hint });
+const pmRat = (lead, v, why, hint, x = 'x') => ({ parts: [...[].concat(lead), `:     ${x} = ±`, { box: String(v) }], test: ([a]) => Math.abs(Math.abs(a) - Math.abs(rat(String(v)).reduce((n, d) => n / d))) < 1e-9, why, hint });
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Square roots', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 12, Chapter 63', { x: 800, y: 280, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving Quadratic Equations', { x: 800, y: 380, size: 72, weight: 600, anchor: 'middle' });
+    T(g, 'by Taking Square Roots', { x: 800, y: 470, size: 72, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['x', E(2), ' = 9   →   x = ±3'], 800, 620, m('sub'), COL.dim, 54);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['two', 'Two square roots', (m) => {
+    const p = panel(0);
+    mline(p, ['x', E(2), ' = 9'], 200, 170, .2, COL.chalk, 64, 'start');
+    mline(p, ['3', E(2), ' = 9'], 200, 290, m('pos'), POSC, 50, 'start');
+    mline(p, ['(−3)', E(2), ' = 9'], 200, 380, m('neg'), NEGC, 50, 'start');
+    const P = cup(p, m('graph', -.6));
+    P.line(-6, 9, 6, 9, LINE, m('graph', .8), { w: 3 });
+    mline(p, 'y = 9', P.PX(6) + 10, P.PY(9) + 10, m('graph', 1.2), LINE, 30, 'start');
+    P.dot(3, 9, POSC, m('graph', 2), { label: '3', dx: 14, dy: -14 });
+    P.dot(-3, 9, NEGC, m('graph', 2.6), { label: '−3', dx: -14, dy: -14, anchor: 'end' });
+    mline(p, 'x = ±3', 200, 500, m('pm'), HIT, 64, 'start');
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 140, y: 580, width: 680, height: 100, rx: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, r);
+    M(r, ['If x', E(2), ' = b, then x = ±', R('b')], { x: 480, y: 648, size: 46, fill: COL.task });
+    show(r, m('prop'));
+    mline(p, [R(9), ' = 3 only'], 480, 760, m('warn'), COL.dim, 40);
+  }],
+  ['slide', 'How many solutions?', (m) => {
+    const p = panel(0), P = cup(p, 0);
+    const ln = path(p, '', { stroke: LINE, 'stroke-width': 3.5 }), lab = T(p, '', { x: P.PX(6) + 10, size: 30, font: MATH, fill: LINE });
+    const dA = put(mk('circle', { r: 11, fill: HIT, stroke: COL.board, 'stroke-width': 2 }, p), { o: 0 }), dB = put(mk('circle', { r: 11, fill: HIT, stroke: COL.board, 'stroke-width': 2 }, p), { o: 0 });
+    const cnt = T(p, '', { x: 300, y: 300, size: 46, fill: HIT, weight: 600, anchor: 'middle' });
+    const set = b => {
+      ln.setAttribute('d', `M${P.PX(-6)} ${P.PY(b)}H${P.PX(6)}`);
+      put(lab, { y: P.PY(b) + 10 - 22 * Math.max(0, 1 - Math.abs(b) / 2) }); lab.textContent = `y = ${num(Math.round(b * 10) / 10)}`;   // the label lifts above the line near the x axis
+      const r = b > 0 ? Math.sqrt(b) : 0;
+      put(dA, { x: P.PX(r), y: P.PY(b), o: b >= -.05 ? 1 : 0 }); put(dB, { x: P.PX(-r), y: P.PY(b), o: b > .05 ? 1 : 0 });
+      cnt.textContent = b > .05 ? 'two solutions' : b >= -.05 ? 'one solution' : 'no real solution';
+      cnt.setAttribute('fill', b >= -.05 ? HIT : COL.bad);
+    };
+    set(9);
+    prog(q => set(9 + 11 * q), m('move'), 2.5);
+    prog(q => set(20 - 6 * q), m('big', 1.6), 1.6);
+    prog(q => set(14 + 6 * q), m('twenty', -1.2), 1);
+    prog(q => set(20 - 20 * q), m('zero', -1.6), 1.8);
+    prog(q => set(-2.5 * q), m('below'), 1.4);
+    mline(p, ['x', E(2), ' = 20:   x = ±', R(20), ' = ±2', R(5)], 300, 450, m('twenty', .3), COL.chalk, 42);
+    mline(p, ['x', E(2), ' = 0:   x = 0'], 300, 560, m('zero', .3), COL.chalk, 42);
+    mline(p, ['x', E(2), ' = −2:   no real solution'], 300, 670, m('below', 1.4), COL.bad, 40);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-sqrt', prompt: ['Solve. Type the positive value; the ± is written for you.'],
+    build: blanks([pmRat(['x', E(2), ' = 144'], 12, '12² = 144.'), pmRat(['b', E(2), ' = ', F(9, 49)], '3/7', '(3/7)² = 9/49.', undefined, 'b')]),
+  }], done) }],
+  ['iso', 'Isolate the square', (m) => {
+    const p = panel(0);
+    steps(p, [
+      [['3k', E(2), ' = 48'], m('ex')],
+      [['k', E(2), ' = 16'], m('div'), '÷3 both sides'],
+      [['k = ±4'], m('root'), '', HIT],
+    ], 180, 140, 90, 46);
+    steps(p, [
+      [['3(x + 1)', E(2), ' − 7 = 11'], m('ex2')],
+      [['3(x + 1)', E(2), ' = 18'], m('add'), '+7 both sides'],
+      [['(x + 1)', E(2), ' = 6'], m('div2'), '÷3 both sides'],
+      [['x + 1 = ±', R(6)], m('root2'), 'square root, with ±'],
+      [['x = −1 ± ', R(6)], m('ans'), '', HIT],
+    ], 180, 440, 90, 46);
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    [[['9x', E(2), ' − 2x − 1 = 15 − 2x'], 'line 1'], [['9x', E(2), ' = 16'], 'line 2'], ['9x = ±4', 'line 3'], [['x = ±', F(4, 9)], 'line 4']].forEach(([s, l], i) => {
+      text(p, l, 300, 170 + i * 90, .2 + i * .2, { size: 26, fill: COL.dim, weight: 600 });
+      mline(p, s, 440, 180 + i * 90, .2 + i * .2, COL.chalk, 46, 'start');
+    });
+  }, { ask: done => quiz({ x: 260, y: 540, w: 1080, cls: 'side' }, [{
+    id: 'c-err', prompt: ['Lina solved this. On which line is her first mistake?'],
+    build: choice([['line 2'], ['line 3'], ['line 4']], 1, 'The square root of 9x² is 3x, not 9x. Dividing by 9 first: x² = 16/9, so x = ±4/3.',
+      ['Line 2 is right: −2x cancels on both sides, and −1 moves over as +1.', null, 'Line 4 follows from line 3; the mistake is earlier.']),
+  }], done) }],
+  ['binom', 'A squared binomial', (m) => {
+    const p = panel(0);
+    steps(p, [
+      [['(k + 4)', E(2), ' = 9'], m('ex')],
+      [['k + 4 = ±3'], m('root'), 'square root, with ±'],
+      [['k + 4 = 3   or   k + 4 = −3'], m('split'), 'two equations'],
+      [['k = −1   or   k = −7'], m('ans'), '', HIT],
+    ], 180, 160, 120);
+    mline(p, ['(−1 + 4)', E(2), ' = 9,    (−7 + 4)', E(2), ' = 9  ✓'], 800, 720, m('chk'), COL.dim, 42);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-bin', prompt: ['Solve ', $m('(x − 5)', E(2), ' = 18'), '. Simplify the radical.'],
+    build: blanks([{ parts: ['x = ', { box: '5' }, ' ± ', { box: '3' }, ' √', { box: '2' }], why: 'x − 5 = ±√18 = ±3√2.', hint: 'Take square roots: x − 5 = ±√18. Then √18 = √9 · √2.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Isolate the squared part first.', 'w1', COL.task], ['Take the square root of both sides, with ±.', 'w2', HIT],
+     ['Positive: two solutions. Zero: one. Negative: none.', 'w3', LINE], ['Simplify any radical in the answer.', 'w4', PAR]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-sqrt', prompt: ['Solve. Type the positive value.'], build: blanks([
+      pmRat(['3y', E(2), ' = 75'], 5, 'y² = 25.', 'Divide by 3 first.', 'y'),
+      pmRat([F(1, 2), 'x', E(2), ' = 50'], 10, 'x² = 100.', 'Multiply by 2 first.'),
+      pmRat(['a', E(2), ' − 4 = 5'], 3, 'a² = 9.', 'Add 4 first.', 'a'),
+      pmRat(['10x', E(2), ' + 1 = x', E(2), ' + 5'], '2/3', '9x² = 4, so x² = 4/9.', 'Collect the x² terms on one side.'),
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-bin', prompt: ['Solve. Write the answer as h ± k√n.'], build: blanks([
+      pmRow(['(x + 1)', E(2), ' = 15'], -1, 1, 15, 'x + 1 = ±√15.', '√15 can’t be simplified: k = 1.'),
+      pmRow([F(1, 2), '(p + 7)', E(2), ' − 6 = 19'], -7, 5, 2, '(p + 7)² = 50, so p + 7 = ±5√2.', 'Add 6, multiply by 2, then take square roots.', 'p'),
+      pmRow(['2(x − 3)', E(2), ' = 24'], 3, 2, 3, '(x − 3)² = 12 = 4 · 3.', 'Divide by 2 first. √12 = 2√3.'),
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-count', prompt: ['How many real solutions?'],
+    build: grid(COUNTQ, [['2', 'Two', HIT, '2'], ['1', 'One', LINE, '1'], ['0', 'None', COL.bad, '0']], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const COUNTQ = [
+  { parts: [$m('x', E(2), ' = 81')], ans: ['2'], why: '±9.' },
+  { parts: [$m('x', E(2), ' = −4')], ans: ['0'], why: 'No real number squared is negative.' },
+  { parts: [$m('(x − 2)', E(2), ' = 0')], ans: ['1'], why: 'x − 2 = 0, so x = 2.' },
+  { parts: [$m('x', E(2), ' + 9 = 0')], ans: ['0'], why: 'x² = −9.' },
+  { parts: [$m('5x', E(2), ' = 0')], ans: ['1'], why: 'x = 0.' },
+  { parts: [$m('(x + 3)', E(2), ' = 7')], ans: ['2'], why: '−3 ± √7.' },
+];
+boot();
+</script>
+</body>
+</html>

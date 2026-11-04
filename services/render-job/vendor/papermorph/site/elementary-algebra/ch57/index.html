@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Square Roots and Cube Roots — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 57, title: 'Square Roots and Cube Roots', minutes: 9, next: '../ch58/' };
+const SQ = COL.whole, CU = COL.irr, NEGC = COL.nat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// n × n unit squares from (x, y), popping in row by row; returns the side length in pixels.
+function tileSquare(p, n, x, y, u, color, t0, dur = 2) {
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const t = put(mk('rect', { x: -u / 2 + 2, y: -u / 2 + 2, width: u - 4, height: u - 4, rx: 4, fill: mix(COL.board, color, .55) }, p), { x: x + (c + .5) * u, y: y + (r + .5) * u, s: 0, o: 0 });
+    pop(t, t0 + (r * n + c) / (n * n) * dur);
+  }
+  return n * u;
+}
+// Isometric cube of edge n (units of u) centred near (cx, cy); its height grows from 0 to n between t0 and t0 + dur.
+function isoCube(p, n, cx, cy, u, color, t0, dur) {
+  const c30 = Math.cos(Math.PI / 6), s30 = .5;
+  const P = (i, j, k) => [cx + (i - j) * u * c30, cy + (i + j - n) * u * s30 - (k - n / 2) * u];
+  const poly = pts => 'M' + pts.map(q => q.map(v => v.toFixed(1)).join(' ')).join('L') + 'Z';
+  const g = G(p, { o: 0 });
+  const left = path(g, '', { fill: mix(COL.board, color, .35), stroke: color, 'stroke-width': 2.5 });
+  const right = path(g, '', { fill: mix(COL.board, color, .5), stroke: color, 'stroke-width': 2.5 });
+  const top = path(g, '', { fill: mix(COL.board, color, .7), stroke: color, 'stroke-width': 2.5 });
+  const grid = path(g, '', { stroke: COL.board, 'stroke-width': 1.5, 'stroke-opacity': .7 });
+  const set = h => {
+    left.setAttribute('d', poly([P(0, n, 0), P(n, n, 0), P(n, n, h), P(0, n, h)]));
+    right.setAttribute('d', poly([P(n, 0, 0), P(n, n, 0), P(n, n, h), P(n, 0, h)]));
+    top.setAttribute('d', poly([P(0, 0, h), P(n, 0, h), P(n, n, h), P(0, n, h)]));
+    let d = '';
+    for (let a = 1; a < n; a++) {
+      d += `M${P(a, 0, h)}L${P(a, n, h)}M${P(0, a, h)}L${P(n, a, h)}`;
+      d += `M${P(a, n, 0)}L${P(a, n, h)}M${P(n, a, 0)}L${P(n, a, h)}`;
+    }
+    for (let k = 1; k < h; k++) d += `M${P(0, n, k)}L${P(n, n, k)}L${P(n, 0, k)}`;
+    grid.setAttribute('d', d.replaceAll(',', ' '));
+  };
+  set(0);
+  show(g, t0, .3);
+  prog(q => set(Math.round(q * n * 4) / 4), t0, dur, lin);
+  return { g, P };
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Roots', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 11, Chapter 57', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Square Roots and', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Cube Roots', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [R(49), ' = 7,     ', R(125, 3), ' = 5'], 800, 640, m('sub'), COL.dim, 54);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['square', 'Square roots', (m) => {
+    const p = panel(0), u = 62, X = 220, Y = 180, s = 7 * u;
+    draw(path(p, `M${X} ${Y - 30}H${X + s}`, { stroke: SQ, 'stroke-width': 4 }, { d: 0 }), m('side'), .5);
+    mline(p, '7', X + s / 2, Y - 46, m('side', .3), SQ, 44);
+    draw(path(p, `M${X - 30} ${Y}V${Y + s}`, { stroke: SQ, 'stroke-width': 4 }, { d: 0 }), m('side', .3), .5);
+    mline(p, '7', X - 46, Y + s / 2 + 14, m('side', .6), SQ, 44, 'end');
+    tileSquare(p, 7, X, Y, u, SQ, m('fill'), 2.6);
+    mline(p, ['7', E(2), ' = 49'], 1120, 300, m('fill', 2.2), COL.chalk, 60);
+    const ar = path(p, 'M1120 340V420', { stroke: COL.task, 'stroke-width': 4 }, { d: 0 });
+    draw(ar, m('rev'), .4);
+    text(p, 'area 49: how long is the side?', 1120, 470, m('rev', .5), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+    mline(p, [R(49)], 1120, 590, m('sign'), COL.chalk, 70);
+    mline(p, [R(49), ' = 7'], 1120, 720, m('ans'), HIT, 70);
+  }],
+  ['pm', 'The principal root', (m) => {
+    const p = panel(0);
+    AXIS.o = 800; AXIS.u = 70;
+    S.line = G(p);
+    numberLine(.2, -6, 6);
+    mline(p, ['4', E(2), ' = 16'], 1150, 180, m('both'), SQ, 52);
+    mline(p, ['(−4)', E(2), ' = 16'], 450, 180, m('both', 2.5), NEGC, 52);
+    landDot(p, 4, m('both', .5), SQ); landDot(p, -4, m('both', 3), NEGC);
+    text(p, 'two square roots of 16', 800, 300, m('two'), { size: 30, fill: COL.dim, anchor: 'middle' });
+    const r = put(mk('rect', { x: X(4) - 50, y: Y0 - 50, width: 100, height: 140, rx: 18, fill: 'none', stroke: HIT, 'stroke-width': 4 }, p), { o: 0 });
+    show(r, m('prin'));
+    mline(p, [R(16), ' = 4'], 800, 420, m('ans'), HIT, 64);
+    text(p, 'the radical sign means the nonnegative root', 800, 790, m('prin', 1), { size: 28, fill: HIT, anchor: 'middle', weight: 600 });
+  }],
+  ['neg', 'Negative under a square root', (m) => {
+    const p = panel(0);
+    mline(p, [R('−9'), ' = ?'], 800, 200, .2, COL.chalk, 70);
+    mline(p, ['(+) × (+) = +'], 560, 360, m('sq'), SQ, 50);
+    mline(p, ['(−) × (−) = +'], 1040, 360, m('sq', .8), NEGC, 50);
+    mline(p, ['0 × 0 = 0'], 800, 450, m('sq', 1.6), COL.dim, 44);
+    text(p, 'no real number squared is negative', 800, 580, m('none'), { size: 32, fill: COL.bad, anchor: 'middle', weight: 600 });
+    mline(p, [R('−9')], 640, 700, m('nr'), COL.bad, 56);
+    text(p, 'is not a real number', 700, 696, m('nr'), { size: 40, fill: COL.bad, weight: 600 });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-sq', prompt: ['Simplify.'],
+    build: blanks([
+      { parts: [R(64), ' = ', { box: '8' }], why: '8² = 64.', hint: 'What times itself is 64?' },
+      { parts: [R(169), ' = ', { box: '13' }], why: '13² = 169.', hint: 'Try numbers between 10 and 15.' },
+      { parts: [R(0), ' = ', { box: '0' }], why: '0² = 0.', hint: 'What times itself is 0?' },
+    ]),
+  }], done) }],
+  ['perfect', 'Perfect squares', (m) => {
+    const p = panel(0);
+    mline(p, '1,  4,  9,  16,  25,  36,  49,  …', 800, 130, m('list'), SQ, 50);
+    mline(p, [F(49, 36), ' = (', F(7, 6), ')', E(2)], 470, 270, m('frac'), COL.chalk, 52);
+    mline(p, [R(F(49, 36)), ' = ', F(7, 6)], 470, 400, m('fans'), HIT, 56);
+    text(p, 'rational', 470, 470, m('rat'), { size: 28, fill: HIT, anchor: 'middle', weight: 600 });
+    AXIS.o = 300 - 4 * 260; AXIS.u = 260;   // 4 at x = 300, 5 at x = 560
+    const L = G(p, { o: 0 }), y = 640;
+    path(L, `M${X(3.7)} ${y}H${X(5.3)}`, { stroke: COL.chalk, 'stroke-width': 3 });
+    [4, 5].forEach(v => { path(L, `M${X(v)} ${y - 10}V${y + 10}`, { stroke: COL.dim, 'stroke-width': 2.5 }); T(L, String(v), { x: X(v), y: y + 44, size: 30, font: MATH, fill: COL.dim, anchor: 'middle' }); });
+    for (let k = 1; k < 10; k++) path(L, `M${X(4 + k / 10)} ${y - 5}V${y + 5}`, { stroke: COL.faint, 'stroke-width': 2 });
+    show(L, m('between'));
+    mline(p, [R(16), ' < ', R(20), ' < ', R(25)], 1120, 270, m('between', .5), COL.chalk, 50);
+    mline(p, ['4 < ', R(20), ' < 5'], 1120, 370, m('between', 3), COL.chalk, 50);
+    const d = G(p, { x: X(4), y, s: 0, o: 0 });
+    mk('circle', { r: 11, fill: COL.irr }, d);
+    pop(d, m('approx', -.5)); tw(d, { x: X(Math.sqrt(20)) }, m('approx', -.3), 1.2);
+    mline(p, [R(20)], X(Math.sqrt(20)), y - 30, m('approx'), COL.irr, 36);
+    mline(p, [R(20), ' ≈ 4.47…'], 1120, 520, m('approx'), COL.irr, 50);
+    text(p, 'irrational: the decimal never ends or repeats', 1120, 590, m('irr'), { size: 26, fill: COL.irr, anchor: 'middle', weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-rat', prompt: ['Rational or irrational?'],
+    build: grid([
+      { parts: [R(144)], ans: ['r'], why: '144 = 12².' },
+      { parts: [R(F(121, 9))], ans: ['r'], why: '11/3.' },
+      { parts: [R(50)], ans: ['i'], why: '50 is not a perfect square: 7² = 49 < 50 < 64 = 8².' },
+    ], [['r', 'Rational', HIT, 'R'], ['i', 'Irrational', COL.irr, 'I']], { multi: false }),
+  }], done) }],
+  ['cube', 'Cube roots', (m) => {
+    const p = panel(0);
+    isoCube(p, 5, 470, 470, 64, CU, m('build'), 3);
+    mline(p, ['5', E(3), ' = 125'], 1150, 260, m('fill', 1.5), COL.chalk, 60);
+    draw(path(p, 'M1150 300V380', { stroke: COL.task, 'stroke-width': 4 }, { d: 0 }), m('rev'), .4);
+    text(p, 'volume 125: how long is the edge?', 1150, 430, m('rev', .5), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+    mline(p, [R(125, 3)], 1150, 560, m('sign'), COL.chalk, 70);
+    mline(p, [R(125, 3), ' = 5'], 1150, 700, m('ans'), HIT, 70);
+    text(p, 'edge 5', 470, 830, m('ans'), { size: 30, fill: CU, anchor: 'middle', weight: 600 });
+  }],
+  ['cubeneg', 'Negative cube roots', (m) => {
+    const p = panel(0);
+    mline(p, '(−5) × (−5) = 25', 800, 180, m('ex'), COL.chalk, 52);
+    mline(p, '25 × (−5) = −125', 800, 280, m('three'), COL.chalk, 52);
+    mline(p, [R('−125', 3), ' = −5'], 800, 420, m('ans'), HIT, 68);
+    text(p, 'one real cube root, same sign as the number', 800, 530, m('one'), { size: 30, fill: CU, anchor: 'middle', weight: 600 });
+    mline(p, [R(F(1, 27), 3), ' = ', F(1, 3)], 800, 680, m('frac'), COL.chalk, 60);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 200, w: 1160, cls: 'side' }, [{
+    id: 'c-who', prompt: ['Five students simplified ', $m(R('−64', 3)), '. Who is correct?'],
+    build: choice([['Adam: 8'], ['Brianna: not a real number'], ['Carlos: 4'], ['Damon: not a real number'], ['Eddie: −4']], 4, '(−4)³ = −64, so the cube root is −4.',
+      ['8 is the square root of 64; this is a cube root of −64.', 'Cube roots of negative numbers are real.', '4³ = 64, not −64.', '(−4)³ = −64, so −64 is a perfect cube.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['√ means the nonnegative number that squares to it.', 'w1', SQ], ['A negative number has no real square root.', 'w2', COL.bad],
+     ['√ of a perfect square is rational; otherwise irrational.', 'w3', HIT], ['∛ undoes cubing, and works for negatives.', 'w4', CU]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simp', prompt: ['Simplify.'], build: blanks([
+      { parts: [R(1), ' = ', { box: '1' }], why: '1² = 1.' },
+      { parts: [R(81), ' = ', { box: '9' }], why: '9² = 81.' },
+      { parts: [R('−216', 3), ' = ', { box: '-6' }], why: '(−6)³ = −216.', hint: 'The answer is negative.' },
+      { parts: [R(F(121, 9)), ' = ', { box: '11/3' }], why: '(11/3)² = 121/9.', hint: 'Take the root of the top and the bottom.' },
+      { parts: [R(F('−1000', 27), 3), ' = ', { box: '-10/3' }], why: '(−10/3)³ = −1000/27.', hint: '∛1000 = 10 and ∛27 = 3.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['What kind of number is it?'],
+    build: grid(KINDQ, [['r', 'Rational', HIT, 'R'], ['i', 'Irrational', COL.irr, 'I'], ['n', 'Not real', COL.bad, 'N']], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: [R('−25')], ans: ['n'], why: 'No real number squared is −25.' },
+  { parts: [R(25, 3)], ans: ['i'], why: '25 is not a perfect cube: 2³ = 8 < 25 < 27 = 3³.' },
+  { parts: [R(169)], ans: ['r'], why: '13.' },
+  { parts: [R('−216', 3)], ans: ['r'], why: '−6.' },
+  { parts: [R(20)], ans: ['i'], why: '20 is not a perfect square.' },
+  { parts: [R('−8', 3)], ans: ['r'], why: '(−2)³ = −8.' },
+];
+const TFQ = [
+  { parts: [$m(R(16), ' = ±4')], ans: ['f'], why: 'The radical sign means the principal root: 4.' },
+  { parts: ['16 has two square roots: 4 and −4.'], ans: ['t'], why: 'Both square to 16.' },
+  { parts: [$m(R(20), ' = 4.47')], ans: ['f'], why: '4.47 is only an approximation; √20 is irrational.' },
+  { parts: [$m(R('−27', 3), ' = −3')], ans: ['t'], why: '(−3)³ = −27.' },
+  { parts: [$m(R(9), ' + ', R(16), ' = ', R(25))], ans: ['f'], why: '3 + 4 = 7, but √25 = 5.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Percent Rate of Change — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 17, title: 'Percent rate of change', minutes: 5, next: '../ch18/' };
+const OR = COL.whole, UP = COL.irr, DN = COL.nat;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+// A value bar with k pixels per unit. Returns helpers to grow or shrink it with a labelled change piece.
+function vbar(p, x, y, value, k, label, t0, { h = 70, color = OR } = {}) {
+  const g = G(p, { o: 0 });
+  const r = mk('rect', { x, y, width: value * k, height: h, rx: 6, fill: color, 'fill-opacity': .55, stroke: color, 'stroke-width': 2.5 }, g);
+  T(g, label, { x: x - 16, y: y + h / 2 + 10, size: 28, fill: color, font: MATH, anchor: 'end' });
+  show(g, t0);
+  return {
+    change(d, t, text, run = tw) {
+      const c = d > 0 ? UP : DN, x0 = x + Math.min(value, value + d) * k, w = Math.abs(d) * k;
+      const piece = put(mk('rect', { x: x0, y, height: h, rx: 6, fill: c, 'fill-opacity': d > 0 ? .7 : .12, stroke: c, 'stroke-width': 2.5, 'stroke-dasharray': d > 0 ? '' : '9 6' }, p), { o: 1, a_width: 0 });
+      run(piece, { a_width: w }, t, .8);
+      if (text) { const tt = T(p, text, { x: x0 + w / 2, y: y - 16, size: 28, fill: c, font: MATH, anchor: 'middle', o: 0 }); run(tt, { o: 1 }, t + .6, .3); }
+      return piece;
+    },
+  };
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Percent rate of change', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 17', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Percent rate of change', { x: 800, y: 430, size: 90, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [F('change', 'original')], 800, 600, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['rule', 'Percent increase', (m) => {
+    const p = panel(0), k = 60;
+    mline(p, ['percent change = ', F('change', 'original'), ' × 100%'], 800, 150, m('r'), COL.task, 46);
+    mline(p, ['$12 → $15'], 800, 260, m('q'), COL.chalk, 46);
+    const B = vbar(p, 300, 360, 12, k, '$12', m('bar'));
+    B.change(3, m('grow'), '+$3');
+    for (let i = 0; i < 4; i++) {
+      const r = put(mk('rect', { x: 300 + i * 3 * k + 2, y: 450, width: 3 * k - 4, height: 18, rx: 4, fill: i ? OR : UP, 'fill-opacity': i ? .3 : .8 }, p), { o: 0 });
+      tw(r, { o: 1 }, m('see', i * .2), .3);
+    }
+    show(T(p, 'the $3 change is one quarter of the original', { x: 660, y: 510, size: 24, fill: COL.dim, anchor: 'middle', o: 0 }), m('see', 1));
+    mline(p, [F(3, 12), ' = ', F(1, 4)], 800, 630, m('frac'), COL.chalk, 52);
+    mline(p, ['= 25% increase'], 800, 730, m('pct'), UP, 52);
+  }],
+  ['decrease', 'Percent decrease', (m) => {
+    const p = panel(0), k = 11;
+    mline(p, ['80 people → 60 people'], 800, 180, m('q'), COL.chalk, 46);
+    const B = vbar(p, 300, 320, 80, k, '80', m('bar'));
+    B.change(-20, m('drop'), '−20');
+    mline(p, [F(20, 80), ' = ', F(1, 4)], 800, 560, m('frac'), COL.chalk, 52);
+    mline(p, ['= 25% decrease'], 800, 670, m('pct'), DN, 52);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-inc', prompt: ['A price goes from $50 to $70. What is the percent increase?'],
+    build: blanks([{ parts: [F(20, 50), ' = ', { box: '40' }, '%'], why: 'The change is $20, and 20 ÷ 50 = 0.4 = 40%.', hint: 'Divide the change, $20, by the original, $50.' }]),
+  }, {
+    id: 'c-dec', prompt: ['Mara got 15 questions right, then 12. What is the percent decrease?'],
+    build: blanks([{ parts: [F(3, 15), ' = ', { box: '20' }, '%'], why: 'The change is 3, and 3 ÷ 15 = 0.2 = 20%.', hint: 'Divide the change by the first score, 15.' }]),
+  }], done) }],
+  ['original', 'Divide by the original', (m) => {
+    const p = panel(0), k = 11;
+    caption(p, 'Always divide by the amount you started from.', m('q'), 150, COL.task, 32);
+    const A = vbar(p, 300, 240, 80, k, '80', m('q', .5));
+    A.change(-20, m('q', .8), '−20');
+    mline(p, ['80 → 60:   ', F(20, 80), ' = 25% decrease'], 800, 340, m('q', 1.2), DN, 36);
+    const B = vbar(p, 300, 440, 60, k, '60', m('ex'));
+    B.change(20, m('ex', .3), '+20');
+    mline(p, ['60 → 80:   ', F(20, 60), ' ≈ 33.3% increase'], 800, 580, m('calc'), UP, 36);
+    caption(p, 'same 20 people, different starting amount', m('same'), 720, COL.dim);
+  }],
+  ['trap', 'Up 50%, then down 50%', (m) => {
+    const p = panel(0), k = 5.5;
+    const A = vbar(p, 300, 200, 100, k, '$100', m('q'));
+    A.change(50, m('up'), '+50%: +$50');
+    const B = vbar(p, 300, 400, 150, k, '$150', m('down'));
+    B.change(-75, m('down', .8), '−50%: −$75');
+    mline(p, ['$75,  not $100'], 800, 640, m('end'), COL.bad, 52);
+    caption(p, 'The decrease was a percent of a bigger number.', m('why'), 740, COL.dim);
+  }],
+  ['big', 'More than 100%', (m) => {
+    const p = panel(0), k = 50;
+    mline(p, ['6 → 18'], 800, 180, m('q'), COL.chalk, 50);
+    const B = vbar(p, 300, 300, 6, k, '6', m('q', .4));
+    B.change(12, m('q', 1), '+12');
+    for (let i = 0; i < 2; i++) {
+      const r = put(mk('rect', { x: 300 + (6 + 6 * i) * k + 4, y: 390, width: 6 * k - 8, height: 18, rx: 4, fill: OR, 'fill-opacity': .5 }, p), { o: 0 });
+      tw(r, { o: 1 }, m('see', i * .4), .3);
+    }
+    show(T(p, 'two copies of the original', { x: 300 + 12 * k, y: 450, size: 24, fill: COL.dim, anchor: 'middle', o: 0 }), m('see', 1));
+    mline(p, [F(12, 6), ' = 2 = 200% increase'], 800, 600, m('calc'), UP, 52);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-change', prompt: ['A store buys skateboards for $150 and sells them for $240. What is the percent increase?'],
+    build: blanks([{ parts: [F(90, 150), ' = ', { box: '60' }, '%'], why: 'The change is $90, and 90 ÷ 150 = 0.6 = 60%.', hint: 'Divide by the original price, $150, not by $240.' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['percent change = change ÷ original × 100%', 'w1'], ['Up: percent increase.   Down: percent decrease.', 'w1'], ['Always divide by where you started.', 'w2']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 2 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-change', prompt: ['Find each percent change. Round to the nearest tenth if needed.'], build: blanks(CHANGE),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-dir', prompt: ['Increase or decrease?'], build: grid(DIRQ, [['i', 'Increase', UP], ['d', 'Decrease', DN]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CHANGE = [
+  { parts: ['6 to 18: ', { box: '200' }, '% increase'], why: '12 ÷ 6 = 2 = 200%.' },
+  { parts: ['0.08 to 0.03: ', { box: '62.5' }, '% decrease'], why: '0.05 ÷ 0.08 = 0.625 = 62.5%.' },
+  { parts: ['18 to 8: ', { box: '55.6' }, '% decrease'], why: '10 ÷ 18 ≈ 0.5556, about 55.6%.' },
+  { parts: ['$45 to $63: ', { box: '40' }, '% increase'], why: '18 ÷ 45 = 0.4 = 40%.' },
+  { parts: ['$250 to $100: ', { box: '60' }, '% decrease'], why: '150 ÷ 250 = 0.6 = 60%.' },
+];
+const DIRQ = [
+  { parts: ['A town grows from 4000 to 4600 people.'], ans: ['i'], why: 'It went up: 15% increase.' },
+  { parts: ['A phone battery drops from 80% to 20%.'], ans: ['d'], why: 'It went down: 75% decrease.' },
+  { parts: ['A ticket goes from $30 to $24.'], ans: ['d'], why: 'It went down: 20% decrease.' },
+  { parts: ['A plant grows from 12 cm to 15 cm.'], ans: ['i'], why: 'It went up: 25% increase.' },
+];
+const TFQ = [
+  { parts: ['To find a percent change, divide the change by the new amount.'], ans: ['f'], why: 'Divide by the original amount.' },
+  { parts: ['Going from 10 to 15 is a 50% increase.'], ans: ['t'], why: '5 ÷ 10 = 50%.' },
+  { parts: ['Going from 15 to 10 is also a 50% decrease.'], ans: ['f'], why: '5 ÷ 15 ≈ 33.3%.' },
+  { parts: ['A percent increase can be more than 100%.'], ans: ['t'], why: 'From 6 to 18 is 200%.' },
+  { parts: ['Up 50% then down 50% brings you back to the start.'], ans: ['f'], why: '$100 → $150 → $75.' },
+];
+boot();
+</script>
+</body>
+</html>

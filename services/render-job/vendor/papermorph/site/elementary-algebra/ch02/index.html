@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Algebraic Properties — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 2, title: 'Algebraic properties', minutes: 9, next: '../ch03/' };
+AXIS.o = 170; AXIS.u = 140;                     // number line 0…9
+
+// Terms keep one colour each; each property has its own colour.
+const TA = COL.nat, TB = COL.int, TC = COL.whole;
+const PC = COL.rat, PA = COL.irr, PD = COL.real;
+
+/* ---------- chapter drawing helpers ---------- */
+function ruleBox(p, name, parts, color, t0, { x = 990, y = 130, w = 560 } = {}) {
+  const g = G(p, { x, y: y + 14, o: 0 });
+  mk('rect', { width: w, height: 132, rx: 18, fill: mix(COL.board, color, .12), stroke: color, 'stroke-width': 2 }, g);
+  T(g, name, { x: w / 2, y: 44, size: 24, fill: color, weight: 600, anchor: 'middle' });
+  M(g, parts, { x: w / 2, y: 104, size: 40, anchor: 'middle' });
+  tw(g, { o: 1, y }, t0, .6, out);
+  return g;
+}
+function note(p, str, t0, { x = 1270, y = 318, fill = COL.dim } = {}) {
+  show(T(p, str, { x, y, size: 23, fill, anchor: 'middle', o: 0 }), t0);
+}
+// A jump along the number line from a to b, arching h pixels above it.
+function hop(p, a, b, h, color, t0, dur = .6) {
+  const x1 = X(a), x2 = X(b), y = Y0 - 12;
+  draw(path(p, `M${x1} ${y}Q${(x1 + x2) / 2} ${y - 2 * h} ${x2} ${y}`, { stroke: color, 'stroke-width': 4 }, { d: 0 }), t0, dur);
+  show(T(p, `+${b - a}`, { x: (x1 + x2) / 2, y: y - h - 14, size: 26, fill: color, font: MATH, anchor: 'middle', o: 0 }), t0 + dur * .5, .3);
+}
+function landing(p, v, t0) {
+  const g = G(p, { x: X(v), y: Y0, s: 0, o: 0 });
+  mk('circle', { r: 11, fill: COL.chalk, stroke: COL.board, 'stroke-width': 2 }, g);
+  pop(g, t0);
+  return g;
+}
+// Arrow from token i to token j of a token row: "share the factor with this term".
+function shareArc(p, row, i, j, color, t0, h = 56) {
+  const a = st(row[i]).x, b = st(row[j]).x, top = row.y - row.size * .82;
+  h = Math.min(h, Math.abs(b - a) * .45 + 10);   // short hops stay shallow
+  draw(path(p, `M${a} ${top}Q${(a + b) / 2} ${top - 2 * h} ${b} ${top - 4}`, { stroke: color, 'stroke-width': 3.5 }, { d: 0 }), t0, .6);
+  show(path(p, `M${b - 9} ${top - 17}L${b} ${top - 4}L${b + 9} ${top - 17}`, { stroke: color, 'stroke-width': 3.5 }, { o: 0 }), t0 + .5, .2);
+}
+// Two tokens trade places along arcs.
+function swapTok(a, b, t0, dur = 1.1, h = 70) {
+  const xa = st(a).x, xb = st(b).x, y = st(a).y;
+  prog(q => {
+    const lift = Math.sin(Math.PI * q) * h;
+    put(a, { x: xa + (xb - xa) * q, y: y - lift });
+    put(b, { x: xb + (xa - xb) * q, y: y + lift * .6 });
+  }, t0, dur);
+}
+const showAll = (els, t0, step = 0) => els.forEach((e, i) => show(e, t0 + i * step, .45));
+function dots(p, rows, cols, gap, r, color, { x = 0, y = 0, o = 1 } = {}) {
+  const g = G(p, { x, y, o });
+  for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+    mk('circle', { cx: (j - (cols - 1) / 2) * gap, cy: (i - (rows - 1) / 2) * gap, r, fill: color }, g);
+  }
+  return g;
+}
+// Unit squares; top-left corner at (x, y).
+function squares(p, rows, cols, u, color, { x = 0, y = 0, o = 1 } = {}) {
+  const g = G(p, { x, y, o });
+  mk('rect', { width: cols * u, height: rows * u, fill: mix(COL.board, color, .38), stroke: color, 'stroke-width': 2.5 }, g);
+  let d = '';
+  for (let i = 1; i < cols; i++) d += `M${i * u} 0V${rows * u}`;
+  for (let i = 1; i < rows; i++) d += `M0 ${i * u}H${cols * u}`;
+  mk('path', { d, stroke: color, 'stroke-width': 1.2, 'stroke-opacity': .7 }, g);
+  return g;
+}
+function lasso(p, x, y, w, hgt, color, rx = hgt / 2) {
+  const r = mk('rect', { rx, fill: 'none', stroke: color, 'stroke-width': 3, 'stroke-dasharray': '10 7' }, p);
+  return put(r, { o: 0, a_x: x, a_y: y, a_width: w, a_height: hgt });
+}
+const label = (p, str, x, y, fill, t0, size = 32) => show(M(p, [str], { x, y, size, fill, o: 0 }), t0);
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Algebraic properties', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1, Chapter 2', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Algebraic properties', { x: 800, y: 415, size: 92, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const words = G(scene);
+    [['order', PC, 'c', 'a + b = b + a'], ['grouping', PA, 'a', '(a + b) + c'], ['sharing', PD, 'd', 'a(b + c)']].forEach(([w, c, mark, f], i) => {
+      const k = G(words, { x: 800 + (i - 1) * 340, y: 590, o: 0, s: .7 });
+      T(k, w, { size: 40, fill: c, weight: 600, anchor: 'middle' });
+      M(k, [f], { y: 58, size: 30, fill: COL.dim });
+      tw(k, { o: 1, s: 1 }, m(mark), .5, back);
+    });
+    tw(g, { o: 0, y: -24 }, D - .9, .8);
+    hide(words, D - .9, .8);
+  }],
+  ['commAdd', 'Order in addition', (m) => {
+    const p = panel(0), L = S.line;
+    draw(path(L, `M${X(-.4)} ${Y0}H${X(9.5)}`, { stroke: COL.chalk, 'stroke-width': 3 }, { d: 0 }), .1, .9);
+    show(path(L, `M${X(9.5) - 15} ${Y0 - 10}L${X(9.5)} ${Y0}L${X(9.5) - 15} ${Y0 + 10}`, { stroke: COL.chalk, 'stroke-width': 3 }, { o: 0 }), .9, .3);
+    for (let v = 0; v <= 9; v++) show(tick(v), .3 + v * .05, .4);
+    const first = G(L);
+    hop(first, 0, 3, 70, TA, m('j3a')); hop(first, 3, 8, 70, TC, m('j5a'));
+    tw(first, { o: .3 }, m('swap'), .5);
+    const land = landing(L, 8, m('land1'));
+    const e1 = tokens(p, [{ t: '3', fill: TA }, ' + ', { t: '5', fill: TC }, ' = 8'], { x: 170, y: 210, size: 50, o: 0 });
+    show(e1[0], m('j3a')); show(e1[1], m('j5a')); show(e1[2], m('j5a')); show(e1[3], m('land1'));
+    hop(L, 0, 5, 150, TC, m('j5b')); hop(L, 5, 8, 150, TA, m('j3b'));
+    pulse(land, m('land2'));
+    const e2 = tokens(p, [{ t: '5', fill: TC }, ' + ', { t: '3', fill: TA }, ' = 8'], { x: 170, y: 290, size: 50, o: 0 });
+    show(e2[0], m('j5b')); show(e2[1], m('j3b')); show(e2[2], m('j3b')); show(e2[3], m('land2'));
+    showAll(tokens(p, [{ t: '3', fill: TA }, ' + ', { t: '5', fill: TC }, ' = ', { t: '5', fill: TC }, ' + ', { t: '3', fill: TA }], { x: 170, y: 380, size: 50, o: 0 }), m('def'));
+    ruleBox(p, 'Commutative property of addition', ['a + b = b + a'], PC, m('name'));
+    note(p, 'To commute means to move around.', m('rule'));
+  }],
+  ['commMul', 'Order in multiplication', (m) => {
+    hide(S.line, 0, .6);
+    const p = panel(0);
+    const arr = dots(p, 3, 5, 64, 16, TC, { x: 460, y: 420, o: 0 });
+    show(arr, m('arr'), .6);
+    const c1 = T(p, '3 rows of 5', { x: 460, y: 240, size: 28, fill: COL.dim, anchor: 'middle', o: 0 });
+    const e1 = M(p, ['3 · 5 = 15'], { x: 460, y: 680, size: 50, o: 0 });
+    show(c1, m('arr')); show(e1, m('arr', 1.8));
+    tw(arr, { r: 90 }, m('turn'), 1.4);
+    hide(c1, m('turn'), .3); hide(e1, m('turn'), .3);
+    show(T(p, '5 rows of 3', { x: 460, y: 240, size: 28, fill: COL.dim, anchor: 'middle', o: 0 }), m('now'));
+    show(M(p, ['5 · 3 = 15'], { x: 460, y: 680, size: 50, o: 0 }), m('now', .4));
+    pulse(arr, m('same'), 1.08);
+    ruleBox(p, 'Commutative property of multiplication', ['x · y = y · x'], PC, m('rule'));
+    note(p, 'A raised dot · means times.', m('dot'));
+  }],
+  ['commNot', 'When order matters', (m) => {
+    const p = panel(0);
+    const row = (a, op, b, y, fillA = TA, fillB = TC) => tokens(p, [{ t: a, fill: fillA }, op, { t: b, fill: fillB }, ' = '], { x: 200, y, size: 52, o: 0 });
+    const s1 = row('7', ' − ', '2', 250); showAll(s1, m('s1'));
+    show(M(p, ['5'], { x: 200 + s1.w + 4, y: 250, size: 52, anchor: 'start', o: 0 }), m('s1', .6));
+    const s2 = row('7', ' − ', '2', 360); showAll(s2, m('s2'));
+    swapTok(s2[0], s2[2], m('s2', .3));
+    show(M(p, ['−5'], { x: 200 + s2.w + 4, y: 360, size: 52, fill: COL.bad, anchor: 'start', o: 0 }), m('s2b'));
+    const d1 = row('8', ' ÷ ', '2', 520); showAll(d1, m('d1'));
+    show(M(p, ['4'], { x: 200 + d1.w + 4, y: 520, size: 52, anchor: 'start', o: 0 }), m('d1', .6));
+    const d2 = row('8', ' ÷ ', '2', 640); showAll(d2, m('d2'));
+    swapTok(d2[0], d2[2], m('d2', .3));
+    show(M(p, [F(1, 4)], { x: 200 + d2.w + 4, y: 640, size: 52, fill: COL.bad, anchor: 'start', o: 0 }), m('d2b'));
+    show(T(p, 'Commutative works only for + and ×.', { x: 200, y: 780, size: 30, fill: PC, weight: 600, o: 0 }), m('rule'));
+  }],
+  ['q1', 'Quick check', () => {}, { ask: done => quiz({ ...TOPR, maxH: 810 }, [{   // tall enough for four rows and their answers
+    id: 'c-order', prompt: ['True or false? Each statement swaps the order.'],
+    build: grid([
+      { parts: [$m('4 + 9 = 9 + 4')], ans: ['t'], why: 'Addition is commutative, so the order does not matter.' },
+      { parts: [$m('6 · 8 = 8 · 6')], ans: ['t'], why: 'Multiplication is commutative too.' },
+      { parts: [$m('10 − 3 = 3 − 10')], ans: ['f'], why: '10 − 3 = 7, but 3 − 10 = −7.' },
+      { parts: [$m('12 ÷ 3 = 3 ÷ 12')], ans: ['f'], why: ['12 ÷ 3 = 4, but 3 ÷ 12 = ', $m(F(1, 4)), '.'] },
+    ], TF, { multi: false, text: true }),
+  }], done) }],
+  ['assocAdd', 'Grouping in addition', (m) => {
+    const p = panel(0);
+    const groups = [[1, TA], [2, TB], [5, TC]], xs = [];
+    let x = 250;
+    groups.forEach(([n, c], gi) => {
+      const start = x;
+      for (let k = 0; k < n; k++) {
+        const g = G(p, { x, y: 300, s: 0, o: 0 });
+        mk('circle', { r: 21, fill: c }, g);
+        pop(g, .3 + xs.length * .12);
+        xs.push(x);
+        x += 54;
+      }
+      label(p, String(n), (start + x - 54) / 2, 382, c, .3 + gi * .3, 30);
+      x += 40;
+    });
+    const L = lasso(p, 214, 260, 220, 80, PA);
+    show(L, m('g1'), .4);
+    const e1 = tokens(p, [{ t: '(', fill: PA }, { t: '1', fill: TA }, ' + ', { t: '2', fill: TB }, { t: ')', fill: PA }, ' + ', { t: '5', fill: TC }, ' = 3 + 5', ' = 8'], { x: 250, y: 500, size: 46, o: 0 });
+    showAll(e1.slice(0, 7), m('g1')); show(e1[7], m('g1a')); show(e1[8], m('g1b'));
+    const s3 = T(p, '3', { x: 324, y: 244, size: 30, fill: PA, font: MATH, anchor: 'middle', o: 0 });
+    show(s3, m('g1a')); hide(s3, m('g2'), .3);
+    tw(L, { a_x: 308, a_width: 436 }, m('g2'), .9);
+    label(p, '7', 526, 244, PA, m('g2a'), 30);
+    const e2 = tokens(p, [{ t: '1', fill: TA }, ' + ', { t: '(', fill: PA }, { t: '2', fill: TB }, ' + ', { t: '5', fill: TC }, { t: ')', fill: PA }, ' = 1 + 7', ' = 8'], { x: 250, y: 590, size: 46, o: 0 });
+    showAll(e2.slice(0, 7), m('g2')); show(e2[7], m('g2a')); show(e2[8], m('g2b'));
+    pulse(e1[8], m('same'), 1.4); pulse(e2[8], m('same', .3), 1.4);
+    ruleBox(p, 'Associative property of addition', ['(a + b) + c = a + (b + c)'], PA, m('rule'));
+    note(p, 'The parentheses move. The sum stays.', m('rule', 2.5));
+  }],
+  ['assocMul', 'Grouping in multiplication', (m) => {
+    const p = panel(0);
+    const A = dots(p, 3, 5, 46, 14, TC, { x: 420, y: 290, o: 0 }), B = dots(p, 3, 5, 46, 14, TC, { x: 420, y: 462, o: 0 });
+    show(A, m('arr'), .5); show(B, m('arr', .5), .5);
+    const r1 = T(p, '3 rows of 5', { x: 580, y: 300, size: 26, fill: COL.dim, o: 0 }), r2 = T(p, '3 rows of 5', { x: 580, y: 472, size: 26, fill: COL.dim, o: 0 });
+    show(r1, m('arr', .4)); show(r2, m('arr', .9)); hide(r1, m('g1'), .3); hide(r2, m('g1'), .3);
+    tw(B, { y: 428 }, m('g1'), .8);
+    const all = lasso(p, 296, 214, 248, 290, PA, 26);
+    show(all, m('g1', .6), .4);
+    const six = T(p, '6 rows of 5', { x: 580, y: 366, size: 28, fill: PA, weight: 600, o: 0 });
+    show(six, m('g1a'));
+    const e1 = tokens(p, [{ t: '(2 · 3)', fill: PA }, ' · 5', ' = 6 · 5', ' = 30'], { x: 250, y: 640, size: 46, o: 0 });
+    show(e1[0], m('g1')); show(e1[1], m('g1')); show(e1[2], m('g1a')); show(e1[3], m('g1b'));
+    hide(all, m('g2'), .3); hide(six, m('g2'), .3);
+    tw(B, { y: 462 }, m('g2'), .8);
+    show(lasso(p, 296, 214, 248, 152, PA, 26), m('g2', .6), .4);
+    show(lasso(p, 296, 386, 248, 152, PA, 26), m('g2', .6), .4);
+    show(T(p, '15', { x: 580, y: 300, size: 30, fill: PA, font: MATH, weight: 600, o: 0 }), m('g2a'));
+    show(T(p, '15', { x: 580, y: 472, size: 30, fill: PA, font: MATH, weight: 600, o: 0 }), m('g2a', .3));
+    const e2 = tokens(p, ['2 · ', { t: '(3 · 5)', fill: PA }, ' = 2 · 15', ' = 30'], { x: 250, y: 730, size: 46, o: 0 });
+    show(e2[0], m('g2')); show(e2[1], m('g2')); show(e2[2], m('g2a')); show(e2[3], m('g2b'));
+    ruleBox(p, 'Associative property of multiplication', ['(a · b) · c = a · (b · c)'], PA, m('rule'));
+  }],
+  ['assocNot', 'When grouping matters', (m) => {
+    const p = panel(0);
+    const r1 = tokens(p, [{ t: '(8 − 4)', fill: PA }, ' − 2', ' = 4 − 2', ' = ', { t: '2', fill: TC }], { x: 200, y: 300, size: 52, o: 0 });
+    showAll(r1.slice(0, 2), m('s1')); show(r1[2], m('s1', 1)); show(r1[3], m('s1', 2)); show(r1[4], m('s1', 2));
+    const r2 = tokens(p, ['8 − ', { t: '(4 − 2)', fill: PA }, ' = 8 − 2', ' = ', { t: '6', fill: TA }], { x: 200, y: 420, size: 52, o: 0 });
+    showAll(r2.slice(0, 2), m('s2')); show(r2[2], m('s2', 2.5)); show(r2[3], m('s2', 4)); show(r2[4], m('s2', 4));
+    show(M(p, ['2 ≠ 6'], { x: 200, y: 560, size: 52, fill: COL.bad, anchor: 'start', o: 0 }), m('diff'));
+    show(T(p, 'Associative works only for + and ×.', { x: 200, y: 680, size: 30, fill: PA, weight: 600, o: 0 }), m('diff', 1.2));
+  }],
+  ['orderGroup', 'Order or grouping?', (m) => {
+    const p = panel(0);
+    show(path(p, 'M800 190V560', { stroke: COL.faint, 'stroke-width': 2 }, { o: 0 }), .3);
+    show(T(p, 'Commutative', { x: 450, y: 230, size: 36, fill: PC, weight: 600, anchor: 'middle', o: 0 }), m('c'));
+    show(T(p, 'changes the order', { x: 450, y: 276, size: 26, fill: COL.dim, anchor: 'middle', o: 0 }), m('c'));
+    const L = tokens(p, [{ t: 'a', fill: TA }, ' + ', { t: 'b', fill: TC }], { x: 450, y: 440, size: 70, anchor: 'middle', o: 0 });
+    showAll(L, m('c', .3));
+    swapTok(L[0], L[2], m('cs'), 1.3, 90);
+    show(T(p, 'Associative', { x: 1150, y: 230, size: 36, fill: PA, weight: 600, anchor: 'middle', o: 0 }), m('a'));
+    show(T(p, 'changes the grouping', { x: 1150, y: 276, size: 26, fill: COL.dim, anchor: 'middle', o: 0 }), m('a'));
+    const A = tokens(p, [{ t: '(', fill: PA }, { t: 'a', fill: TA }, ' + ', { t: 'b', fill: TB }, { t: ')', fill: PA }, ' + ', { t: 'c', fill: TC }], { x: 1150, y: 440, size: 70, anchor: 'middle', o: 0 });
+    showAll(A, m('a', .3));
+    const B = tokens(p, ['a', ' + ', '(', 'b', ' + ', 'c', ')'], { x: 1150, y: 440, size: 70, anchor: 'middle', o: 0 });
+    [2, 0, 1, 3, 6, 4, 5].forEach((j, i) => {
+      tw(A[i], { x: st(B[j]).x }, m('as'), 1.3);
+      if (i === 0 || i === 4) prog(q => put(A[i], { y: 440 - Math.sin(Math.PI * q) * 60 }), m('as'), 1.3);
+    });
+  }],
+  ['q2', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-name', prompt: ['Which property does ', $m('(7 + 9) + 1 = 7 + (9 + 1)'), ' use?'],
+    build: choice([['Commutative'], ['Associative']], 1, 'The numbers stay in the same order. Only the parentheses moved.',
+      ['The numbers are in the same order on both sides. Look at what moved.', null]),
+  }, {
+    id: 'c-group', prompt: ['Group the last two first. It makes the sum easy.'],
+    build: blanks([{ parts: ['17 + (25 + 75) = 17 + ', { box: '100' }, ' = ', { box: '117' }], why: '25 + 75 = 100, and 17 + 100 = 117.', hint: 'Add the numbers inside the parentheses first.' }]),
+  }], done) }],
+  ['distIntro', 'Sharing a product', (m) => {
+    const p = panel(0), u = 40;
+    const E = tokens(p, [{ t: '3', fill: PD }, '(', { t: '6', fill: TC }, ' + ', { t: '8', fill: TA }, ')'], { x: 250, y: 200, size: 60, o: 0 });
+    showAll(E, m('q'));
+    const left = squares(p, 3, 6, u, TC, { x: 250, y: 300, o: 0 }), right = squares(p, 3, 8, u, TA, { x: 250 + 6 * u, y: 300, o: 0 });
+    show(left, m('whole'), .6); show(right, m('whole'), .6);
+    label(p, '3', 226, 372, PD, m('whole'), 34);
+    const w14 = T(p, '14', { x: 250 + 7 * u, y: 462, size: 32, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 });
+    show(w14, m('whole', .4)); hide(w14, m('split'), .3);
+    tw(right, { x: 250 + 6 * u + 44 }, m('split'), .8);
+    label(p, '6', 250 + 3 * u, 462, TC, m('split', .6)); label(p, '8', 250 + 6 * u + 44 + 4 * u, 462, TA, m('split', .6));
+    show(M(p, ['3 · 6 = 18'], { x: 250 + 3 * u, y: 540, size: 36, fill: TC, o: 0 }), m('p1'));
+    show(M(p, ['3 · 8 = 24'], { x: 250 + 6 * u + 44 + 4 * u, y: 540, size: 36, fill: TA, o: 0 }), m('p2'));
+    const sum = tokens(p, ['18 + 24', ' = 42'], { x: 250, y: 650, size: 48, o: 0 });
+    show(sum[0], m('sum')); show(sum[1], m('sum', 1.6));
+    shareArc(p, E, 0, 2, TC, m('share')); shareArc(p, E, 0, 4, TA, m('share', .5), 70);
+    showAll(tokens(p, [' = ', { t: '3 · 6', fill: TC }, ' + ', { t: '3 · 8', fill: TA }], { x: 250 + E.w, y: 200, size: 60, o: 0 }), m('share', 1.2));
+    ruleBox(p, 'Distributive property', ['a(b + c) = ab + ac'], PD, m('name'));
+    note(p, 'To distribute means to share out.', m('name', 1.2));
+  }],
+  ['distLetters', 'The rule with letters', (m) => {
+    const p = panel(0);
+    const E = tokens(p, [{ t: 'a', fill: PD }, '(', { t: 'b', fill: TC }, ' + ', { t: 'c', fill: TA }, ')', ' = ', { t: 'ab', fill: TC }, ' + ', { t: 'ac', fill: TA }], { x: 250, y: 200, size: 64, o: 0 });
+    showAll(E.slice(0, 6), m('rule')); showAll(E.slice(6), m('rule', 1.6));
+    shareArc(p, E, 0, 2, TC, m('rule', .8)); shareArc(p, E, 0, 4, TA, m('rule', 1.1), 70);
+    show(M(p, ['ab means a · b'], { x: 990, y: 210, size: 40, anchor: 'start', fill: COL.dim, o: 0 }), m('ab'));
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 250, y: 300, width: 360, height: 180, fill: mix(COL.board, TC, .38), stroke: TC, 'stroke-width': 2.5 }, g);
+    mk('rect', { x: 610, y: 300, width: 240, height: 180, fill: mix(COL.board, TA, .38), stroke: TA, 'stroke-width': 2.5 }, g);
+    show(g, m('pic'), .6);
+    show(path(p, 'M232 300V480', { stroke: PD, 'stroke-width': 3 }, { o: 0 }), m('h'));
+    label(p, 'a', 210, 402, PD, m('h'), 40);
+    show(path(p, 'M250 500H606M614 500H850', { stroke: COL.dim, 'stroke-width': 3 }, { o: 0 }), m('w'));
+    label(p, 'b', 430, 548, TC, m('w'), 40); label(p, 'c', 730, 548, TA, m('w', .3), 40);
+    label(p, 'ab', 430, 406, COL.chalk, m('parts'), 48); label(p, 'ac', 730, 406, COL.chalk, m('parts', .4), 48);
+  }],
+  ['distSub', 'Sharing with subtraction', (m) => {
+    const p = panel(0), u = 44;
+    const E = tokens(p, [{ t: '2', fill: PD }, '(', '10', ' − ', { t: '7', fill: TA }, ')'], { x: 250, y: 200, size: 60, o: 0 });
+    showAll(E, m('q'));
+    const keep = squares(p, 2, 3, u, TC, { x: 250, y: 300, o: 0 }), cut = squares(p, 2, 7, u, TC, { x: 250 + 3 * u, y: 300, o: 0 });
+    show(keep, m('big'), .6); show(cut, m('big'), .6);
+    label(p, '2', 226, 360, PD, m('big'), 34);
+    const w10 = T(p, '10', { x: 250 + 5 * u, y: 432, size: 32, fill: COL.dim, font: MATH, anchor: 'middle', o: 0 });
+    show(w10, m('big', .4)); hide(w10, m('cut'), .3);
+    const red = squares(p, 2, 7, u, TA, { x: 250 + 3 * u, y: 300, o: 0 });
+    show(red, m('cut'), .4); hide(cut, m('cut', .3), .1);
+    tw(red, { y: 470, o: .45 }, m('cut', 1.2), 1);
+    show(M(p, ['2 · 7 = 14'], { x: 250 + 10 * u + 24, y: 530, size: 34, fill: TA, anchor: 'start', o: 0 }), m('cut', 2));
+    pulse(keep, m('left'), 1.06);
+    show(M(p, ['2 · 3 = 6'], { x: 250 + 1.5 * u, y: 432, size: 34, fill: TC, o: 0 }), m('left'));
+    const line = tokens(p, [' = ', { t: '2 · 10', fill: PD }, ' − ', { t: '2 · 7', fill: TA }, ' = 20 − 14', ' = 6'], { x: 250, y: 650, size: 48, o: 0 });
+    showAll(line.slice(0, 4), m('check')); show(line[4], m('check', 1.5)); show(line[5], m('check', 3));
+    ruleBox(p, 'Distributive property', ['a(b − c) = ab − ac'], PD, m('rule'));
+  }],
+  ['q3', 'Quick check', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-expand', prompt: ['Use the distributive property.'],
+    build: blanks([{ parts: ['5(9 − 4) = 5 · 9 − 5 · ', { box: '4' }, ' = 45 − ', { box: '20' }, ' = ', { box: '25' }],
+      why: '5 · 9 = 45 and 5 · 4 = 20, so 45 − 20 = 25. Check: 9 − 4 = 5, and 5 · 5 = 25.', hint: 'Multiply 5 by each number inside the parentheses.' }]),
+  }], done) }],
+  ['distMulti', 'More than two terms', (m) => {
+    const p = panel(0);
+    const E = tokens(p, [{ t: '6', fill: PD }, '(', { t: '2', fill: TA }, ' − ', { t: '1', fill: TB }, ' + ', { t: '5', fill: TC }, ')'], { x: 250, y: 260, size: 64, o: 0 });
+    showAll(E, m('q'));
+    shareArc(p, E, 0, 2, TA, m('a1'), 44); shareArc(p, E, 0, 4, TB, m('a2'), 62); shareArc(p, E, 0, 6, TC, m('a3'), 80);
+    const l2 = tokens(p, [' = ', { t: '6 · 2', fill: TA }, ' − ', { t: '6 · 1', fill: TB }, ' + ', { t: '6 · 5', fill: TC }], { x: 250, y: 400, size: 54, o: 0 });
+    showAll(l2.slice(0, 2), m('a1', .4)); showAll(l2.slice(2, 4), m('a2', .4)); showAll(l2.slice(4), m('a3', .4));
+    const l3 = tokens(p, [' = ', { t: '12', fill: TA }, ' − ', { t: '6', fill: TB }, ' + ', { t: '30', fill: TC }, ' = 36'], { x: 250, y: 520, size: 54, o: 0 });
+    showAll(l3.slice(0, 6), m('calc'), .25); show(l3[6], m('res'));
+    show(M(p, ['Check:  2 − 1 + 5 = 6,  6 · 6 = 36'], { x: 250, y: 650, size: 34, fill: COL.dim, anchor: 'start', o: 0 }), m('check'));
+    ruleBox(p, 'Distributive property', ['a(b + c − d) = ab + ac − ad'], PD, m('calc'), { w: 600, x: 960 });
+  }],
+  ['distNotDiv', 'A warning about division', (m) => {
+    const p = panel(0);
+    const l1 = tokens(p, ['40 ÷ (8 + 2)', ' = 40 ÷ 10', ' = ', { t: '4', fill: TC }], { x: 170, y: 300, size: 50, o: 0 });
+    show(l1[0], m('div')); show(l1[1], m('left', 1.5)); show(l1[2], m('left', 3)); show(l1[3], m('left', 3));
+    const l2 = tokens(p, ['40 ÷ 8 + 40 ÷ 2', ' = 5 + 20', ' = ', { t: '25', fill: TA }], { x: 170, y: 420, size: 50, o: 0 });
+    show(l2[0], m('right')); show(l2[1], m('right', 3)); show(l2[2], m('right', 4.5)); show(l2[3], m('right', 4.5));
+    show(M(p, ['4 ≠ 25'], { x: 170, y: 560, size: 52, fill: COL.bad, anchor: 'start', o: 0 }), m('diff'));
+    show(T(p, 'A number divided by a sum cannot be split.', { x: 170, y: 680, size: 30, fill: PD, weight: 600, o: 0 }), m('diff', .8));
+  }],
+  ['q4', 'Quick check', () => {}, { ask: done => quiz(TOPR, [{
+    id: 'c-true', prompt: ['Which statement is true?'],
+    build: choice([[$m('12 ÷ (2 + 4) = 12 ÷ 2 + 12 ÷ 4')], [$m('3(2 + 4) = 3 · 2 + 3 · 4')], [$m('10 − (4 − 1) = (10 − 4) − 1')]], 1,
+      'Both sides equal 18: 3 · 6 = 18 and 6 + 12 = 18.',
+      ['12 ÷ 6 = 2, but 12 ÷ 2 + 12 ÷ 4 = 6 + 3 = 9. A number divided by a sum cannot be split.', null, '10 − 3 = 7, but 6 − 1 = 5. Grouping matters for subtraction.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [[PC, 'Commutative', 'change the order', 'a + b = b + a,   a · b = b · a', 'c'],
+     [PA, 'Associative', 'change the grouping', '(a + b) + c = a + (b + c)', 'a'],
+     [PD, 'Distributive', 'share a factor with every term', 'a(b + c) = ab + ac', 'd']].forEach(([c, name, sub, f, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 150, o: 0 });
+      T(g, name, { x: 200, size: 38, fill: c, weight: 600 });
+      T(g, sub, { x: 200, y: 38, size: 24, fill: COL.dim });
+      M(g, [f], { x: 640, size: 44, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    show(T(p, 'Subtraction and division: check before you swap or regroup.', { x: 200, y: 720, size: 28, fill: COL.bad, o: 0 }), m('warn'));
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-name', prompt: ['Name the property each statement uses.'],
+    build: grid(NAMEQ, [['c', 'Commutative', PC], ['a', 'Associative', PA], ['d', 'Distributive', PD], ['n', 'Not true', COL.bad]], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-expand', prompt: ['Use the distributive property. Fill in the missing numbers.'], build: blanks(EXPANDQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const NAMEQ = [
+  { parts: [$m('9 · 2 = 2 · 9')], ans: ['c'], why: 'Only the order changed.' },
+  { parts: [$m('(3 + x) + 4 = 3 + (x + 4)')], ans: ['a'], why: 'The numbers kept their order. Only the parentheses moved.' },
+  { parts: [$m('5(y + 2) = 5y + 10')], ans: ['d'], why: 'The 5 was shared with y and with 2.' },
+  { parts: [$m('0.5 + 7 = 7 + 0.5')], ans: ['c'], why: 'Only the order changed.' },
+  { parts: [$m('(2 · 7) · 5 = 2 · (7 · 5)')], ans: ['a'], why: 'Only the grouping changed.' },
+  { parts: [$m('8 − 3 = 3 − 8')], ans: ['n'], why: '8 − 3 = 5, but 3 − 8 = −5. Subtraction is not commutative.' },
+  { parts: [$m('4(a − 1) = 4a − 4')], ans: ['d'], why: 'The 4 was shared with a and with 1.' },
+];
+const EXPANDQ = [
+  { parts: ['2(3 + 8) = 2 · 3 + 2 · 8 = ', { box: '22' }], why: '6 + 16 = 22.' },
+  { parts: ['4(10 − 2 + 5) = 40 − 8 + 20 = ', { box: '52' }], why: '4 · 10 − 4 · 2 + 4 · 5 = 40 − 8 + 20 = 52.' },
+  { parts: ['7(x + 3) = 7x + ', { box: '21' }], why: '7 · 3 = 21.' },
+  { parts: ['3(a − b + 2) = 3a − 3b + ', { box: '6' }], why: 'Share the 3 with every term: 3 · 2 = 6.' },
+  { parts: ['6(9 − 4) = 54 − ', { box: '24' }, ' = ', { box: '30' }], why: '6 · 4 = 24, and 54 − 24 = 30.' },
+];
+const TFQ = [
+  { parts: [$m('(12 ÷ 6) ÷ 2 = 12 ÷ (6 ÷ 2)')], ans: ['f'], why: 'The left side is 1 and the right side is 4.' },
+  { parts: [$m('(10 − 3) − 1 = 10 − (3 − 1)')], ans: ['f'], why: 'The left side is 6 and the right side is 8.' },
+  { parts: [$m('40 ÷ (8 + 2) = 40 ÷ 8 + 40 ÷ 2')], ans: ['f'], why: 'The left side is 4 and the right side is 25.' },
+  { parts: [$m('a · b = b · a')], ans: ['t'], why: 'Multiplication is commutative.' },
+  { parts: [$m('6(2 − 1 + 5) = 12 − 6 + 30')], ans: ['t'], why: 'The 6 is shared with every term.' },
+  { parts: [$m('x(y + z) = xy + z')], ans: ['f'], why: 'The x must multiply the z too: x(y + z) = xy + xz.' },
+];
+boot();
+</script>
+</body>
+</html>

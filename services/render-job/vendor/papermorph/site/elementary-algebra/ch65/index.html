@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Quadratic Formula — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 65, title: 'Solving Quadratic Equations with the Quadratic Formula', minutes: 10, next: '../ch66/' };
+const CA = COL.int, CB = COL.whole, CC = COL.nat, PAR = COL.irr, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// "x =" followed by a built-up fraction, at (x, y) with the bar on y.
+function xeq(p, top, bot, x, y, t0, opts = {}) {
+  const size = opts.size || 50;
+  mline(p, 'x =', x, y + size * .35, t0, opts.fill || COL.chalk, size, 'start');
+  return frac(p, top, bot, x + mathW('x = ', size) + 6, y, t0, { size, ...opts });
+}
+const FORM = [['−b ± ', R('b² − 4ac')], '2a'];
+// (p ± √D) / q, judged by value so any equivalent form is right.
+const roots = (a, b, c) => { const d = Math.sqrt(b * b - 4 * a * c); return [(-b + d) / (2 * a), (-b - d) / (2 * a)]; };
+const qfTest = (a, b, c) => ([p, D, q]) => {
+  if (!q || D < 0) return false;
+  const [r1, r2] = roots(a, b, c), s = [(p + Math.sqrt(D)) / q, (p - Math.sqrt(D)) / q];
+  const close = (u, v) => Math.abs(u - v) < 1e-9;
+  return (close(s[0], r1) && close(s[1], r2)) || (close(s[0], r2) && close(s[1], r1));
+};
+const qfRow = (lead, a, b, c, [p, D, q], why) => ({ parts: [...[].concat(lead), ':     x = (', { box: String(p) }, ' ± √', { box: String(D) }, ') / ', { box: String(q) }],
+  test: qfTest(a, b, c), why, hint: `a = ${num(a)}, b = ${num(b)}, c = ${num(c)}. Under the radical: b² − 4ac = ${b * b - 4 * a * c}.` });
+const two = (u, v) => ([p, q]) => Math.abs(p - u) + Math.abs(q - v) < 1e-9 || Math.abs(p - v) + Math.abs(q - u) < 1e-9;
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'The quadratic formula', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 12, Chapter 65', { x: 800, y: 260, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'The Quadratic Formula', { x: 800, y: 360, size: 84, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = G(scene, { o: 0 });
+    xeq(r, ...FORM, 640, 520, 0, { size: 60 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['where', 'Where it comes from', (m) => {
+    const p = panel(0), X = 220;
+    mline(p, ['ax', E(2), ' + bx + c = 0'], X, 120, .2, COL.chalk, 46, 'start');
+    mline(p, ['x', E(2), ' + ', F('b', 'a'), 'x = −', F('c', 'a')], X, 220, m('div'), COL.chalk, 46, 'start');
+    mline(p, ['x', E(2), ' + ', F('b', 'a'), 'x + (', F('b', '2a'), ')', E(2), ' = −', F('c', 'a'), ' + (', F('b', '2a'), ')', E(2)], X, 330, m('half'), COL.chalk, 46, 'start');
+    mline(p, ['(x + ', F('b', '2a'), ')', E(2), ' = ', F('b² − 4ac', '4a²')], X, 450, m('fac'), COL.chalk, 46, 'start');
+    mline(p, ['x + ', F('b', '2a'), ' = ±', R(F('b² − 4ac', '4a²')), ' = ±', F('√(b² − 4ac)', '2a')], X, 570, m('root'), COL.chalk, 46, 'start');
+    ['÷ a, move c', 'complete the square', 'factor; common denominator', 'square roots'].forEach((s, i) => text(p, s, 1180, [212, 322, 442, 562][i], m(['div', 'half', 'fac', 'root'][i]), { size: 24, fill: COL.task, weight: 600 }));
+    const box = G(p, { o: 0 });
+    mk('rect', { x: X - 20, y: 640, width: 620, height: 190, rx: 20, fill: 'none', stroke: HIT, 'stroke-width': 3 }, box);
+    xeq(box, ...FORM, X + 30, 715, 0, { size: 58, fill: HIT });
+    show(box, m('ans', 1.2));
+  }],
+  ['use', 'Substituting', (m) => {
+    const p = panel(0);
+    const eq = tokens(p, [{ t: '2', fill: CA }, ['x', E(2), ' '], { t: '− 7', fill: CB }, 'x ', { t: '+ 3', fill: CC }, ' = 0'], { x: 800, y: 120, size: 60, anchor: 'middle', o: 0 });
+    eq.forEach(e => show(e, m('ex')));
+    [['a = 2', CA], ['b = −7', CB], ['c = 3', CC]].forEach(([s, c], i) => mline(p, s, 600 + i * 200, 200, m('abc', i * .8), c, 40));
+    xeq(p, ['−(−7) ± ', R('(−7)² − 4(2)(3)')], '2(2)', 200, 330, m('sub'), { size: 50 });
+    xeq(p, ['7 ± ', R(25)], '4', 200, 500, m('rad'), { size: 50 });
+    xeq(p, '7 ± 5', '4', 200, 670, m('root'), { size: 50 });
+    xeq(p, '7 + 5', '4', 820, 500, m('two'), { size: 50 });
+    xeq(p, '7 − 5', '4', 1150, 500, m('two', .6), { size: 50 });
+    mline(p, 'x = 3', 900, 700, m('ans'), HIT, 56);
+    mline(p, ['x = ', F(1, 2)], 1230, 700, m('ans', .8), HIT, 56);
+    text(p, '−(−7) = 7', 875, 340, m('sub', 2.5), { size: 28, fill: CB, weight: 600 });
+  }],
+  ['graph', 'Checking on a graph', (m) => {
+    const p = panel(0), P = plane(p, { cx: 560, cy: 520, u: 70, x0: -2, x1: 5, y0: -4, y1: 4, t0: m('par') });
+    P.layer = p;
+    const f = x => 2 * x * x - 7 * x + 3;
+    P.fn(f, -.4, 4.2, PAR, m('par', .3));
+    mline(p, ['y = 2x', E(2), ' − 7x + 3'], 1180, 200, m('par'), PAR, 44);
+    P.dot(.5, 0, HIT, m('cross'), { label: F(1, 2), dx: -12, dy: 34, anchor: 'end' });
+    P.dot(3, 0, HIT, m('cross', .5), { label: '3', dx: 14, dy: 34 });
+    const mid = 7 / 4;
+    draw(path(p, `M${P.PX(mid)} ${P.PY(3.6)}V${P.PY(-3.6)}`, { stroke: COL.task, 'stroke-width': 3, 'stroke-dasharray': '8 7' }, { d: 0 }), m('mid'), .6);
+    mline(p, ['−', F('b', '2a'), ' = ', F(7, 4)], 1180, 360, m('mid'), COL.task, 46);
+    P.arrow(mid, -.4, .5, -.4, COL.whole, m('mid', 3), { label: '' });
+    P.arrow(mid, -.4, 3, -.4, COL.whole, m('mid', 3), { label: '' });
+    mline(p, ['±', F(5, 4)], 1180, 480, m('mid', 3.2), COL.whole, 46);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-abc', prompt: ['For ', $m('2x', E(2), ' = −5x + 6'), ', first write it as ', $m('ax', E(2), ' + bx + c = 0'), '.'],
+    build: blanks([{ parts: ['a = ', { box: '2' }, ',   b = ', { box: '5' }, ',   c = ', { box: '-6' }], why: '2x² + 5x − 6 = 0.', hint: 'Move everything to the left: add 5x and subtract 6.' }]),
+  }], done) }],
+  ['irr', 'Radical answers', (m) => {
+    const p = panel(0);
+    mline(p, ['2x', E(2), ' + 4x − 5 = 0'], 800, 110, m('ex'), COL.chalk, 54);
+    mline(p, 'a = 2,   b = 4,   c = −5', 800, 180, m('sub'), COL.dim, 38);
+    xeq(p, ['−4 ± ', R('16 + 40')], '4', 200, 300, m('rad'), { size: 48 });
+    xeq(p, ['−4 ± ', R(56)], '4', 760, 300, m('rad', 3), { size: 48 });
+    xeq(p, ['−4 ± 2', R(14)], '4', 200, 480, m('simp'), { size: 48 });
+    text(p, '√56 = √4 · √14 = 2√14', 760, 500, m('simp', .5), { size: 28, fill: COL.task, weight: 600 });
+    xeq(p, ['−2 ± ', R(14)], '2', 200, 660, m('ans'), { size: 52, fill: HIT });
+    text(p, 'every term ÷ 2', 760, 680, m('red'), { size: 28, fill: COL.task, weight: 600 });
+    mline(p, 'x ≈ 1.37  or  x ≈ −3.37', 1100, 800, m('approx'), COL.dim, 40);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 240, w: 1160, cls: 'side' }, [{
+    id: 'c-qf', prompt: ['Solve ', $m('x', E(2), ' − 3x − 7 = 0'), ' with the quadratic formula.'],
+    build: blanks([{ ...qfRow([], 1, -3, -7, [3, 37, 2], 'x = (3 ± √(9 + 28)) / 2 = (3 ± √37) / 2.'), parts: ['x = (', { box: '3' }, ' ± √', { box: '37' }, ') / ', { box: '2' }] }]),
+  }], done) }],
+  ['first', 'Zero on one side', (m) => {
+    const p = panel(0), X = 220;
+    mline(p, ['(3x − 1)', E(2), ' = 4'], X, 160, m('ex'), COL.chalk, 50, 'start');
+    mline(p, ['9x', E(2), ' − 6x + 1 = 4'], X, 260, m('exp'), COL.chalk, 50, 'start');
+    mline(p, ['9x', E(2), ' − 6x − 3 = 0'], X, 360, m('exp', 2), COL.chalk, 50, 'start');
+    xeq(p, ['6 ± ', R('36 + 108')], '18', X, 480, m('ans'), { size: 46 });
+    xeq(p, '6 ± 12', '18', 820, 480, m('ans', 1), { size: 46 });
+    mline(p, ['x = 1   or   x = −', F(1, 3)], X, 670, m('ans', 2), HIT, 54, 'start');
+    text(p, 'Any method that works gives the same answers.', 800, 800, m('which'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    text(p, '1', 200, 210, m('w1'), { size: 30, fill: CA, weight: 700, anchor: 'middle' });
+    mline(p, ['ax', E(2), ' + bx + c = 0'], 260, 220, m('w1'), COL.chalk, 48, 'start');
+    text(p, '2', 200, 380, m('w2'), { size: 30, fill: HIT, weight: 700, anchor: 'middle' });
+    xeq(p, ...FORM, 260, 370, m('w2'), { size: 60, fill: HIT });
+    text(p, '3', 200, 610, m('w3'), { size: 30, fill: CB, weight: 700, anchor: 'middle' });
+    text(p, 'Watch the signs; simplify the radical.', 260, 610, m('w3'), { size: 34, weight: 600 });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-int', prompt: ['Solve. Either order.'], build: blanks([
+      { parts: ['x', E(2), ' + 4x − 5 = 0:     x = ', { box: '1' }, '  or  x = ', { box: '-5' }], test: two(1, -5), why: '(−4 ± √36)/2 = (−4 ± 6)/2.' },
+      { parts: ['x', E(2), ' + 8x + 12 = 0:     x = ', { box: '-2' }, '  or  x = ', { box: '-6' }], test: two(-2, -6), why: '(−8 ± √16)/2 = (−8 ± 4)/2.' },
+      { parts: ['2x', E(2), ' + 5x − 12 = 0:     x = ', { box: '3/2' }, '  or  x = ', { box: '-4' }], test: two(1.5, -4), why: '(−5 ± √121)/4 = (−5 ± 11)/4.' },
+      { parts: ['3x', E(2), ' + 4x − 4 = 0:     x = ', { box: '2/3' }, '  or  x = ', { box: '-2' }], test: two(2 / 3, -2), why: '(−4 ± √64)/6 = (−4 ± 8)/6.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-rad', prompt: ['Solve. Write x = (p ± √D) / q; any equivalent form is fine.'], build: blanks([
+      qfRow(['x', E(2), ' + 7x + 2 = 0'], 1, 7, 2, [-7, 41, 2], '(−7 ± √(49 − 8)) / 2.'),
+      qfRow(['4x', E(2), ' − x − 6 = 0'], 4, -1, -6, [1, 97, 8], '(1 ± √(1 + 96)) / 8.'),
+      qfRow(['2x', E(2), ' − x − 5 = 0'], 2, -1, -5, [1, 41, 4], '(1 ± √(1 + 40)) / 4.'),
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-move', prompt: ['Get zero on one side, then solve.'], build: blanks([
+      qfRow(['2x', E(2), ' = −5x + 6'], 2, 5, -6, [-5, 73, 4], '2x² + 5x − 6 = 0: (−5 ± √73) / 4.'),
+      { parts: ['x', E(2), ' − 3x = 10:     x = ', { box: '5' }, '  or  x = ', { box: '-2' }], test: two(5, -2), why: 'x² − 3x − 10 = (x − 5)(x + 2) = 0.', hint: 'Subtract 10 first.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

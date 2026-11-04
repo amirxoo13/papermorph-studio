@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ratio — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 11, title: 'Ratio', minutes: 6, next: '../ch12/' };
+const GR = COL.irr, RD = COL.nat, PU = COL.real, FL = COL.int, MK = COL.whole;
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+function bead(p, x, y, color, r = 22) {
+  const g = G(p, { x, y, o: 0, s: .5 });
+  mk('circle', { r, fill: color }, g);
+  mk('circle', { cx: -r * .3, cy: -r * .3, r: r * .28, fill: '#fff', 'fill-opacity': .35 }, g);
+  return g;
+}
+function person(p, x, y, color) {
+  const g = G(p, { x, y, o: 0, s: .6 });
+  mk('circle', { cy: -34, r: 13, fill: color }, g);
+  mk('path', { d: 'M-18 10Q-18 -18 0 -18Q18 -18 18 10Z', fill: color }, g);
+  return g;
+}
+function cup(p, x, y, color, label) {
+  const g = G(p, { x, y, o: 0, s: .6 });
+  mk('path', { d: 'M-20 -24H20L15 22H-15Z', fill: mix(COL.board, color, .45), stroke: color, 'stroke-width': 2.5 }, g);
+  if (label) T(g, label, { y: 8, size: 16, fill: COL.chalk, anchor: 'middle', weight: 600 });
+  return g;
+}
+const ratioForms = (p, a, b, x, y, t0, fill = COL.chalk) => {
+  [`${a} to ${b}`, `${a} : ${b}`].forEach((s, i) => mline(p, [s], x + i * 260, y, t0 + i * 1.3, fill, 46));
+  mline(p, [F(a, b)], x + 520, y, t0 + 2.6, fill, 56);
+};
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Ratio', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 3, Chapter 11', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Ratio', { x: 800, y: 430, size: 100, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['a : b'], 800, 580, m('q'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['define', 'Comparing two quantities', (m) => {
+    const p = panel(0);
+    const gs = [0, 1, 2, 3, 4].map(i => bead(p, 420 + (i % 3) * 64, 250 + Math.floor(i / 3) * 64, GR));
+    const rs = [0, 1, 2, 3].map(i => bead(p, 1030 + (i % 2) * 64, 250 + Math.floor(i / 2) * 64, RD));
+    popIn(gs, m('g')); popIn(rs, m('r'));
+    show(T(p, '5 green', { x: 484, y: 410, size: 30, fill: GR, weight: 600, anchor: 'middle', o: 0 }), m('g', .6));
+    show(T(p, '4 red', { x: 1062, y: 410, size: 30, fill: RD, weight: 600, anchor: 'middle', o: 0 }), m('r', .5));
+    caption(p, 'A ratio compares two quantities.', m('def'), 140, COL.chalk, 34);
+    show(T(p, 'green to red', { x: 250, y: 540, size: 28, fill: COL.dim, anchor: 'start', o: 0 }), m('forms'));
+    ratioForms(p, 5, 4, 560, 540, m('forms', 1.5));
+    show(T(p, 'red to green', { x: 250, y: 680, size: 28, fill: COL.dim, anchor: 'start', o: 0 }), m('order'));
+    ratioForms(p, 4, 5, 560, 680, m('order', 1), RD);
+  }],
+  ['partWhole', 'Part to part, part to whole', (m) => {
+    const p = panel(0);
+    const ds = Array.from({ length: 8 }, (_, i) => person(p, 300 + i * 70, 300, PU));
+    const cs = Array.from({ length: 5 }, (_, i) => person(p, 950 + i * 70, 300, FL));
+    popIn(ds, m('d'), .08); popIn(cs, m('c'), .08);
+    show(T(p, 'drama: 8', { x: 545, y: 370, size: 28, fill: PU, weight: 600, anchor: 'middle', o: 0 }), m('d', .6));
+    show(T(p, 'chess: 5', { x: 1090, y: 370, size: 28, fill: FL, weight: 600, anchor: 'middle', o: 0 }), m('c', .4));
+    caption(p, '13 students in all', m('q'), 170, COL.chalk);
+    show(T(p, 'part to part', { x: 400, y: 500, size: 30, fill: COL.task, weight: 600, anchor: 'middle', o: 0 }), m('pp'));
+    mline(p, ['drama : chess = 8 : 5'], 400, 580, m('pp', .5), COL.chalk, 44);
+    show(T(p, 'part to whole', { x: 1150, y: 500, size: 30, fill: COL.task, weight: 600, anchor: 'middle', o: 0 }), m('pw'));
+    mline(p, ['chess : all = 5 : 13'], 1150, 580, m('pw', .5), COL.chalk, 44);
+    const all = put(mk('rect', { x: 250, y: 230, width: 1080, height: 100, rx: 20, fill: 'none', stroke: COL.task, 'stroke-width': 3, 'stroke-dasharray': '10 7' }, p), { o: 0 });
+    show(all, m('pw', .8));
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    const bs = [...Array.from({ length: 7 }, (_, i) => bead(p, 380 + i * 64, 300, MK)), ...Array.from({ length: 4 }, (_, i) => bead(p, 380 + (7 + i) * 64 + 30, 300, FL))];
+    popIn(bs, .2, .05);
+    show(T(p, '7 blue,  4 yellow', { x: 760, y: 400, size: 30, fill: COL.dim, anchor: 'middle', o: 0 }), .6);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-order', prompt: ['What is the ratio of yellow beads to all beads?'],
+    build: blanks([{ parts: ['yellow : all = ', { box: '4' }, ' : ', { box: '11' }], why: '4 yellow out of 7 + 4 = 11 beads.', hint: 'Yellow comes first. Then count every bead.' }]),
+  }], done) }],
+  ['simplify', 'Simplifying ratios', (m) => {
+    const p = panel(0);
+    const pos = [[0, 0], [1, 1], [2, 2]];
+    const purple = [0, 1, 2].map(i => bead(p, 300 + i * 90, 280 + (i % 2) * 40, PU));
+    const green = [0, 1, 2, 3, 4, 5].map(i => bead(p, 620 + i * 80, 260 + (i % 3) * 36, GR));
+    popIn(purple, m('q')); popIn(green, m('q', .6), .08);
+    mline(p, ['purple : green = 3 : 6'], 800, 160, m('ratio'), COL.chalk, 46);
+    const gx = k => 420 + k * 360;
+    [0, 1, 2].forEach(k => {
+      tw(purple[k], { x: gx(k) - 50, y: 460 }, m('group', k * .3), .8);
+      tw(green[2 * k], { x: gx(k) + 20, y: 440 }, m('group', k * .3 + .2), .8);
+      tw(green[2 * k + 1], { x: gx(k) + 80, y: 480 }, m('group', k * .3 + .2), .8);
+      const box = put(mk('rect', { x: gx(k) - 100, y: 390, width: 230, height: 140, rx: 22, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p), { o: 0 });
+      show(box, m('each', k * .3));
+      show(T(p, `group ${k + 1}`, { x: gx(k) + 15, y: 570, size: 24, fill: COL.task, anchor: 'middle', o: 0 }), m('three', k * .3));
+    });
+    mline(p, ['3 : 6 = 1 : 2'], 800, 680, m('simp'), COL.good, 56);
+    mline(p, ['3 ÷ 3 = 1,   6 ÷ 3 = 2'], 800, 770, m('div'), COL.dim, 36);
+  }],
+  ['equiv', 'Equivalent ratios', (m) => {
+    const p = panel(0);
+    const rows = [['base', 1], ['x2', 2], ['x3', 3], ['x4', 4]];
+    rows.forEach(([mark, k], i) => {
+      const y = 200 + i * 130;
+      const f = Array.from({ length: 3 * k }, (_, j) => cup(p, 240 + j * 42, y, FL));
+      const mm = Array.from({ length: 2 * k }, (_, j) => cup(p, 240 + (3 * k + j) * 42 + 30, y, MK));
+      popIn(f, m(mark), .04); popIn(mm, m(mark, .3), .04);
+      mline(p, [`${3 * k} : ${2 * k}`], 1410, y + 14, m(mark, .5), COL.chalk, 48);
+      if (k > 1) show(T(p, `× ${k}`, { x: 1270, y: y + 10, size: 28, fill: COL.task, weight: 600, anchor: 'middle', o: 0 }), m(mark, .5));
+    });
+    show(T(p, 'flour', { x: 240, y: 130, size: 24, fill: FL, weight: 600, o: 0 }), m('base'));
+    show(T(p, 'milk', { x: 400, y: 130, size: 24, fill: MK, weight: 600, o: 0 }), m('base'));
+    mline(p, ['3 : 2 = 6 : 4 = 9 : 6 = 12 : 8'], 800, 760, m('same'), COL.good, 44);
+    caption(p, '× or ÷ both numbers by the same nonzero number', m('rule'), 830, COL.task, 28);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-simp', prompt: ['Simplify.'],
+    build: blanks([{ parts: ['12 : 18 = ', { box: '2' }, ' : ', { box: '3' }], why: 'The greatest common factor of 12 and 18 is 6: 12 ÷ 6 = 2, 18 ÷ 6 = 3.', hint: 'Divide both numbers by their greatest common factor.' }]),
+  }, {
+    id: 'c-equiv', prompt: ['Fill in the missing number.'],
+    build: blanks([{ parts: ['4 : 7 = 20 : ', { box: '35' }], why: '4 × 5 = 20, so 7 × 5 = 35.', hint: 'What was 4 multiplied by to make 20?' }]),
+  }], done) }],
+  ['check', 'Are they equivalent?', (m) => {
+    const p = panel(0);
+    mline(p, ['4 : 6   and   10 : 15 ?'], 800, 180, m('q'), COL.chalk, 50);
+    mline(p, ['4 : 6 = 2 : 3'], 560, 290, m('s1'), COL.dim, 44);
+    mline(p, ['10 : 15 = 2 : 3'], 1040, 290, m('s2'), COL.dim, 44);
+    caption(p, '✓ equivalent', m('yes'), 370, COL.good, 34);
+    mline(p, ['3 : 4   and   4 : 5 ?'], 800, 490, m('q2'), COL.chalk, 50);
+    caption(p, '✗ not equivalent', m('no', 2.5), 580, COL.bad, 34);
+    mline(p, ['3 + 1 = 4,  4 + 1 = 5:   adding does not keep a ratio'], 800, 690, m('warn'), COL.task, 34);
+  }],
+  ['scale', 'Map scale', (m) => {
+    const p = panel(0);
+    const map = G(p, { o: 0 });
+    mk('rect', { x: 200, y: 200, width: 700, height: 440, rx: 18, fill: mix(COL.board, COL.irr, .12), stroke: COL.dim, 'stroke-width': 2 }, map);
+    path(map, 'M260 560C360 470 420 520 520 430S700 300 840 260', { stroke: COL.faint, 'stroke-width': 8 });
+    show(map, m('map'));
+    const sb = G(p, { o: 0 });
+    for (let k = 0; k < 4; k++) mk('rect', { x: 240 + k * 60, y: 600, width: 60, height: 14, fill: k % 2 ? COL.board : COL.chalk, stroke: COL.chalk, 'stroke-width': 1.5 }, sb);
+    T(sb, '1 cm = 5 km', { x: 520, y: 614, size: 24, fill: COL.chalk });
+    show(sb, m('map', .5));
+    const a = bead(p, 380, 480, RD, 14), b = bead(p, 620, 360, MK, 14);
+    popIn([a, b], m('q'));
+    const l = path(p, 'M380 480L620 360', { stroke: COL.task, 'stroke-width': 3, 'stroke-dasharray': '8 6' }, { d: 0 });
+    draw(l, m('q', .5), .6);
+    show(T(p, '4 cm', { x: 520, y: 400, size: 28, fill: COL.task, weight: 600, o: 0 }), m('q', 1));
+    mline(p, ['map : real = 1 : 5'], 1200, 300, m('calc'), COL.chalk, 44);
+    mline(p, ['= 4 : 20'], 1200, 380, m('calc', 2), COL.chalk, 44);
+    mline(p, ['20 kilometers'], 1200, 480, m('ans'), COL.good, 50);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-map', prompt: ['On a map, 1 cm stands for 5 km. Two lakes are 30 km apart. How far apart are they on the map?'],
+    build: blanks([{ parts: ['1 : 5 = ', { box: '6' }, ' : 30'], why: '5 × 6 = 30, so the map distance is 1 × 6 = 6 cm.', hint: 'What do you multiply 5 by to get 30?' }]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Write a ratio as a to b, a : b, or a/b, in the order asked.', 'w1'], ['Compare part to part, or part to whole.', 'w2'],
+     ['× or ÷ both numbers by the same number for equivalent ratios.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-simp', prompt: ['Write each ratio in simplest form.'], build: blanks(SIMP),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-equiv', prompt: ['Are the two ratios equivalent?'], build: grid(EQUIVQ, [['y', 'Equivalent', COL.good], ['n', 'Not equivalent', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SIMP = [
+  { parts: ['6 : 9 = ', { box: '2' }, ' : ', { box: '3' }], why: 'Divide both by 3.' },
+  { parts: ['7 to 28 = ', { box: '1' }, ' to ', { box: '4' }], why: 'Divide both by 7.' },
+  { parts: ['40 : 15 = ', { box: '8' }, ' : ', { box: '3' }], why: 'Divide both by 5.' },
+  { parts: ['A team won 18 games and lost 12. Wins : losses = ', { box: '3' }, ' : ', { box: '2' }], why: '18 : 12, divide both by 6.' },
+  { parts: ['9 red and 15 blue pens. Red : all = ', { box: '3' }, ' : ', { box: '8' }], why: 'Red : all = 9 : 24, divide both by 3.' },
+  { parts: ['A 24 cm ribbon is cut into 10 cm and 14 cm. Short : long = ', { box: '5' }, ' : ', { box: '7' }], why: '10 : 14, divide both by 2.' },
+];
+const EQUIVQ = [
+  { parts: ['2 : 5   and   6 : 15'], ans: ['y'], why: 'Multiply 2 : 5 by 3.' },
+  { parts: ['3 : 4   and   4 : 5'], ans: ['n'], why: 'Adding 1 to both parts does not keep a ratio.' },
+  { parts: ['12 : 16   and   9 : 12'], ans: ['y'], why: 'Both simplify to 3 : 4.' },
+  { parts: ['5 : 2   and   2 : 5'], ans: ['n'], why: 'Order matters: 5/2 is not 2/5.' },
+  { parts: ['10 : 25   and   4 : 10'], ans: ['y'], why: 'Both simplify to 2 : 5.' },
+  { parts: ['7 : 3   and   21 : 6'], ans: ['n'], why: '7 × 3 = 21, but 3 × 3 = 9, not 6.' },
+];
+const TFQ = [
+  { parts: ['The ratio 3 : 8 can also be written as ', $m(F(3, 8)), '.'], ans: ['t'], why: 'a : b can be written as a/b.' },
+  { parts: ['The ratio of cats to dogs is the same as the ratio of dogs to cats.'], ans: ['f'], why: 'Order matters.' },
+  { parts: ['Multiplying both parts of a ratio by 10 gives an equivalent ratio.'], ans: ['t'], why: 'Both parts change by the same factor.' },
+  { parts: ['A ratio can compare a part to the whole.'], ans: ['t'], why: 'Like 5 chess players out of 13 students.' },
+  { parts: ['2 : 3 and 4 : 5 are equivalent, because 2 + 2 = 4 and 3 + 2 = 5.'], ans: ['f'], why: 'Adding does not keep a ratio; multiplying does.' },
+  { parts: ['8 : 12 in simplest form is 4 : 6.'], ans: ['f'], why: 'Divide by the greatest common factor, 4: 2 : 3.' },
+];
+boot();
+</script>
+</body>
+</html>

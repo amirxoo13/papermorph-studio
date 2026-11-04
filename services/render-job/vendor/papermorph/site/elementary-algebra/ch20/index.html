@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scientific Notation — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 20, title: 'Scientific notation', minutes: 6, next: '../ch21/' };
+const CO = COL.whole, PW = COL.nat;   // coefficient, power of ten
+
+/* ---------- chapter drawing helpers ---------- */
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const sci = (c, e) => [{ t: c, fill: CO }, ' × ', { t: ['10', E(e)], fill: PW }];
+// Numbered hop counters under each hop of a pointRow.
+function hopCount(p, r, from, to, y, t0) {
+  const n = Math.abs(to - from), d = Math.sign(to - from);
+  for (let k = 0; k < n; k++) {
+    const a = r.px(from + d * k), b = r.px(from + d * (k + 1));
+    show(T(p, String(k + 1), { x: (a + b) / 2, y, size: 24, fill: COL.task, font: MATH, weight: 600, anchor: 'middle', o: 0 }), t0 + k * .55 + .3, .2);
+  }
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Scientific notation', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 4, Chapter 20', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Scientific notation', { x: 800, y: 400, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const ex = G(scene);
+    show(M(ex, ['150 000 000 000 meters'], { x: 800, y: 540, size: 44, fill: COL.dim, o: 0 }), 1.5);
+    show(M(ex, ['0.00005 meters'], { x: 800, y: 620, size: 44, fill: COL.dim, o: 0 }), 6);
+    tokens(ex, sci('1.5', 11), { x: 800, y: 720, size: 50, anchor: 'middle', o: 0 }).forEach(e => show(e, m('q', 3)));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(ex, D - .9, .8);
+  }],
+  ['define', 'Two parts', (m) => {
+    const p = panel(0);
+    const R = tokens(p, sci('5.7', 6), { x: 800, y: 330, size: 96, anchor: 'middle', o: 0 });
+    show(R[0], m('first', -1)); show(R[1], m('second', -1)); show(R[2], m('second', -1));
+    draw(path(p, `M${R[0]._px} 360V430`, { stroke: CO, 'stroke-width': 3 }, { d: 0 }), m('first'), .4);
+    show(T(p, '1 ≤ this < 10', { x: R[0]._px, y: 470, size: 30, fill: CO, weight: 600, anchor: 'middle', o: 0 }), m('first', .3));
+    draw(path(p, `M${R[2]._px} 360V430`, { stroke: PW, 'stroke-width': 3 }, { d: 0 }), m('second'), .4);
+    show(T(p, 'a power of 10', { x: R[2]._px, y: 470, size: 30, fill: PW, weight: 600, anchor: 'middle', o: 0 }), m('second', .3));
+    mline(p, ['10', E(6), ' = 1 000 000'], 800, 620, m('mean'), COL.dim, 44);
+    mline(p, ['5.7 × 1 000 000 = 5 700 000'], 800, 710, m('mean', 2), COL.good, 48);
+  }],
+  ['big', 'Large numbers', (m) => {
+    const p = panel(0);
+    const r = pointRow(p, '8710000', 800, 330, 0, { size: 96 });
+    show(r.g, m('q'));
+    r.hop(0, 6, m('hop'));
+    hopCount(p, r, 0, 6, 430, m('hop'));
+    caption(p, '6 hops to the left', m('count'), 510, COL.task);
+    const R = tokens(p, sci('8.71', 6), { x: 800, y: 640, size: 64, anchor: 'middle', o: 0 });
+    R.forEach(e => show(e, m('res')));
+    caption(p, 'each hop left divides by 10; × 10⁶ puts it back', m('why'), 740, COL.dim, 26);
+  }],
+  ['small', 'Small numbers', (m) => {
+    const p = panel(0);
+    const r = pointRow(p, '0000092384', 800, 330, 9, { size: 80 });
+    show(r.g, m('q'));
+    r.hop(9, 4, m('hop'));
+    hopCount(p, r, 9, 4, 420, m('hop'));
+    for (let k = 1; k < 5; k++) tw(r.ds[k], { o: .2 }, m('count', .5), .4);
+    tw(r.ds[0], { o: .2 }, m('count', .5), .4);
+    caption(p, '5 hops to the right', m('count'), 500, COL.task);
+    const R = tokens(p, sci('9.2384', '−5'), { x: 800, y: 620, size: 64, anchor: 'middle', o: 0 });
+    R.forEach(e => show(e, m('res')));
+    caption(p, '≥ 10: positive exponent.   Less than 1: negative exponent.', m('rule'), 730, COL.dim, 28);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-to-sci', prompt: ['Write in scientific notation.'],
+    build: blanks([{ parts: ['307 = ', { box: '3.07' }, ' × 10', E('?'), ',  exponent = ', { box: '2' }], why: 'Two hops to the left: 3.07 × 10².', hint: 'Move the point until one digit is in front of it, and count the hops.' }]),
+  }, {
+    id: 'c-to-sci2', prompt: ['And a small one.'],
+    build: blanks([{ parts: ['0.0001092 = 1.092 × 10', E('?'), ',  exponent = ', { box: '-4' }], why: 'Four hops to the right, so the exponent is −4.', hint: 'The number is less than 1, so the exponent is negative.' }]),
+  }], done) }],
+  ['back', 'Back to standard form', (m) => {
+    const p = panel(0);
+    const R1 = tokens(p, sci('1.29', 5), { x: 450, y: 170, size: 52, anchor: 'middle', o: 0 });
+    R1.forEach(e => show(e, m('q')));
+    const r = pointRow(p, '129000', 450, 330, 5, { size: 80 });
+    for (let k = 3; k < 6; k++) put(r.ds[k], { o: 0 });
+    show(r.g, m('q', .5));
+    r.hop(5, 0, m('hop', 1));
+    for (let k = 3; k < 6; k++) tw(r.ds[k], { o: 1 }, m('hop', 1.3 + (k - 1) * .55), .2);
+    mline(p, ['= 129 000'], 450, 470, m('res'), COL.good, 50);
+    const R2 = tokens(p, sci('9.042', '−3'), { x: 1150, y: 170, size: 52, anchor: 'middle', o: 0 });
+    R2.forEach(e => show(e, m('q2')));
+    const s = pointRow(p, '0009042', 1150, 330, 3, { size: 80 });
+    for (let k = 0; k < 3; k++) put(s.ds[k], { o: 0 });
+    show(s.g, m('q2', .5));
+    s.hop(3, 6, m('hop2', 1));
+    for (let k = 0; k < 3; k++) tw(s.ds[2 - k], { o: 1 }, m('hop2', 1.3 + k * .55), .2);
+    mline(p, ['= 0.009042'], 1150, 470, m('res2'), COL.good, 50);
+    caption(p, 'positive exponent: move right', m('hop'), 600, PW, 28, 450);
+    caption(p, 'negative exponent: move left', m('hop2'), 600, PW, 28, 1150);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-std', prompt: ['Write in standard form.'],
+    build: blanks([{ parts: ['6.91 × 10', E(2), ' = ', { box: '691' }, ',   1.2 × 10', E('−6'), ' = ', { box: '0.0000012' }], why: 'Two places right: 691. Six places left: 0.0000012.', hint: 'Positive exponent: move right. Negative exponent: move left.' }]),
+  }], done) }],
+  ['compare', 'Comparing', (m) => {
+    const p = panel(0);
+    const A = tokens(p, sci('4', '−3'), { x: 480, y: 250, size: 64, anchor: 'middle', o: 0 });
+    const B = tokens(p, sci('2.7', '−5'), { x: 1120, y: 250, size: 64, anchor: 'middle', o: 0 });
+    [...A, ...B].forEach(e => show(e, m('q')));
+    const ring = (e, t) => { const r = put(mk('ellipse', { fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p), { o: 0, a_cx: e._px + 18, a_cy: 205, a_rx: 42, a_ry: 30 }); show(r, t); };
+    ring(A[2], m('exp')); ring(B[2], m('exp', .3));
+    mline(p, ['−3 > −5'], 800, 400, m('exp', 1), COL.task, 50);
+    mline(p, ['0.004  >  0.000027'], 800, 520, m('ans'), COL.good, 50);
+    caption(p, 'about 100 times larger', m('scale'), 620, COL.dim);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-order', prompt: ['Which number is the smallest?'],
+    build: choice([[$m('4.006 × 10', E('−3'))], [$m('2.7 × 10', E(9))], [$m('8.3 × 10', E('−7'))]], 2, '−7 is the smallest exponent, so 8.3 × 10⁻⁷ is the smallest.',
+      ['Its exponent, −3, is larger than −7.', 'Its exponent is positive: this is the largest.', null]),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A number from 1 up to 10, times a power of 10.', 'w1'], ['Count the hops of the decimal point.', 'w1'],
+     ['≥ 10: positive exponent.   Less than 1: negative.', 'w2'], ['To compare, look at the exponents first.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark, i === 1 ? 1.5 : 0), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-conv', prompt: ['Convert each number.'], build: blanks(CONV),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-is', prompt: ['Is it written in scientific notation?'], build: grid(ISQ, [['y', 'Yes', COL.good], ['n', 'No', COL.bad]], { multi: false }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CONV = [
+  { parts: ['7 930 451 = 7.930451 × 10', E('?'), ':  exponent ', { box: '6' }], why: 'Six hops to the left.' },
+  { parts: ['0.00056 = ', { box: '5.6' }, ' × 10', E('?'), ':  exponent ', { box: '-4' }], why: 'Four hops to the right: 5.6 × 10⁻⁴.' },
+  { parts: ['3.495 × 10', E(8), ' = ', { box: '349500000' }], why: 'Eight places right: 349 500 000.' },
+  { parts: ['2.1 × 10', E('−3'), ' = ', { box: '0.0021' }], why: 'Three places left: 0.0021.' },
+  { parts: ['4 500 000 = 4.5 × 10', E('?'), ':  exponent ', { box: '6' }], why: 'Six hops to the left.' },
+];
+const ISQ = [
+  { parts: ['3.2 × 10', E(4)], ans: ['y'], why: '3.2 is between 1 and 10.' },
+  { parts: ['32 × 10', E(3)], ans: ['n'], why: '32 is not less than 10: it should be 3.2 × 10⁴.' },
+  { parts: ['0.8 × 10', E(5)], ans: ['n'], why: '0.8 is less than 1: it should be 8 × 10⁴.' },
+  { parts: ['1 × 10', E('−9')], ans: ['y'], why: '1 is allowed: 1 ≤ 1 < 10.' },
+  { parts: ['9.99 × 10', E(0)], ans: ['y'], why: '9.99 × 1 = 9.99, correctly written.' },
+];
+const TFQ = [
+  { parts: ['In scientific notation, the first part can be 10.'], ans: ['f'], why: 'It must be less than 10.' },
+  { parts: ['A number less than 1 has a negative exponent.'], ans: ['t'], why: 'The point moves right to reach 1 to 10.' },
+  { parts: [$m('5 × 10', E('−2'), ' = 0.05')], ans: ['t'], why: 'Two places left.' },
+  { parts: [$m('2 × 10', E(3)), ' is larger than ', $m('9 × 10', E(2)), '.'], ans: ['t'], why: '2000 > 900: compare exponents first.' },
+];
+boot();
+</script>
+</body>
+</html>

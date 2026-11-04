@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simplifying Radicals — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 58, title: 'Simplifying Radicals', minutes: 9, next: '../ch59/' };
+const PSQ = COL.whole, REST = COL.nat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A big radical sign (index optional) spanning x1..x2 at baseline y; returns the group.
+function bigRoot(p, x1, x2, y, t0, { index, h = 110, color = COL.chalk } = {}) {
+  const g = G(p, { o: 0 });
+  path(g, `M${x1 - 70} ${y - h * .3}L${x1 - 58} ${y - h * .36}L${x1 - 38} ${y + h * .12}L${x1 - 14} ${y - h}H${x2}`, { stroke: color, 'stroke-width': 5, 'stroke-linejoin': 'round' });
+  if (index) T(g, index, { x: x1 - 70, y: y - h * .45, size: 40, font: MATH, fill: color, anchor: 'middle' });
+  show(g, t0);
+  return g;
+}
+// Prime chips in a row under a radical; colors mark groups. Returns the chips (with .cx).
+function primes(p, list, x0, y, t0, gap = 96) {
+  return list.map((v, i) => { const c = chip(p, [String(v)], COL.chalk, { x: x0 + i * gap, y: y - 30, size: 44, s: 0, o: 0 }); c.cx = x0 + i * gap; pop(c, t0 + i * .15); return c; });
+}
+const ring = (c, color, t0) => { put(c._rect, { c_stroke: COL.chalk }); tw(c._rect, { c_stroke: color, 'a_stroke-width': 5 }, t0, .3); };
+// A group of equal chips merges into one that jumps out to (x, y) in front of the radical.
+function escape(p, group, x, y, t0, color) {
+  group.forEach(c => ring(c, color, t0));
+  const cx = group.reduce((a, c) => a + c.cx, 0) / group.length;
+  group.forEach(c => tw(c, { x: cx }, t0 + .5, .5));
+  group.forEach((c, i) => { if (i) hide(c, t0 + 1, .1); });
+  const lead = group[0], { y: y0 } = st(lead);
+  prog(q => put(lead, { x: cx + (x - cx) * q, y: y0 + (y - y0) * q - Math.sin(Math.PI * q) * 150 }), t0 + 1, 1);
+}
+// Practice row: radical = [a] √[b] (the boxes take the number outside and the number inside).
+const srow = (n, a, b, i, why) => ({ parts: [R(n, i), ' = ', { box: String(a) }, i ? ' ∛' : ' √', { box: String(b) }], why, hint: i ? 'Find the greatest perfect cube that divides it.' : 'Find the greatest perfect square that divides it.' });
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Simplifying radicals', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 11, Chapter 58', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Simplifying Radicals', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, [R(72), ' = 6', R(2)], 800, 600, m('sub'), COL.dim, 56);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['rule', 'Roots of products', (m) => {
+    const p = panel(0);
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 330, y: 120, width: 940, height: 110, rx: 20, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, g);
+    M(g, [R('ab'), ' = ', R('a'), ' · ', R('b')], { x: 800, y: 195, size: 60, fill: COL.task });
+    show(g, .3);
+    mline(p, [R('9 · 4'), ' = ', R(36), ' = 6'], 800, 380, m('left'), COL.chalk, 60);
+    mline(p, [R(9), ' · ', R(4), ' = 3 · 2 = 6'], 800, 520, m('right'), COL.chalk, 60);
+    text(p, 'split into factors; take the root of the perfect squares', 800, 680, m('use'), { size: 30, fill: COL.dim, anchor: 'middle' });
+    text(p, 'a, b ≥ 0', 1290, 182, .5, { size: 24, fill: COL.dim });
+  }],
+  ['eighteen', 'Pull out a perfect square', (m) => {
+    const p = panel(0), X = 360;
+    mline(p, [R(18)], X, 200, .2, COL.chalk, 64, 'start');
+    text(p, 'greatest perfect square factor of 18:  9', 800, 186, m('ask'), { size: 30, fill: PSQ, weight: 600 });
+    mline(p, ['= ', R('9 · 2')], X, 330, m('split'), COL.chalk, 64, 'start');
+    mline(p, ['= ', R(9), ' · ', R(2)], X, 460, m('out', -1), COL.chalk, 64, 'start');
+    mline(p, ['= 3', R(2)], X, 590, m('ans'), HIT, 70, 'start');
+    text(p, '“three root two” = 3 × √2', 800, 580, m('read'), { size: 30, fill: COL.dim });
+    mline(p, ['(3', R(2), ')', E(2), ' = 9 · 2 = 18  ✓'], 800, 720, m('chk'), COL.dim, 44, 'start');
+  }],
+  ['pairs', 'Pairs come out', (m) => {
+    const p = panel(0), y = 520, x0 = 640;
+    mline(p, [R(72)], 800, 130, m('q'), COL.chalk, 64);
+    const big = bigRoot(p, x0 - 50, x0 + 4 * 110 + 60, y, m('tree'));
+    const cs = primes(p, [2, 2, 2, 3, 3], x0, y, m('tree', .3), 110);
+    mline(p, '72 = 2 · 2 · 2 · 3 · 3', 800, 290, m('tree', .3), COL.dim, 44);
+    text(p, 'a pair under √ is a perfect square', 800, 700, m('pair'), { size: 30, fill: PSQ, anchor: 'middle', weight: 600 });
+    escape(p, [cs[0], cs[1]], 380, y - 30, m('out'), PSQ);
+    escape(p, [cs[3], cs[4]], 470, y - 30, m('out', 2.5), COL.int);
+    ring(cs[2], REST, m('left'));
+    tw(cs[2], { x: x0 }, m('left', .4), .6);
+    hide(big, m('left', .4), .4); bigRoot(p, x0 - 50, x0 + 60, y, m('left', .8));
+    mline(p, '= 2 · 3', 425, y + 120, m('ans'), COL.dim, 40);
+    mline(p, ['= 6', R(2)], 800, 800, m('ans', 1.5), HIT, 66);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-sq', prompt: ['Simplify ', $m(R(75)), '.'],
+    build: blanks([srow(75, 5, 3, 0, '75 = 25 · 3, and √25 = 5.')]),
+  }], done) }],
+  ['great', 'Use the greatest factor', (m) => {
+    const p = panel(0), X = 300;
+    mline(p, [R(48)], 800, 130, m('q'), COL.chalk, 64);
+    mline(p, ['= ', R('4 · 12'), ' = 2', R(12)], X, 280, m('four'), COL.chalk, 56, 'start');
+    text(p, '12 still has a perfect square factor', 1000, 270, m('more'), { size: 28, fill: COL.bad, weight: 600 });
+    mline(p, ['= 2', R('4 · 3'), ' = 2 · 2', R(3), ' = 4', R(3)], X, 400, m('more', 2), COL.dim, 50, 'start');
+    mline(p, ['= ', R('16 · 3'), ' = 4', R(3)], X, 560, m('sixteen'), HIT, 60, 'start');
+    text(p, 'greatest factor: one step', 1000, 550, m('sixteen', .6), { size: 28, fill: HIT, weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-full', prompt: ['Is ', $m('3', R(8)), ' fully simplified?'],
+    build: choice([['Yes'], ['No: it equals ', $m('6', R(2))]], 1, '√8 = √4 · √2 = 2√2, so 3√8 = 6√2.', ['8 has the perfect square factor 4.', null]),
+  }], done) }],
+  ['cube', 'Cube roots: triples', (m) => {
+    const p = panel(0), y = 470, x0 = 720;
+    mline(p, [R(40, 3)], 800, 130, m('q'), COL.chalk, 64);
+    const big = bigRoot(p, x0 - 50, x0 + 3 * 110 + 60, y, m('tree'), { index: '3' });
+    const cs = primes(p, [2, 2, 2, 5], x0, y, m('tree', .3), 110);
+    mline(p, '40 = 2 · 2 · 2 · 5', 800, 270, m('tree', .3), COL.dim, 44);
+    text(p, 'a triple under ∛ is a perfect cube', 800, 640, m('trip'), { size: 30, fill: PSQ, anchor: 'middle', weight: 600 });
+    escape(p, cs.slice(0, 3), 520, y - 30, m('out'), PSQ);
+    ring(cs[3], REST, m('out', 2));
+    tw(cs[3], { x: x0 }, m('out', 2.4), .6);
+    hide(big, m('out', 2.4), .4); bigRoot(p, x0 - 50, x0 + 60, y, m('out', 2.8), { index: '3' });
+    mline(p, ['= 2', R(5, 3)], 800, 740, m('ans'), HIT, 64);
+    mline(p, [R('−128', 3), ' = ', R('−64 · 2', 3), ' = −4', R(2, 3)], 800, 840, m('neg'), COL.dim, 46);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-cube', prompt: ['Simplify ', $m(R(54, 3)), '.'],
+    build: choice([[$m('3', R(2, 3))], [$m('2', R(3, 3))], [$m('3', R(6, 3))]], 0, '54 = 27 · 2, and ∛27 = 3.', [null, '∛27 = 3 comes out, not 2: 54 = 27 · 2.', '54 = 27 · 2, so 2 stays inside, not 6.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['√(ab) = √a · √b', 'w1', COL.task], ['Pull out the greatest perfect square, or one factor per pair.', 'w2', PSQ],
+     ['Cube roots: one factor out per triple.', 'w3', COL.irr], ['Simplified when nothing more can come out.', 'w4', HIT]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-sq', prompt: ['Simplify: the number outside, then the number left inside.'], build: blanks(SQQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-cube', prompt: ['Simplify the cube roots.'], build: blanks(CUQ),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-can', prompt: ['Can it be simplified?'],
+    build: grid(CANQ, [['y', 'Yes', HIT, 'Y'], ['n', 'Already simplified', null, 'N']], { multi: false }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SQQ = [srow(45, 3, 5, 0, '45 = 9 · 5.'), srow(300, 10, 3, 0, '300 = 100 · 3.'), srow(72, 6, 2, 0, '72 = 36 · 2.'), srow(63, 3, 7, 0, '63 = 9 · 7.'), srow(32, 4, 2, 0, '32 = 16 · 2.')];
+const CUQ = [srow(16, 2, 2, 3, '16 = 8 · 2.'), srow(81, 3, 3, 3, '81 = 27 · 3.'), srow(500, 5, 4, 3, '500 = 125 · 4.'), srow('−250', -5, 2, 3, '−250 = −125 · 2.')];
+const CANQ = [
+  { parts: [R(10)], ans: ['n'], why: '10 = 2 · 5: no perfect square factor.' },
+  { parts: [R(45, 3)], ans: ['n'], why: '45 = 3 · 3 · 5: no triple.' },
+  { parts: [R(50)], ans: ['y'], why: '5√2.' },
+  { parts: [R(30)], ans: ['n'], why: '30 = 2 · 3 · 5.' },
+  { parts: [R(24, 3)], ans: ['y'], why: '24 = 8 · 3: 2∛3.' },
+  { parts: ['2', R(12)], ans: ['y'], why: '√12 = 2√3, so 2√12 = 4√3.' },
+];
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 4: Work and Machines — Elementary Physics</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render">
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/figures.js"></script>
+<script src="../lib/actors.js"></script>
+<script src="../lib/physics.js"></script>
+<script src="../lib/machines.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+// Chapter 12, one page in book order: part 1 (work, force × distance, direction, power), part 2 (simple machines:
+// inclined plane, wedge, screw), part 3 (levers, wheel and axle, pulleys), part 4 (energy, efficiency, compound
+// machines), then the chapter practice. Notes and storyboard intents: books/science/chapters/ch12.md.
+const CHAPTER = { number: 12, label: 4, title: 'Work and Machines', minutes: 14, language: 'en', next: '../ch13/' };
+const Q_CARD = { x: 96, y: 586, w: 1408, cls: 'band' };   // a band card under the scenes; it moves up by itself when taller
+const GY = 560;                                           // ground line in quick-check pictures
+const Y1 = 740;                                           // ground line under big actors
+const BED = 574;                                          // a big truck's bed: 166 px (one meter) above Y1
+const ground = (p, y = GY, x = 0, w = 1600) => { phBlock(p, x, y, w, 70, PH.grass, { top: 8, ol: 0 }); mk('rect', { x, y: y + 70, width: w, height: 6, fill: PH.grass, opacity: .5 }, p); };
+const road = (p, y = Y1, x = 0, w = 1600) => { phBlock(p, x, y, w, 90, PH.road, { top: 8, ol: 0 }); };
+const floorIn = (p, y = Y1, x = 0, w = 1600) => { phBlock(p, x, y, w, 90, '#6b5a48', { top: 8, ol: 0 }); };
+const sm = (t, a, b) => io(ramp(t, a, b));
+const lerp = (a, b, k) => a + (b - a) * k;
+const PAPER = '#f4f1e8', SKIN = '#e0b48a';
+
+/* ---------- shared pictures ---------- */
+// The same shapes as ch10–11: a thought bubble over a head, a part title, and a three-row summary with small pictures.
+function thought(p, [x0, y0, x1, y1], x, lines, t0) {
+  const q = G(p, { o: 0 });
+  mk('rect', { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 40, fill: '#22322d', stroke: COL.dim, 'stroke-width': 3 }, q);
+  path(q, `M${x - 30} ${y1 - 2}L${x + 30} ${y1 - 2}L${x} ${y1 + 66}Z`, { fill: COL.dim });
+  lines.forEach((s, i) => T(q, s, { x: (x0 + x1) / 2, y: y0 + 70 + i * 56, size: 42, anchor: 'middle' }));
+  show(q, t0); return q;
+}
+function opener(p, x, y, part, name, name2) {
+  const g = G(p, { o: 0, y: 24 });
+  phLabel(g, part.toUpperCase(), { x, y: y - 80, size: 30, fill: COL.dim, weight: 600 }); phLabel(g, name, { x, y, size: 80, weight: 600 });
+  if (name2) phLabel(g, name2, { x, y: y + 86, size: 80, weight: 600 });
+  tw(g, { o: 1, y: 0 }, .2, 1.1, out); return g;
+}
+function summary(p, m, rows, next) {
+  rows.forEach(([lines, icon], i) => {
+    const g = G(p, { x: -16, y: 250 + i * 220, o: 0 });
+    lines.forEach((s, j) => T(g, s, { x: 430, y: j * 50, size: 38, weight: 600 }));
+    icon(g); tw(g, { o: 1, x: 0 }, m(['w1', 'w2', 'w3'][i]), .6);
+  });
+  txt(p, next, 800, 860, m('end'), { size: 32, fill: COL.dim, weight: 500 });
+}
+// The big truck (s 2.6) with its rear end at x: dir 1 parks it to the right of x, −1 to the left (mirrored). A metal
+// loading plate 140 wide sticks out of the rear at bed height; the returned group holds it (hide it for ramp scenes).
+function truck(p, rear, dir = 1) {
+  const t = phSprite(p, 'truck', { x: rear + dir * 457.6, y: Y1, s: 2.6 }); if (dir < 0) phFace(t, -1);
+  const pl = G(p), x0 = dir > 0 ? rear - 140 : rear;
+  phBlock(pl, x0, BED, 140, 14, PH.metal, { top: 4 });
+  phBlock(pl, dir > 0 ? x0 + 6 : x0 + 120, BED + 14, 14, Y1 - BED - 14, dk(PH.metal, .3), { top: 0 });
+  return pl;
+}
+// A ramp from its foot (fx, Y1 or y) up to the truck bed; R.yAt(x) is the surface height at x (ground off the ramp).
+function slope(p, fx, run, rise, o = {}, y = Y1) {
+  const R = incline(p, { x: fx, y, run, rise, ...o });
+  return Object.assign(R, { fx, run, rise, yAt: x => x < fx ? y : x > fx + run ? y - rise : y - (x - fx) * rise / run });
+}
+// You (s) pushing a crate up ramp R: the crate's bottom centre u px up the slope, your hands on its back face.
+function pusher(p, R, { s = 2, w = 120, h = 100, label = '', role = 'you' } = {}) {
+  const a = phActor(p, role, { s, anim: 'push' }), c = crate(p, { w, h, label });
+  const hx = 6.11 * PX * s, f = Object.assign(u => {
+    onSlope(c, R.at(u));
+    const [bx] = R.at(u - w / 2), x = bx - hx + 6;
+    put(a, { x, y: R.yAt(x) }); a.stride('push', u);
+  }, { a, c });
+  return f;
+}
+function basket(p, o = {}) {
+  const g = G(p, o);
+  [['#e8a0c8', -34], ['#86c9e8', 4], [PAPER, 36]].forEach(([c, x]) => mk('ellipse', { cx: x, cy: -70, rx: 34, ry: 18, fill: c, ...phLine(2) }, g));
+  path(g, 'M-70 -72L70 -72L58 0H-58Z', { fill: '#c9a36a', ...phLine() });
+  path(g, 'M-64 -48H64M-61 -24H61', { stroke: dk('#c9a36a', .3), 'stroke-width': 4 });
+  return g;
+}
+// A trash bag lying on its side; origin at the tied neck on its right end, body x −220…0, bottom at +38.
+function trashBag(p, o = {}) {
+  const g = G(p, o);
+  path(g, 'M-24 -8C-40 -70 -190 -80 -214 -20C-226 10 -200 38 -150 38H-40C-14 38 -10 14 -24 -8Z', { fill: '#2f383d', ...phLine() });
+  path(g, 'M-170 -40C-140 -54 -100 -56 -70 -46', { stroke: '#56626a', 'stroke-width': 5, fill: 'none' });
+  path(g, 'M-26 -10L0 -4L-26 6Z', { fill: '#2f383d', ...phLine(2) });
+  return g;
+}
+// A bucket: origin at the bottom centre, handle top at (0, −135 s).
+function bucket(p, { x = 0, y = 0, s = 1, o = 1 } = {}) {
+  const g = G(p, { x, y, s, o });
+  path(g, 'M-46 -100C-46 -150 46 -150 46 -100', { stroke: '#4a5458', 'stroke-width': 5, fill: 'none' });
+  path(g, 'M-52 -100H52L40 0H-40Z', { fill: '#5f8fb5', ...phLine() });
+  mk('rect', { x: -54, y: -104, width: 108, height: 10, rx: 3, fill: lt('#5f8fb5', .3), ...phLine(2) }, g);
+  return g;
+}
+function pulleyWheel(p, x, y, r = 50, hang = true) {
+  const g = G(p, { x, y });
+  if (hang) phBlock(g, -10, -r - 30, 20, r + 30, dk(PH.metal, .2), { top: 0 });
+  mk('circle', { r, fill: PH.metal, ...phLine() }, g); mk('circle', { r: r - 12, fill: dk(PH.metal, .25) }, g); mk('circle', { r: 9, fill: PH.out }, g);
+  return g;
+}
+// Stairs: n blocks w wide and h tall each from x on floor y, then a landing; yAt(xx) is the step top under xx.
+function stairs(p, { x, y = Y1, n, w, h, land = 0 }) {
+  for (let i = 0; i < n; i++) phBlock(p, x + i * w, y - (i + 1) * h, w, (i + 1) * h, '#7a6a58', { top: 6 });
+  if (land) phBlock(p, x + n * w, y - n * h, land, n * h, '#7a6a58', { top: 6 });
+  return { yAt: xx => xx < x ? y : y - h * Math.min(n, Math.floor((xx - x) / w) + 1), smooth: xx => y - Math.min(n * h, Math.max(0, (xx - x + w * .3) * h / w)) };
+}
+// One bar of energy, split into useful (green) and heat (red). set(f, title, useful, heat): f is the useful share.
+function energyBar(p, { x, y, w = 600, h = 60 }) {
+  const g = G(p), gr = mk('rect', { x, y, height: h, fill: WORK }, g), rd = mk('rect', { y, height: h, fill: HEAT }, g);
+  mk('rect', { x, y, width: w, height: h, fill: 'none', stroke: COL.chalk, 'stroke-width': 3 }, g);
+  const tt = T(g, '', { x, y: y - 18, size: 30, weight: 700 }), gl = phLabel(g, '', { y: y + h / 2 + 11, size: 28, fill: PH.out }), rl = phLabel(g, '', { y: y + h + 40, size: 28, fill: HEAT });
+  return Object.assign(g, {
+    set(f, title, useful = '', heat = '') {
+      gr.setAttribute('width', w * f); rd.setAttribute('x', x + w * f); rd.setAttribute('width', w * (1 - f));
+      phText(tt, title); phText(gl, useful); put(gl, { x: x + w * f / 2 }); phText(rl, heat); put(rl, { x: x + w * (1 + f) / 2 });
+      return g;
+    },
+  });
+}
+// Wavy red heat lines rising from (x, y).
+function squiggle(p, x, y, n = 3) {
+  const g = G(p, { x, y, o: 0 });
+  for (let i = 0; i < n; i++) path(g, `M${(i - (n - 1) / 2) * 22} 0c-10 -12 10 -24 0 -36s10 -24 0 -36`, { stroke: HEAT, 'stroke-width': 5, fill: 'none', 'stroke-linecap': 'round' });
+  return g;
+}
+/* small pictures: origin at the bottom centre unless noted */
+function wheelbarrow(p, o = {}) {   // wheel at the origin's left, handles ending at (300, −56)
+  const g = G(p, o);
+  path(g, 'M30 -60L300 -56M40 -40L170 -36L180 0', { stroke: WOOD, 'stroke-width': 10, fill: 'none', 'stroke-linecap': 'round' });
+  path(g, 'M20 -130H210L180 -60H50Z', { fill: '#4f8a5b', ...phLine() });
+  mk('ellipse', { cx: 115, cy: -134, rx: 92, ry: 14, fill: '#6a4c34' }, g);
+  mk('circle', { cx: 0, cy: -30, r: 30, fill: '#2c3337', ...phLine() }, g); mk('circle', { cx: 0, cy: -30, r: 8, fill: PH.metal }, g);
+  return g;
+}
+function armPic(p, o = {}) {        // elbow at the origin, hand at (300, 0)
+  const g = G(p, o);
+  path(g, 'M-20 -190C-40 -120 -30 -40 0 0', { stroke: '#5f8fb5', 'stroke-width': 56, fill: 'none', 'stroke-linecap': 'round' });
+  path(g, 'M0 0H290', { stroke: SKIN, 'stroke-width': 40, 'stroke-linecap': 'round' });
+  mk('ellipse', { cx: 70, cy: -30, rx: 60, ry: 22, fill: lt(SKIN, .15) }, g);
+  phBlock(g, 270, -80, 24, 160, '#4a5458', { top: 0 }); phBlock(g, 250, -100, 64, 34, '#3a4448', { top: 0 }); phBlock(g, 250, 66, 64, 34, '#3a4448', { top: 0 });
+  return g;
+}
+function miniRamp(p, o = {}) {
+  const g = G(p, o);
+  path(g, 'M-120 0L120 -90V0Z', { fill: WOOD, ...phLine() });
+  const c = crate(g, { w: 50, h: 44 }); put(c, { x: 0, y: -46, r: -20.6 });
+  return g;
+}
+function miniSeesaw(p, o = {}) {
+  const g = G(p, o);
+  path(g, 'M0 -50L-32 0H32Z', { fill: '#8d8a80', ...phLine() });
+  const b = G(g, { y: -50, r: -10 }); phBlock(b, -150, -14, 300, 14, WOOD, { top: 4 });
+  return g;
+}
+function axePic(p, o = {}) {        // blade tip at the origin, pointing down
+  const g = G(p, o);
+  phBlock(g, -9, -300, 18, 200, WOOD, { top: 0 });
+  path(g, 'M-40 -120H40L0 0Z', { fill: '#b9c3c6', ...phLine() }); path(g, 'M-40 -120H40', { stroke: '#7d8a86', 'stroke-width': 8 });
+  return g;
+}
+function screwPic(p, o = {}, len = 200) {   // head top at the origin, tip at y len
+  const g = G(p, o);
+  path(g, `M-18 22V${len - 30}L0 ${len}L18 ${len - 30}V22Z`, { fill: '#b9c3c6', ...phLine(2) });
+  let d = ''; for (let y = 34; y < len - 30; y += 22) d += `M-22 ${y + 8}L22 ${y - 6}`;
+  path(g, d, { stroke: '#7d8a86', 'stroke-width': 5 });
+  mk('ellipse', { cx: 0, cy: 12, rx: 44, ry: 14, fill: '#9aa5a8', ...phLine(2) }, g); mk('rect', { x: -44, y: 0, width: 88, height: 12, fill: '#9aa5a8' }, g);
+  mk('ellipse', { cx: 0, cy: 0, rx: 44, ry: 14, fill: '#c3ccce', ...phLine(2) }, g); path(g, 'M-24 0H24', { stroke: PH.out, 'stroke-width': 5 });
+  return g;
+}
+function faucetPic(p, o = {}, r = 180) {   // the handle wheel's centre at the origin; returns {g, wheel}
+  const g = G(p, o);
+  phBlock(g, -26, 0, 52, r + 140, PH.metal, { top: 0 }); phBlock(g, -26, r + 100, 200, 40, PH.metal, { top: 6 }); phBlock(g, 150, r + 100, 30, 70, PH.metal, { top: 0 });
+  const wh = G(g);
+  mk('circle', { r, fill: 'none', stroke: '#c0504d', 'stroke-width': 26 }, wh);
+  for (let i = 0; i < 4; i++) path(wh, `M0 0L${r * Math.cos(i * Math.PI / 2)} ${r * Math.sin(i * Math.PI / 2)}`, { stroke: '#c0504d', 'stroke-width': 14 });
+  mk('circle', { r: r * .145, fill: '#9aa5a8', ...phLine() }, wh); path(wh, `M${-r * .1} 0H${r * .1}`, { stroke: PH.out, 'stroke-width': 4 });
+  return Object.assign(g, { wheel: wh });
+}
+function canOpener(p, o = {}, s = 1) {   // the whole opener, drawn in its own frame (can 220–520, top 470)
+  const g = G(p, o);
+  phBlock(g, 220, 470, 300, 270, '#b9c3c6', { top: 0 });
+  for (let y = 520; y < 740; y += 50) path(g, `M220 ${y}H520`, { stroke: '#8d979a', 'stroke-width': 5 });
+  mk('ellipse', { cx: 370, cy: 470, rx: 150, ry: 22, fill: '#d6dcde', ...phLine() }, g);
+  path(g, 'M560 420L1050 360L1050 384L560 446Z', { fill: '#c0504d', ...phLine() });
+  path(g, 'M560 452L1050 470L1050 494L560 478Z', { fill: '#c0504d', ...phLine() });
+  phBlock(g, 480, 390, 120, 80, '#7d8a86', { top: 6 });
+  const cw = G(g, { x: 505, y: 470 }); mk('circle', { r: 30, fill: '#d6dcde', ...phLine() }, cw); path(cw, 'M-30 0H30M0 -30V30', { stroke: '#8d979a', 'stroke-width': 3 });
+  const key = G(g, { x: 600, y: 380 }); path(key, 'M0 0L-40 -50Q0 -70 40 -50Z', { fill: '#9aa5a8', ...phLine() }); mk('circle', { r: 12, fill: '#7d8a86', ...phLine(2) }, key);
+  return Object.assign(g, { key, cw });
+}
+function pyramid(p, cx, base, n = 9, step = 50, w0 = 700) {
+  const g = G(p);
+  for (let i = 0; i < n; i++) { const w = w0 - i * w0 / (n + 1); phBlock(g, cx - w / 2, base - (i + 1) * step, w, step, i % 2 ? '#d8b77a' : '#cfae70', { top: 5 }); }
+  return g;
+}
+function knifePic(p, o = {}) { const g = G(p, o); path(g, 'M-90 -30H60L90 -30L60 0H-90Z', { fill: '#c3ccce', ...phLine() }); phBlock(g, -170, -36, 84, 30, '#3a3a3a', { top: 0 }); return g; }
+function doorstopPic(p, o = {}) { const g = G(p, o); path(g, 'M-90 0H90L-90 -60Z', { fill: '#c9a36a', ...phLine() }); return g; }
+function plowPic(p, o = {}) {
+  const g = G(p, o);
+  path(g, 'M-100 -80L60 -40', { stroke: WOOD, 'stroke-width': 12 });
+  path(g, 'M20 -60L90 -10L100 0H0Z', { fill: '#9aa5a8', ...phLine() });
+  return g;
+}
+// The book: a red hardback, origin at its bottom centre.
+const book = (p, o = {}) => { const g = G(p, o); phBlock(g, -45, -22, 90, 22, '#c0504d', { top: 0 }); mk('rect', { x: -40, y: -16, width: 80, height: 10, fill: PAPER }, g); return g; };
+const workTick = (p, x, y, t0) => txt(p, '✓ work', x, y, t0, { size: 44, fill: WORK, weight: 700 });
+
+/* ---------- beats ---------- */
+const BEATS = [
+/* ---------- part 1: work and power ---------- */
+['intro', 'Work and machines', (m, D) => {
+  const p = panel(0), tq = m('q');
+  // You lift a heavy box from the road onto the truck's loading plate.
+  road(p); truck(p, 517, -1);
+  const a = phActor(p, 'you', { x: 760, y: Y1, s: 2.4 }).face(-1), c = crate(p, { x: 700, y: Y1, w: 130, h: 110 });
+  clockRun(t => {
+    const lift = sm(t, 1.6, 3), carry = sm(t, 3, 4.4);
+    a.show(t < 1 ? 'stand' : t < 1.6 ? 'crouch' : t < 3 ? 'strain' : t < 4.4 ? 'walk' : 'stand', t < 3 ? t * 3 : (t - 3) * 4);
+    put(a, { x: lerp(760, 740, carry) });
+    put(c, { x: t < 3 ? lerp(700, 680, lift) : lerp(680, 587, carry), y: t < 3 ? lerp(Y1, 650, lift) : lerp(650, BED, carry) });
+  }, D);
+  const ttl = G(p, { o: 0, y: 24 });
+  phLabel(ttl, 'Unit 1 · Motion, Forces, and Work · Chapter 4', { x: 1230, y: 330, size: 26, fill: COL.dim, weight: 600 });
+  phLabel(ttl, 'Work and', { x: 1230, y: 420, size: 76 }); phLabel(ttl, 'Machines', { x: 1230, y: 500, size: 76 });
+  tw(ttl, { o: 1, y: 0 }, .3, 1.1, out);
+  thought(p, [70, 60, 930, 220], 740, ['Is lifting a box work?', 'How could a ramp help?'], tq);
+}, { lead: false }],
+['work', 'What work means', (m, D) => {
+  const p = panel(0), td = m('def'), tt = m('tow'), tl = m('lift');
+  // Work: a force moves an object the way the force points. A truck tows a car (left); you lift a book (right).
+  phLabel(p, 'Work', { x: 800, y: 110, size: 72, fill: WORK });
+  txt(p, 'a force moves an object in the same direction as the force', 800, 180, td, { size: 36 });
+  path(p, 'M796 240V880', { stroke: COL.faint, 'stroke-width': 3 });
+  road(p, Y1, 0, 790); floorIn(p, Y1, 802, 798);
+  const tr = phVehicle(p, 'truck', { x: 470, y: Y1 }), car = phVehicle(p, 'car', { x: 90, y: Y1 }), rope = path(p, '', { stroke: COL.chalk, 'stroke-width': 4 });
+  const pull = forceArrow(p, { w: 12, size: 30 }), mv = distBar(p, { head: true, size: 30 });
+  const a = phActor(p, 'you', { x: 1100, y: Y1, s: 2.4 }), bk = book(p), push = forceArrow(p, { w: 12, size: 30 }), up = distBar(p, { head: true, size: 30 });
+  clockRun(t => {
+    const k = sm(t, tt, tt + 4) * 140, xc = 90 + k;
+    put(tr, { x: 470 + k }); put(car, { x: xc });
+    rope.setAttribute('d', `M${xc + 120} 710L${470 + k - 172} 710`);
+    pull.set(xc - 40, 610, t > tt ? 150 : 0, 0, 'pull');
+    mv.set(70, 840, 70 + k, 840, 'moves', 'above');
+    const lk = sm(t, tl + .3, tl + 1.6);
+    a.show(lk > 0 ? 'catch' : 'stand', 0);
+    const hy = lerp(Y1 - 93, Y1 - 168, lk), hx = lerp(1120, 1194, lk); put(bk, { x: hx + 12, y: hy + 4 });
+    push.set(hx + 90, hy - 10, t > tl ? 100 : 0, -90, 'push', 'right');
+    up.set(hx + 190, Y1 - 89, hx + 190, lk > .05 ? hy : Y1 - 89, lk > .1 ? 'moves' : '', 'right');
+  }, D);
+  workTick(p, 400, 330, tt + 2.5); workTick(p, 1200, 330, tl + 2.5);
+}, { lead: false }],
+['formula', 'Work = force × distance', (m, D) => {
+  const p = panel(0), tf = m('force'), td = m('dist'), tm = m('mult'), tb = m('box'), ta = m('ans'), tu = m('units');
+  // You lift a 20 N box 1.5 m onto a shelf; the right side builds work = force × distance = 30 J.
+  floorIn(p);
+  phBlock(p, 560, 540, 240, 200, WOOD, { top: 10, right: 12 }); path(p, 'M580 640H780', { stroke: dk(WOOD, .4), 'stroke-width': 5 });
+  const a = phActor(p, 'you', { x: 300, y: Y1, s: 2.4 }), bx = crate(p, { w: 100, h: 80, label: '20 N' }), fA = forceArrow(p, { w: 12, size: 30 });
+  const bar = distBar(p, { size: 30 });
+  clockRun(t => {
+    const k1 = sm(t, tb + .5, tb + 2), k2 = sm(t, tb + 2, tb + 3.5);
+    a.show(t < tb ? 'stand' : t < tb + .5 ? 'crouch' : t < tb + 1.2 ? 'strain' : k2 > 0 && k2 < 1 ? 'walk' : 'catch', (t - tb) * 4);
+    put(a, { x: lerp(lerp(300, 340, k1), 440, k2) });
+    const x = lerp(lerp(365, 405, k1), 600, k2), y = lerp(lerp(Y1, 600, k1), 540, k2); put(bx, { x, y });
+    fA.set(x, y - 90, t > tf ? 90 : 0, -90, '20 N', 'right');
+    bar.set(840, Y1, 840, 540, t > td ? '1.5 m' : '', 'right');
+  }, D);
+  const R = 1220;
+  runs(p, [['force', FORCE], [': how hard you push']], { x: R, y: 200, size: 38 }); show(p.lastChild, tf);
+  runs(p, [['distance', DIST], [': how far it moves']], { x: R, y: 260, size: 38 }); show(p.lastChild, td);
+  runs(p, [['work', WORK], [' = '], ['force', FORCE], [' × '], ['distance', DIST]], { x: R, y: 380, size: 54, weight: 700 }); show(p.lastChild, tm);
+  const wm = workMeter(p, { x: R, y: 500, size: 50, o: 0 }).set(20, 1.5, '?'); show(wm, tb + 1);
+  prog(q => { if (q > 0) wm.set(20, 1.5); }, ta, .01);
+  [['work', WORK, 'joules (J)'], ['force', FORCE, 'newtons (N)'], ['distance', DIST, 'meters (m)']].forEach(([n, c, u], i) => {
+    runs(p, [[n, c], [' in ' + u]], { x: R, y: 600 + i * 50, size: 34 }); show(p.lastChild, tu + i * .5);
+  });
+}, { lead: false }],
+['direction', 'Force and direction', (m, D) => {
+  const p = panel(0), th = m('hold'), tw0 = m('hall'), tz = m('zero'), ts = m('stairs'), tc = m('climb');
+  // Carry a basket along a hall (no work on it), then up the stairs (work: the basket rises the way you push).
+  floorIn(p); txt(p, 'Only force in the direction of motion counts', 800, 110, .3, { size: 44 });
+  const st = stairs(p, { x: 820, n: 6, w: 100, h: 60, land: 180 });
+  const a = phActor(p, 'you', { x: 200, y: Y1, s: 1.8 }), bs = basket(p, { s: .8 }), f = forceArrow(p, { w: 12, size: 30 });
+  const side = distBar(p, { head: true, size: 30 }), upB = distBar(p, { size: 30 });
+  const guide = path(p, 'M740 380H1420', { stroke: COL.faint, 'stroke-width': 3, 'stroke-dasharray': '12 10', o: 0 }); put(guide, { o: 0 }); show(guide, tc);
+  clockRun(t => {
+    const x = t < ts ? lerp(200, 640, sm(t, tw0, tz)) : lerp(640, 1390, ramp(t, ts, 25)), y = st.smooth(x);
+    put(a, { x, y }); a.stride('walk', x - 200);
+    put(bs, { x: x + 45, y: y - 60 });
+    f.set(x + 120, y - 110, t > th ? 90 : 0, -90, '30 N', 'right');
+    side.set(245, 800, Math.min(x, 640) + 45, 800, x > 210 ? 'moves sideways' : '', 'below');
+    upB.set(760, Y1, 760, lerp(Y1, 380, sm(t, tc - .3, tc + .5)), t > tc ? '3 m up' : '', 'left');
+  }, D);
+  const w0 = workMeter(p, { x: 500, y: 200, size: 46, o: 0 }).set(30, 0, 0); show(w0, tz); hide(w0, tc - .5);
+  const w1 = workMeter(p, { x: 500, y: 200, size: 46, o: 0 }).set(30, 3, 90); show(w1, tc);
+}],
+['drag', 'Only the forward part', (m, D) => {
+  const p = panel(0), tb = m('bag'), ts = m('split'), tfl = m('floor'), tf = m('fwd'), ta = m('ans'), tan = Math.tan(37 * Math.PI / 180);
+  // You walk backwards dragging a bag by a rope at 37°: of your 50 N pull, only the 40 N forward part does work.
+  floorIn(p);
+  const a = phActor(p, 'you', { s: 2.6, anim: 'backstep' }).face(-1), rope = path(p, '', { stroke: '#d8cfb8', 'stroke-width': 5 }), bag = trashBag(p);
+  const pullA = forceArrow(p, { w: 10, size: 28 }), mv = distBar(p, { head: true, size: 30 });
+  let k0;
+  clockRun(t => {
+    const d = 550 * ramp(t, tb, 19.4), x = 700 + d;
+    put(a, { x, y: Y1 }); a.stride('backstep', d);
+    const [hx, hy] = a.hand('F'), kx = hx - (700 - hy) / tan; if (k0 === undefined) k0 = kx;
+    rope.setAttribute('d', `M${hx} ${hy}L${kx} 700`); put(bag, { x: kx, y: 700 });
+    pullA.set(kx + 40, 650, t > tb + .5 ? 110 : 0, -36.87, '');
+    mv.set(k0 - 110, 800, kx - 110, 800, d > 10 ? 'slides along the floor' : '', 'below');
+  }, D);
+  const box = G(p, { o: 0 });
+  mk('rect', { x: 80, y: 90, width: 540, height: 410, rx: 24, fill: '#22322d', stroke: COL.dim, 'stroke-width': 3 }, box);
+  forceArrow(box, { w: 12, size: 30 }).set(150, 420, 400, -36.87, '50 N pull', 'above');
+  const fw = G(box, { o: 0 }), upG = G(box, { o: 0 });
+  forceArrow(fw, { w: 12, size: 30 }).set(150, 420, 320, 0, '40 N forward', 'below');
+  forceArrow(upG, { w: 12, size: 30 }).set(470, 420, 240, -90, '30 N up', 'right');
+  path(box, 'M150 420H470V180', { stroke: COL.faint, 'stroke-width': 2, 'stroke-dasharray': '8 8', fill: 'none' });
+  show(box, tb + 1.2); show(fw, ts + 1); show(upG, ts + 1); tw(upG, { o: .25 }, tf, .6);
+  txt(p, 'only this part does work', 350, 560, tf + .8, { size: 30, fill: WORK });
+  const wm = workMeter(p, { x: 1150, y: 150, size: 48, o: 0 }).set(40, 5, 200); show(wm, ta - 3);
+}, { lead: false }],
+['power', 'Power', (m, D) => {
+  const p = panel(0), tsm = m('same'), tfa = m('fast'), tsl = m('slow'), td = m('def'), ty = m('you'), tr = m('fr');
+  // Same 90 J climb: you run up in 3 s, your friend walks up in 9 s.
+  floorIn(p);
+  const s1 = stairs(p, { x: 300, n: 5, w: 80, h: 54, land: 90 }), s2 = stairs(p, { x: 1100, n: 5, w: 80, h: 54, land: 90 });
+  path(p, 'M800 240V880', { stroke: COL.faint, 'stroke-width': 3 });
+  const a = phActor(p, 'you', { s: 1.4 }), b = phActor(p, 'friend', { s: 1.4 }), ba = basket(p, { s: .55 }), bb = basket(p, { s: .55 });
+  const c1 = simClock(p, 110, 300, 50), c2 = simClock(p, 910, 300, 50);
+  clockRun(t => {
+    const ka = ramp(t, tfa, tfa + 3), kb = ramp(t, tsl, tsl + 9), xa = lerp(180, 740, ka), xb = lerp(980, 1500, kb);
+    put(a, { x: xa, y: s1.smooth(xa) }); a.stride(ka > 0 && ka < 1 ? 'run' : 'walk', ka > 0 && ka < 1 ? xa : 0);
+    put(b, { x: xb, y: s2.smooth(xb) }); b.stride('walk', xb - 980);
+    put(ba, { x: xa + 30, y: s1.smooth(xa) - 48 }); put(bb, { x: xb + 30, y: s2.smooth(xb) - 48 });
+    c1.set(3 * ka); c2.set(9 * kb);
+  }, D);
+  runs(p, [['power', POWER], [' = '], ['work', WORK], [' ÷ '], ['time', TIME]], { x: 800, y: 80, size: 50, weight: 700 }); show(p.lastChild, td);
+  runs(p, [['same work: '], ['90 J', WORK]], { x: 800, y: 160, size: 38 }); show(p.lastChild, tsm);
+  const r1 = readout(p, [WORK, null, TIME, null, POWER], { x: 400, y: 860, size: 40, o: 0 }).set('90 J', ' ÷ ', '3 s', ' = ', '30 W'); show(r1, ty);
+  const r2 = readout(p, [WORK, null, TIME, null, POWER], { x: 1200, y: 860, size: 40, o: 0 }).set('90 J', ' ÷ ', '9 s', ' = ', '10 W'); show(r2, tr);
+}, { lead: false }],
+['q1', 'Quick check', (m, D) => {
+  const p = panel(0);
+  // Up the steps with a basket, again and again.
+  ground(p); const st = stairs(p, { x: 700, y: GY, n: 4, w: 70, h: 45, land: 120 });
+  const a = phActor(p, 'you', { s: 1.2 }), bs = basket(p, { s: .5 });
+  clockRun(t => { const x = 500 + (t * 90) % 520, y = st.smooth(x); put(a, { x, y }); a.stride('walk', x); put(bs, { x: x + 26, y: y - 40 }); }, D);
+}, { ask: done => quiz(Q_CARD, [
+  { id: 'c-shelf', prompt: ['You lift a 15 newton bag 2 meters onto a shelf. How much work do you do?'],
+    build: blanks([{ parts: ['work = 15 N × 2 m = ', { box: '30' }, ' J'], why: 'Work = force × distance: 15 × 2 = 30 joules.', hint: 'Multiply the force by the distance it moves.' }]) },
+  { id: 'c-hall', prompt: ['You carry a basket along a level hall. How much work does your upward push do on it?'],
+    build: choice([['a lot: the basket is heavy'], ['none: the basket moves sideways, not up'], ['it depends on how fast you walk']], 1,
+      'Your push is up but the basket moves sideways, so that push does no work on it.',
+      ['Heavy or not, it doesn’t move the way you push.', null, 'Speed changes power, not this: the push and the motion point different ways.']) },
+  { id: 'c-power', prompt: ['A machine does 60 joules of work in 3 seconds. What is its power?'],
+    build: blanks([{ parts: ['power = 60 J ÷ 3 s = ', { box: '20' }, ' W'], why: 'Power = work ÷ time: 60 ÷ 3 = 20 watts.', hint: 'Divide the work by the time.' }]) },
+], done) }],
+['wrap1', 'Summary · Work and power', (m, D) => {
+  summary(panel(0), m, [
+    [['Work: a force moves something in', 'the direction of the force.'], g => { crate(g, { x: 260, y: 50, w: 110, h: 90 }); forceArrow(g, { w: 8 }).set(340, 40, 90, -90, ''); }],
+    [['Work = force × distance,', 'measured in joules.'], g => { runs(g, [['N', FORCE], [' × '], ['m', DIST], [' = '], ['J', WORK]], { x: 260, y: 30, size: 52, weight: 700, o: 1 }); }],
+    [['Power = work ÷ time,', 'measured in watts.'], g => { phStopwatch(g, { x: 200, y: 10, r: 46 }); phLabel(g, 'W', { x: 320, y: 30, size: 60, fill: POWER }); }],
+  ], 'Next: the machines that make work easier.');
+}],
+/* ---------- part 2: simple machines (inclined plane, wedge, screw) ---------- */
+['part2', 'Part 2 · Simple machines', (m, D) => {
+  const p = panel(0);
+  // A ramp up to the truck bed: you push a crate up it.
+  road(p); put(truck(p, 900), { o: 0 });
+  const R = slope(p, 431, 469, 166), f = pusher(p, R, { s: 2 });
+  clockRun(t => f(lerp(160, 260, t / D)), D);
+  opener(p, 330, 250, 'Part 2', 'Simple', 'Machines');
+}, { lead: false }],
+['machine', 'What a machine does', (m, D) => {
+  const p = panel(0), tr = m('ramp'), tt = m('trade'), tl = m('less'), tm = m('more'), ts = m('same');
+  // A ramp is a simple machine: push the crate up a long slope instead of lifting it. The work rectangle keeps its
+  // area while the force shrinks and the distance grows.
+  road(p); put(truck(p, 1050), { o: 0 });
+  const R = slope(p, 581, 469, 166), f = pusher(p, R, { s: 2 });
+  const wa = workArea(p, { x: 150, y: 480, fu: .5, du: 110 }); put(wa, { o: 0 }); show(wa, tt);
+  clockRun(t => {
+    f(lerp(70, 437, ramp(t, 3.4, 16)));
+    const d = 1 + Math.round(4 * sm(t, tl, tm + 1)) / 2; wa.set(600 / d, d, '600 J');
+  }, D);
+  txt(p, 'A machine makes work easier', 800, 110, .3, { size: 50, weight: 700 });
+  txt(p, 'simple machine', 815, 800, tr, { size: 34, fill: COL.int });
+  runs(p, [['same work: '], ['600 J', WORK]], { x: 360, y: 620, size: 40 }); show(p.lastChild, ts);
+}],
+['incline', 'The inclined plane', (m, D) => {
+  const p = panel(0), tl = m('lift'), tr = m('ramp'), tp = m('push'), ts = m('same'), tle = m('less');
+  // Lift a 600 N crate 1 m straight up onto the truck (600 J), then push it up a 3 m ramp with 200 N (600 J).
+  road(p); const pl = truck(p, 1050);
+  const one = G(p), a = phActor(one, 'you', { x: 812, y: Y1, s: 2.6, anim: 'crouch' }), c = crate(one, { w: 150, h: 130, label: '600 N' });
+  const up = forceArrow(one, { w: 12, size: 30 }), h1 = distBar(one, { size: 30 });
+  const two = G(p, { o: 0 }), R = slope(two, 581, 469, 166), f = pusher(two, R, { s: 2, label: '600 N' });
+  const fa = forceArrow(two, { w: 12, size: 30 }), d3 = distBar(two, { size: 30 });
+  const [nx, ny] = [Math.sin(-R.ang * Math.PI / 180) * 40, Math.cos(R.ang * Math.PI / 180) * 40];
+  d3.set(581 + nx, Y1 + ny, 1050 + nx, BED + ny, '3 m', 'below');
+  clockRun(t => {
+    const k = sm(t, tl + .3, tl + 2.5);
+    a.show(t < tl + .5 ? 'crouch' : k < 1 ? 'strain' : 'catch', (t - tl) * 3);
+    put(c, { x: lerp(901, 988, k), y: lerp(Y1, BED + 1, k) });
+    up.set(1100, lerp(Y1, BED, k) - 20, t > tl ? 120 : 0, -90, '600 N', 'right');
+    h1.set(640, Y1, 640, BED, t > tl + 1 ? '1 m' : '', 'left');
+    const u = lerp(70, 437, ramp(t, tp, 21)); f(u);
+    const [x, y, an] = R.at(u - 10); fa.set(x, y - 150, 110, an, t > tp ? '200 N' : '', 'above');
+  }, D);
+  hide(one, tr, .4); hide(pl, tr, .4); show(two, tr + .4);
+  const w1 = workMeter(p, { x: 400, y: 120, size: 46, o: 0 }).set(600, 1); show(w1, tl + 3);
+  const w2 = workMeter(p, { x: 400, y: 190, size: 46, o: 0 }).set(200, 3); show(w2, ts);
+  txt(p, 'same work, less force', 400, 260, tle, { size: 38, fill: WORK });
+}, { lead: false }],
+['longer', 'A longer ramp', (m, D) => {
+  const p = panel(0), tl = m('long'), tp = m('pyr');
+  // The 3 m ramp needs 200 N; a 6 m ramp to the same truck needs only 100 N. Then: the pyramid builders' long ramp.
+  road(p); put(truck(p, 1050), { o: 0 });
+  const g1 = G(p), R1 = slope(g1, 581, 469, 166), f1 = pusher(g1, R1, { s: 2 }), a1 = forceArrow(g1, { w: 12, size: 30 });
+  f1(250); { const [x, y, an] = R1.at(325); a1.set(x, y - 60, 110, an, '200 N', 'above'); }
+  const g2 = G(p, { o: 0 }), R2 = slope(g2, 68, 982, 166), f2 = pusher(g2, R2, { s: 2 }), a2 = forceArrow(g2, { w: 8, size: 30 });
+  clockRun(t => { const u = lerp(80, 760, ramp(t, tl, tp + .5)); f2(u); const [x, y, an] = R2.at(u + 75); a2.set(x, y - 60, 55, an, '100 N', 'above'); }, D);
+  hide(g1, tl, .6); show(g2, tl);
+  runs(p, [['3 m ramp: '], ['200 N', FORCE]], { x: 330, y: 140, size: 40 }); show(p.lastChild, .3);
+  runs(p, [['6 m ramp: '], ['100 N', FORCE]], { x: 330, y: 200, size: 40 }); show(p.lastChild, tl + .8);
+  // Egypt: a long earth ramp up the side of a growing pyramid; three workers drag a stone block.
+  const eg = G(p, { o: 0 });
+  mk('rect', { width: 1600, height: 900, fill: '#3d6378' }, eg); phSun(eg, { x: 1420, y: 140 });
+  phBlock(eg, 0, Y1, 1600, 160, '#c9a46a', { top: 8, ol: 0 });
+  pyramid(eg, 1150, Y1, 9, 50, 700);
+  const R3 = slope(eg, 60, 962, 300, { solid: true, color: '#b89058' });
+  const stone = G(eg); phBlock(stone, -60, -80, 120, 80, '#d8c9a0', { top: 6 });
+  const rope = path(eg, '', { stroke: '#d8cfb8', 'stroke-width': 4, fill: 'none' });
+  const crew = ['you', 'friend', 'you'].map(r => phActor(eg, r, { s: 1.3, anim: 'pull' }));
+  clockRun(t => {
+    const k = 150 * ramp(t, tp, D);
+    onSlope(stone, R3.at(380 + k));
+    const hs = crew.map((w, i) => { const [x, y] = R3.at(520 + i * 100 + k); put(w, { x, y }); w.stride('pull', k); return w.hand('F'); });
+    const [sx, sy, an] = R3.at(440 + k), r = an * Math.PI / 180;
+    rope.setAttribute('d', `M${sx + 40 * Math.sin(r)} ${sy - 40 * Math.cos(r)}` + hs.map(([x, y]) => `L${x} ${y}`).join(''));
+  }, D);
+  phLabel(eg, 'a long, gentle ramp', { x: 300, y: 470, size: 36, fill: COL.int });
+  show(eg, tp);
+}],
+['wedge', 'The wedge', (m, D) => {
+  const p = panel(0), ta = m('axe'), ts = m('split'), tf = m('far'), tli = m('list');
+  // An axe blade drives down into a log on a stump: it moves in far, the halves move apart a little but hard.
+  ground(p, Y1);
+  phBlock(p, 430, 640, 260, 100, dk(WOOD, .2), { top: 10 });
+  const lh = G(p), rh = G(p);
+  phBlock(lh, 470, 380, 90, 260, WOOD, { top: 10 }); phBlock(rh, 560, 380, 90, 260, WOOD, { top: 10, right: 10 });
+  const axe = axePic(p), you = forceArrow(p, { w: 8, size: 28 });
+  const pa = forceArrow(p, { w: 12, size: 30 }), pb = forceArrow(p, { w: 12, size: 30 });
+  const din = distBar(p, { size: 28 }), dap = distBar(p, { size: 28 });
+  clockRun(t => {
+    const tip = t < ta - .8 ? 250 : t < ta ? lerp(250, 130, io(ramp(t, ta - .8, ta))) : t < ta + .5 ? lerp(130, 380, ramp(t, ta, ta + .5) ** 2) : lerp(380, 470, sm(t, ts, tf)), gap = 24 * ramp(tip, 380, 470);
+    put(axe, { x: 560, y: tip }); put(lh, { x: -gap, r: 0 }); put(rh, { x: gap });
+    you.set(620, tip - 230, t > ta + .4 ? 70 : 0, 90, 'your push', 'right');
+    pa.set(470 - gap - 10, 520, gap > 2 ? 110 : 0, 180, ''); pb.set(650 + gap + 10, 520, gap > 2 ? 110 : 0, 0, 'pushes apart', 'tip');
+    din.set(400, 380, 400, tip > 390 ? tip : 380, tip > 390 ? 'blade: far' : '', 'left');
+    dap.set(560 - gap, 600, 560 + gap, 600, '');
+  }, D);
+  txt(p, 'apart: a little', 700, 680, tf, { size: 28, fill: DIST, anchor: 'start' });
+  txt(p, 'wedge = a moving inclined plane', 1150, 200, ts + 1, { size: 40, fill: COL.int });
+  [[knifePic, 1050, 'knife'], [doorstopPic, 1260, 'doorstop'], [plowPic, 1460, 'plow']].forEach(([pic, x, s], i) => {
+    const g = G(p, { o: 0 }); pic(g, { x, y: 720 }); phLabel(g, s, { x, y: 790, size: 30 }); show(g, tli + i * .4);
+  });
+}, { lead: false }],
+['screw', 'The screw', (m, D) => {
+  const p = panel(0), tw0 = m('wrap'), tt = m('turn'), ti = m('in'), tn = m('nail');
+  // A paper ramp wrapped around a pencil makes a spiral; a screw turns far around to move in a little; a nail needs
+  // one big hammer blow.
+  floorIn(p);
+  const tri = G(p); path(tri, 'M80 600H330V470Z', { fill: PAPER, ...phLine() }); path(tri, 'M80 600L330 470', { stroke: DIST, 'stroke-width': 6 });
+  const pen = G(p, { o: 0 });
+  phBlock(pen, 404, 420, 32, 260, '#e8c048', { top: 0 }); path(pen, 'M404 680L420 730L436 680Z', { fill: PAPER, ...phLine(2) });
+  let sp = ''; for (let y = 450; y < 670; y += 36) sp += `M404 ${y + 18}L436 ${y}`;
+  path(pen, sp, { stroke: DIST, 'stroke-width': 6 });
+  hide(tri, tw0 + .8); show(pen, tw0 + .8);
+  const sc = screwPic(p, {}, 300); phBlock(p, 600, 560, 360, 180, WOOD, { top: 10, right: 12 });
+  const loop = path(p, 'M870 0A70 22 0 1 1 860 -14', { stroke: DIST, 'stroke-width': 6, fill: 'none' }); put(loop, { o: 0 });
+  const sf = forceArrow(p, { w: 6, size: 26 }), dIn = distBar(p, { size: 28 });
+  const nail = G(p); phBlock(nail, 1374, 420, 12, 200, '#b9c3c6', { top: 0 }); phBlock(nail, 1356, 410, 48, 12, '#9aa5a8', { top: 0 });
+  phBlock(p, 1180, 560, 380, 180, WOOD, { top: 10, right: 12 });
+  const ham = G(p); phBlock(ham, 1410, 270, 18, 180, WOOD, { top: 0 }); phBlock(ham, 1370, 240, 110, 46, '#4a5458', { top: 6 });
+  const big = forceArrow(p, { w: 18, size: 32 });
+  clockRun(t => {
+    const hy = lerp(330, 390, sm(t, tt, ti + 1)); put(sc, { x: 800, y: hy }); put(loop, { x: 0, y: hy + 6, o: t > tt ? 1 : 0 });
+    sf.set(870, hy - 30, t > tn ? 50 : 0, 0, 'small force', 'above');
+    dIn.set(990, 560, 990, 560 + hy - 330, hy > 335 ? 'in: a little' : '', 'right');
+    const hit = sm(t, tn, tn + .4); put(ham, { r: 0, y: -20 * (1 - hit) }); put(nail, { y: 70 * hit });
+    big.set(1300, 260, t > tn ? 150 : 0, 90, 'big force', 'left');
+  }, D);
+  txt(p, 'turns: far', 800, 270, tt + .5, { size: 30, fill: DIST });
+  txt(p, 'screw', 780, 820, .3, { size: 34 }); txt(p, 'nail', 1380, 820, .3, { size: 34 });
+}],
+['q2', 'Quick check', (m, D) => {
+  const p = panel(0);
+  ground(p);
+  const r = miniRamp(p, { x: 400, y: GY, s: 1.3 });
+  phBlock(p, 740, 500, 120, 60, WOOD, { top: 6 });
+  const ax = axePic(p, { x: 800, y: 500 }); phBlock(p, 1120, 470, 160, 90, WOOD, { top: 6 });
+  const sc = screwPic(p, { x: 1200, y: 290 }, 220);
+  clockRun(t => { put(ax, { y: 500 - 30 * Math.abs(Math.sin(t * 1.6)) }); }, D);
+}, { ask: done => quiz(Q_CARD, [
+  { id: 'c-ramp', prompt: ['Two ramps reach the same truck bed. Which one needs ', h('b', '', 'less force'), ' to push a crate up?'],
+    build: choice([['the shorter ramp'], ['they need the same force'], ['the longer ramp']], 2,
+      'The longer ramp spreads the same work over more distance, so it needs less force.',
+      ['The shorter ramp is steeper: it needs more force.', 'The work is the same; the force is not.', null]) },
+  { id: 'c-axe', prompt: ['An axe blade is which simple machine?'],
+    build: choice([['a wedge'], ['a screw'], ['a lever']], 0, 'The blade is a wedge: a moving inclined plane.',
+      [null, 'A screw is an inclined plane wrapped around a post.', 'A lever turns on a fulcrum.']) },
+  { id: 'c-screw', prompt: ['A screw is…'],
+    build: choice([['a wheel with a rope around it'], ['an inclined plane wrapped around a post'], ['a bar that turns on a fixed point']], 1,
+      'Unwrap a screw’s thread and you get a ramp.', ['That is a pulley.', null, 'That is a lever.']) },
+], done) }],
+['wrap2', 'Summary · Simple machines', (m, D) => {
+  summary(panel(0), m, [
+    [['Simple machines trade less force for more', 'distance. The work stays the same.'], g => miniRamp(g, { x: 260, y: 40 })],
+    [['A longer ramp needs less force.'], g => { path(g, 'M120 40L400 -40V40Z', { fill: WOOD, ...phLine() }); }],
+    [['A wedge is a moving ramp; a screw is a', 'ramp wrapped around a post.'], g => { axePic(g, { x: 200, y: 60, s: .35 }); screwPic(g, { x: 320, y: -50, s: .5 }, 200); }],
+  ], 'Next: levers, wheels, and pulleys.');
+}],
+/* ---------- part 3: levers, wheel and axle, pulleys ---------- */
+['part3', 'Part 3 · Levers, wheels, and pulleys', (m, D) => {
+  const p = panel(0);
+  // A seesaw rocks: you on one end, your friend on the other.
+  ground(p, Y1);
+  const L = lever(p, { x: 420, y: Y1, h: 90, len: 640 });
+  const a = phActor(p, 'you', { s: 1.5, anim: 'crouch' }), b = phActor(p, 'friend', { s: 1.5, anim: 'crouch' }).face(-1);
+  clockRun(t => { L.set(12 * Math.sin(t * 1.4)); const [ax, ay] = L.at(-260), [bx, by] = L.at(260); put(a, { x: ax, y: ay }); put(b, { x: bx, y: by }); }, D);
+  opener(p, 1150, 300, 'Part 3', 'Levers, Wheels,', 'and Pulleys');
+}, { lead: false }],
+['lever', 'The lever', (m, D) => {
+  const p = panel(0), tfu = m('ful'), te = m('eff'), tlo = m('load'), ttw = m('twice'), tc = m('closer'), td = m('down'), twy = m('why');
+  // A plank on a fulcrum: your 200 N push lifts your friend's 400 N once your friend sits half as far from the
+  // fulcrum. Your end moves twice as far.
+  ground(p, Y1);
+  const L = lever(p, { x: 800, y: Y1, h: 110, len: 1100 });
+  const a = phActor(p, 'you', { s: 1.7, anim: 'crouch' }), b = phActor(p, 'friend', { s: 2.1, anim: 'crouch' }).face(-1);
+  const ef = forceArrow(p, { w: 12, size: 30 }), lo = forceArrow(p, { w: 16, size: 30 });
+  clockRun(t => {
+    const ang = lerp(11.5, -11.5, sm(t, td, td + 1.5)); L.set(ang);
+    const ub = lerp(480, 250, ramp(t, tc, tc + 2)), walking = t > tc && t < tc + 2;
+    const [ax, ay] = L.at(-480), [bx, by] = L.at(ub);
+    put(a, { x: ax, y: ay }); put(b, { x: bx, y: by }); b.show(walking ? 'walk' : 'crouch', (480 - ub) / STEP.walk);
+    const [ex, ey] = L.at(-545), [lx, ly] = L.at(ub);
+    ef.set(ex, ey - 150, t > te ? 120 : 0, 90, 'effort 200 N', 'left');
+    lo.set(lx + 80, ly - 140, t > tlo ? 100 : 0, 90, 'load 400 N', 'right');
+  }, D);
+  txt(p, 'fulcrum', 800, 800, tfu, { size: 34, fill: COL.int });
+  const tt = txt(p, 'Lever', 800, 120, .3, { size: 60, weight: 700 }); hide(tt, ttw);
+  const t2 = runs(p, [['load', FORCE], [' is twice the '], ['effort', FORCE]], { x: 800, y: 140, size: 44 }); show(t2, ttw + .3); hide(t2, twy);
+  const arcs = G(p, { o: 0 }), arc = (r, s) => {
+    const c = Math.cos(11.5 * Math.PI / 180), sn = Math.sin(11.5 * Math.PI / 180), cy = Y1 - 110 - 22, x = 800 + s * r * c;
+    path(arcs, `M${x} ${cy - r * sn}A${r} ${r} 0 0 ${s > 0 ? 1 : 0} ${x} ${cy + r * sn}`, { stroke: DIST, 'stroke-width': 6, fill: 'none', 'stroke-dasharray': '14 10' });
+  };
+  arc(545, -1); arc(250, 1); show(arcs, twy);
+  runs(p, [['twice the distance', DIST], [' × '], ['half the force', FORCE], [' = '], ['same work', WORK]], { x: 800, y: 120, size: 40 }); show(p.lastChild, twy + .3);
+}],
+['classes', 'Three classes of levers', (m, D) => {
+  const p = panel(0), tc = [m('c1'), m('c2'), m('c3')];
+  // Where the fulcrum, effort and load sit sorts levers: a seesaw, a wheelbarrow, your arm.
+  runs(p, [['fulcrum', COL.dim], ['     effort', FORCE], ['     load', COL.int]], { x: 800, y: 110, size: 40 }); show(p.lastChild, .3);
+  phBlock(p, 0, 600, 1600, 14, '#6b5a48', { top: 4, ol: 0 });
+  const cols = [
+    [270, 'First class', 'fulcrum in the middle', g => { const s = miniSeesaw(g, { x: 270, y: 600, s: 1.4 }); }, [0, -150, 150, 1]],
+    [800, 'Second class', 'load in the middle', g => { wheelbarrow(g, { x: 640, y: 600 }); phActor(g, 'you', { x: 952, y: 600, s: 1.4 }).face(-1); }, [-170, 0, 170, -1]],
+    [1330, 'Third class', 'effort in the middle', g => { armPic(g, { x: 1180, y: 470 }); }, [-170, 170, 0, -1]],
+  ];
+  cols.forEach(([x, name, what, pic, [fx, lx, ex, dir]], i) => {
+    const g = G(p, { o: 0 }); pic(g);
+    phBlock(g, x - 190, 680, 380, 10, WOOD, { top: 0 });
+    path(g, `M${x + fx} 690L${x + fx - 22} 726H${x + fx + 22}Z`, { fill: COL.dim });
+    mk('rect', { x: x + lx - 22, y: 636, width: 44, height: 44, fill: COL.int }, g);
+    forceArrow(g, { w: 10 }).set(x + ex, dir > 0 ? 610 : 770, 64, dir > 0 ? 90 : -90, '');
+    phLabel(g, name, { x, y: 820, size: 36 }); phLabel(g, what, { x, y: 864, size: 28, fill: COL.dim });
+    show(g, tc[i]);
+  });
+}],
+['wheel', 'The wheel and axle', (m, D) => {
+  const p = panel(0), tfa = m('faucet'), tfo = m('force'), tb = m('bike'), tp = m('pedal'), tfar = m('far');
+  // A faucet handle: a small push on the big wheel turns the stem hard. A bike: a big push on the pedals turns the
+  // wheel far.
+  txt(p, 'Wheel and axle', 800, 100, .3, { size: 54, weight: 700 });
+  const fc = faucetPic(p, { x: 420, y: 450 }, 180);
+  const sm1 = forceArrow(p, { w: 6, size: 28 }), bg = forceArrow(p, { w: 16, size: 28 });
+  const arcs = G(p, { o: 0 });
+  path(arcs, 'M420 240A210 210 0 0 1 630 450', { stroke: DIST, 'stroke-width': 6, fill: 'none' });
+  path(arcs, 'M420 405A45 45 0 0 1 465 450', { stroke: DIST, 'stroke-width': 6, fill: 'none' });
+  phLabel(arcs, 'far', { x: 600, y: 280, size: 30, fill: DIST });
+  show(arcs, tfo + 2);
+  road(p, Y1, 820, 780);
+  const bk = phBike(p, 'you', { x: 1000, y: Y1, s: 2 }), push = forceArrow(p, { w: 14, size: 30 }), far = distBar(p, { head: true, size: 30 });
+  put(bk, { o: 0 }); show(bk, tb);
+  clockRun(t => {
+    put(fc.wheel, { r: 40 * Math.max(0, t - tfa) });
+    sm1.set(420, 250, t > tfo ? 110 : 0, 0, 'small force', 'above');
+    bg.set(440, 420, t > tfo + 1 ? 90 : 0, 0, 'big force', 'tip', 110);
+    const x = lerp(1000, 1350, ramp(t, tp, D)); put(bk, { x }); bk.ride(x - 1000);
+    push.set(x + 16, Y1 - 190, t > tp ? 70 : 0, 90, 'big push', 'left', -95);
+    far.set(1000, 800, x, 800, t > tfar ? 'wheel goes far' : '', 'below');
+  }, D);
+}],
+['pulley', 'Pulleys', (m, D) => {
+  const p = panel(0), to = m('one'), tdr = m('dir'), ttw = m('two'), th = m('half'), tr = m('rope');
+  // One fixed pulley: pull down, the bucket goes up. Two pulleys: half the force, twice the rope.
+  floorIn(p); phBlock(p, 150, 100, 1300, 30, dk(WOOD, .2), { top: 6 });
+  pulleyWheel(p, 400, 190);
+  const r1 = path(p, '', { stroke: '#d8cfb8', 'stroke-width': 5, fill: 'none' }), b1 = bucket(p), tape1 = mk('rect', { x: 440, width: 20, height: 12, fill: DIST }, p);
+  const you = phActor(p, 'you', { x: 499, y: Y1, s: 2.2, anim: 'strain' }).face(-1);
+  const pl1 = forceArrow(p, { w: 12, size: 30 }), up1 = forceArrow(p, { w: 12, size: 30 });
+  const two = G(p, { o: 0 });
+  mk('rect', { x: 1040, y: 130, width: 20, height: 14, fill: PH.metal }, two);
+  pulleyWheel(two, 1200, 190);
+  const r2 = path(two, '', { stroke: '#d8cfb8', 'stroke-width': 5, fill: 'none' }), mov = G(two), hook = path(two, '', { stroke: '#4a5458', 'stroke-width': 6 });
+  pulleyWheel(mov, 0, 0, 50, false); const b2 = bucket(two), tape2 = mk('rect', { x: 1240, width: 20, height: 12, fill: DIST }, two);
+  const fr = phActor(two, 'friend', { x: 1299, y: Y1, s: 2.2, anim: 'strain' }).face(-1);
+  const pl2 = forceArrow(two, { w: 8, size: 30 }), up2 = forceArrow(two, { w: 12, size: 30 });
+  show(two, ttw);
+  clockRun(t => {
+    const k1 = 200 * sm(t, to + 1, tdr + 2), by = Y1 - k1;
+    put(b1, { x: 350, y: by }); r1.setAttribute('d', `M350 ${by - 135}V190A50 50 0 0 1 450 190V609`); tape1.setAttribute('y', 300 + k1);
+    you.show('strain', t * 2);
+    pl1.set(470, 300, t > tdr ? 100 : 0, 90, 'pull down', 'right');
+    up1.set(250, by - 20, t > tdr ? 100 : 0, -90, 'goes up', 'left');
+    const k2 = 120 * sm(t, th, tr + 2), my = 470 - k2;
+    put(mov, { x: 1100, y: my }); hook.setAttribute('d', `M1100 ${my}V${my + 70}`);
+    put(b2, { x: 1100, y: my + 70 + 135 });
+    r2.setAttribute('d', `M1050 130V${my}A50 50 0 0 0 1150 ${my}V190A50 50 0 0 1 1250 190V609`); tape2.setAttribute('y', 300 + 2 * k2);
+    pl2.set(1272, 300, t > th ? 50 : 0, 90, 'half the force', 'right');
+    up2.set(990, my + 150, t > th ? 100 : 0, -90, 'goes up', 'left');
+  }, D);
+  txt(p, 'one fixed pulley: changes direction', 400, 870, tdr, { size: 32 });
+  txt(p, 'two pulleys: half the force', 1150, 870, th, { size: 32 });
+  txt(p, 'twice the rope', 1380, 420, tr, { size: 30, fill: DIST, anchor: 'start' });
+}, { lead: false }],
+['q3', 'Quick check', (m, D) => {
+  const p = panel(0);
+  ground(p);
+  const L = miniSeesaw(p, { x: 300, y: GY, s: 1.2 }); wheelbarrow(p, { x: 700, y: GY, s: .9 }); armPic(p, { x: 1120, y: 420, s: .7 });
+  clockRun(t => {}, D);
+}, { ask: done => quiz(Q_CARD, [
+  { id: 'c-class', prompt: ['Which class of lever is each one?'],
+    build: grid([
+      { parts: ['a seesaw'], ans: ['1'], why: 'The fulcrum is in the middle: first class.' },
+      { parts: ['a wheelbarrow'], ans: ['2'], why: 'The load sits between the wheel (the fulcrum) and your hands: second class.' },
+      { parts: ['your arm lifting a weight'], ans: ['3'], why: 'Your muscle pulls between the elbow (the fulcrum) and the weight: third class.' },
+    ], [['1', '1st class', null, '1'], ['2', '2nd class', null, '2'], ['3', '3rd class', null, '3']], { multi: false, text: true }) },
+  { id: 'c-flag', prompt: ['You pull a rope down to raise a flag up a flagpole. What does the pulley at the top do?'],
+    build: choice([['it halves your force'], ['it makes the flag lighter'], ['it changes the direction of your force']], 2,
+      'One fixed pulley turns your downward pull into an upward pull on the flag.',
+      ['A single fixed pulley doesn’t change the size of the force.', 'The flag weighs the same; only the direction changes.', null]) },
+  { id: 'c-faucet', prompt: ['You turn a faucet’s big handle. The small stem inside turns with…'],
+    build: choice([['a bigger force than your hand'], ['a smaller force than your hand'], ['the same force']], 0,
+      'Your hand moves far around the big wheel; the small axle moves a little, with a bigger force.',
+      [null, 'It’s the other way round: the axle gets the bigger force.', 'The force changes; the work stays about the same.']) },
+], done) }],
+['wrap3', 'Summary · Levers, wheels, and pulleys', (m, D) => {
+  summary(panel(0), m, [
+    [['A lever turns on a fulcrum; the load or effort', 'closer to it moves less.'], g => miniSeesaw(g, { x: 260, y: 50 })],
+    [['A wheel and axle can multiply force,', 'or multiply distance.'], g => faucetPic(g, { x: 260, y: -20, s: .25 })],
+    [['A pulley changes the direction of a force,', 'and two pulleys can halve it.'], g => {
+      pulleyWheel(g, 260, -40, 36); path(g, 'M224 -40V50M296 -40V60', { stroke: '#d8cfb8', 'stroke-width': 4 }); bucket(g, { x: 224, y: 80, s: .3 }); }],
+  ], 'Next: where all that work goes.');
+}],
+/* ---------- part 4: work, energy, machines together ---------- */
+['part4', 'Part 4 · Work and energy', (m, D) => {
+  const p = panel(0);
+  floorIn(p);
+  const a = phActor(p, 'you', { x: 200, y: Y1, s: 2.6, anim: 'push' }), cart = phSprite(p, 'cart', { x: 495, y: Y1, s: 3 });
+  clockRun(t => { const k = 40 * sm(t, .3, D); put(a, { x: 200 + k }); put(cart, { x: 495 + k }); a.stride('push', k); }, D);
+  opener(p, 1150, 300, 'Part 4', 'Work and', 'Energy');
+}, { lead: false }],
+['energy', 'Energy and efficiency', (m, D) => {
+  const p = panel(0), tp = m('push'), th = m('heat'), te = m('eff'), tr = m('ramp'), tc = m('pct');
+  // You push a cart: your work becomes motion, and some becomes heat at the wheels. Then a sticky ramp: 750 J in,
+  // 600 J lifts the crate, 150 J heat — 80 % efficient.
+  const one = G(p); floorIn(one);
+  const a = phActor(one, 'you', { x: 160, y: Y1, s: 2.6, anim: 'push' }), cart = phSprite(one, 'cart', { x: 455, y: Y1, s: 3 });
+  const sq = [squiggle(one, 0, Y1 - 10, 2), squiggle(one, 0, Y1 - 10, 2)];
+  const two = G(p, { o: 0 }); road(two); truck(two, 1050);
+  const R = slope(two, 581, 469, 166, { rough: true }), f = pusher(two, R, { s: 2 }), sq2 = squiggle(two, 0, 0, 3);
+  const eb = energyBar(p, { x: 100, y: 250, w: 600 });
+  show(sq[0], th); show(sq[1], th); hide(one, tr - .1, .4); show(two, tr); show(sq2, tr + 1.2);
+  clockRun(t => {
+    const k = 700 * sm(t, tp, 16), x = 160 + k;
+    put(a, { x }); put(cart, { x: x + 295 }); a.stride('push', k);
+    put(sq[0], { x: x + 210, y: Y1 - 14 - 8 * Math.sin(t * 6) }); put(sq[1], { x: x + 380, y: Y1 - 14 - 8 * Math.sin(t * 6 + 2) });
+    const u = lerp(70, 437, ramp(t, tr + .5, D - .5)); f(u);
+    const [cx, cy] = R.at(u - 60); put(sq2, { x: cx, y: cy - 6 - 6 * Math.sin(t * 6) });
+    if (t < th) eb.set(1, 'your work', 'motion');
+    else if (t < tr) eb.set(.8, 'your work', 'motion', 'heat');
+    else eb.set(.8, 'you do 750 J', '600 J lifts the crate', '150 J heat');
+  }, D);
+  put(eb, { o: 0 }); show(eb, tp + .4);
+  runs(p, [['efficiency', WORK], [' = useful work ÷ work you do']], { x: 800, y: 110, size: 42 }); show(p.lastChild, te);
+  runs(p, [['600 J', WORK], [' ÷ '], ['750 J'], [' = '], ['80% efficient', WORK]], { x: 1150, y: 200, size: 40 }); show(p.lastChild, tc);
+}, { lead: false }],
+['compound', 'Compound machines', (m, D) => {
+  const p = panel(0), tc = m('comp'), tn = m('can'), tl = m('lev'), tw_ = m('wh'), td = m('wed');
+  // Simple machines working together: a can opener's handles are levers, its key a wheel and axle, its cutter a wedge.
+  const t1 = txt(p, 'simple machine: one motion', 800, 110, .2, { size: 42, weight: 700 }); hide(t1, tc - .2, .3);
+  txt(p, 'compound machine: simple machines working together', 800, 110, tc, { size: 42, weight: 700 });
+  const icons = G(p);
+  const i1 = miniRamp(icons, { x: 300, y: 560 }), i2 = miniSeesaw(icons, { x: 800, y: 560 }), i3 = axePic(icons, { x: 1300, y: 470 });
+  tw(i1, { x: 620 }, tc, 1.2); tw(i3, { x: 980 }, tc, 1.2); hide(icons, tn - .2, .4);
+  const can = canOpener(p, { x: 150, y: 0, o: 0 }); show(can, tn);
+  clockRun(t => { const r = Math.max(0, t - tw_) * 60; put(can.key, { r }); put(can.cw, { r }); }, D);
+  const call = (s, x, y, x1, y1, t0) => { const g = G(p, { o: 0 }); path(g, `M${x} ${y + 12}L${x1} ${y1}`, { stroke: COL.int, 'stroke-width': 4 }); phLabel(g, s, { x, y, size: 36, fill: COL.int }); show(g, t0); };
+  call('levers', 1330, 300, 1150, 400, tl);
+  call('wheel and axle', 750, 220, 750, 330, tw_);
+  call('wedge', 330, 400, 640, 480, td);
+}],
+['q4', 'Quick check', (m, D) => {
+  const p = panel(0);
+  ground(p);
+  const A = slope(p, 150, 500, 170, {}, GY), B = slope(p, 900, 500, 170, { rough: true }, GY);
+  crate(p, { x: 0, y: 0, w: 80, h: 70 }); onSlope(p.lastChild, A.at(300));
+  crate(p, { x: 0, y: 0, w: 80, h: 70 }); onSlope(p.lastChild, B.at(300));
+  const s1 = squiggle(p, ...A.at(200).slice(0, 2), 1), s2 = squiggle(p, ...B.at(200).slice(0, 2), 3); put(s1, { o: 1 }); put(s2, { o: 1 });
+  phLabel(p, 'A', { x: 300, y: 300, size: 48 }); phLabel(p, 'B', { x: 1050, y: 300, size: 48 });
+  clockRun(t => {}, D);
+}, { ask: done => quiz(Q_CARD, [
+  { id: 'c-eff', prompt: ['You do 500 J of work on each ramp. Ramp A loses 100 J as heat; ramp B loses 200 J. Which is more efficient?'],
+    build: choice([['ramp B'], ['they are the same'], ['ramp A']], 2,
+      'A turns 400 J of your 500 J into useful work; B only 300 J. Less heat, more efficient.',
+      ['B loses more to heat, so less of your work is useful.', 'The heat lost is different, so the efficiency is too.', null]) },
+  { id: 'c-can', prompt: ['A can opener uses levers, a wheel and axle, and a wedge. It is…'],
+    build: choice([['a simple machine'], ['a compound machine'], ['not a machine']], 1,
+      'Several simple machines working together: a compound machine.',
+      ['A simple machine works with one motion; this combines three.', null, 'It makes work easier, so it is a machine.']) },
+  { id: 'c-pct', prompt: ['A pulley gets 300 J of useful work out of 400 J you put in. How efficient is it?'],
+    build: blanks([{ parts: ['efficiency = 300 J ÷ 400 J = ', { box: '75' }, ' %'], why: '300 ÷ 400 = 0.75, which is 75%.', hint: 'Divide useful work by the work you do.' }]) },
+], done) }],
+['wrap4', 'Summary · Work and energy', (m, D) => {
+  summary(panel(0), m, [
+    [['Work done on an object gives it energy.'], g => phSprite(g, 'cart', { x: 260, y: 60, s: 1.2 })],
+    [['Energy lost as heat lowers a machine’s', 'efficiency.'], g => { phBlock(g, 170, 10, 120, 40, WORK, { top: 0, ol: 0 }); phBlock(g, 290, 10, 40, 40, HEAT, { top: 0, ol: 0 }); put(squiggle(g, 310, 0, 1), { o: 1 }); }],
+    [['A compound machine combines simple machines.'], g => canOpener(g, { x: 101, y: -120, s: .25 })],
+  ], 'Next: the chapter practice.');
+}],
+/* ---------- chapter practice and finish ---------- */
+['final1', 'Chapter practice: work and machines', () => { PRACTICE = panel(0); }, { ask: done => quiz(SCREEN, withPics([
+  { id: 'p-work', prompt: ['In which of these is work done on the object?'],
+    build: grid([
+      { parts: ['lifting a backpack'], ans: ['w'], why: 'Your force is up and the backpack moves up.' },
+      { parts: ['throwing a ball'], ans: ['w'], why: 'Your push moves the ball the way you push.' },
+      { parts: ['jumping up'], ans: ['w'], why: 'Your legs push you up, and you move up.' },
+      { parts: ['holding a box still'], ans: ['n'], why: 'Nothing moves, so no work is done.' },
+      { parts: ['carrying a basket along a level hall'], ans: ['n'], why: 'Your force is up, but the basket moves sideways.' },
+    ], [['w', 'work', WORK, 'w'], ['n', 'not work', COL.bad, 'n']], { multi: false, text: true }) },
+  { id: 'p-book', prompt: ['A 10 N book falls 0.5 m. How much work does the earth’s downward pull do on it?'],
+    build: blanks([{ parts: ['work = 10 N × 0.5 m = ', { box: '5' }, ' J'], why: 'Force times distance: 10 × 0.5 = 5 J.', hint: 'Multiply the force by the distance.' }]) },
+  { id: 'p-simple', prompt: ['Which of these is ', h('b', '', 'not'), ' a simple machine?'],
+    build: choice([['a lever'], ['a pulley'], ['a wedge'], ['a motor']], 3,
+      'A motor is made of many parts; the other three are simple machines.',
+      ['A lever is one of the six simple machines.', 'A pulley is a simple machine.', 'A wedge is a simple machine.', null]) },
+  { id: 'p-lever', prompt: ['A wheelbarrow carries its load between the wheel and your hands. What class of lever is it?'],
+    build: choice([['second class'], ['first class'], ['third class']], 0,
+      'The load is between the fulcrum (the wheel) and the effort: second class.',
+      [null, 'In a first-class lever the fulcrum is in the middle.', 'In a third-class lever the effort is in the middle.']) },
+]), done, 'Chapter practice, set 1 of 2') }],
+['final2', 'Chapter practice: machines and power', () => { PRACTICE = panel(0); }, { ask: done => quiz(SCREEN, withPics([
+  { id: 'p-ful', prompt: ['What is the point a lever turns on called?'],
+    build: choice([['the axle'], ['the fulcrum'], ['the load']], 1, 'A lever pivots on its fulcrum.',
+      ['An axle belongs to a wheel and axle.', null, 'The load is what the lever moves.']) },
+  { id: 'p-ramp', prompt: ['How does a ramp make lifting a crate easier?'],
+    build: choice([['you push with less force over a longer distance'], ['it lowers the work you do to zero'], ['it makes the crate lighter']], 0,
+      'Same work, less force, more distance.',
+      [null, 'The work stays about the same.', 'The crate weighs the same.']) },
+  { id: 'p-wheel', prompt: ['A wheel and axle can…'],
+    build: choice([['only change direction'], ['create energy'], ['multiply force, or multiply distance']], 2,
+      'Turn the wheel to get force at the axle, or turn the axle to get distance at the wheel.',
+      ['Changing direction is what one fixed pulley does.', 'No machine creates energy.', null]) },
+  { id: 'p-pulley', prompt: ['A pulley is…'],
+    build: choice([['a plank on a fulcrum'], ['a wheel with a rope around it'], ['a slope with a groove']], 1, 'A pulley is a grooved wheel with a rope.',
+      ['That is a lever.', null, 'That is closer to a screw, an inclined plane wrapped around.']) },
+  { id: 'p-power', prompt: ['You do 120 J of work in 4 s. What is your power?'],
+    build: blanks([{ parts: ['power = 120 J ÷ 4 s = ', { box: '30' }, ' W'], why: 'Power is work divided by time: 120 ÷ 4 = 30 W.', hint: 'Divide the work by the time.' }]) },
+]), done, 'Chapter practice, set 2 of 2') }],
+['finish', 'Finished', () => {
+  // under the card, the chapter in four small pictures with their names
+  const p = panel(0);
+  [['work', 300, g => { crate(g, { x: 0, y: 0, w: 110, h: 90 }); forceArrow(g, { w: 8 }).set(-80, -45, 60, 0, ''); }],
+   ['ramps', 633, g => miniRamp(g)],
+   ['levers', 966, g => miniSeesaw(g)],
+   ['pulleys', 1300, g => { pulleyWheel(g, 0, -100, 30); path(g, 'M-30 -100V-20M30 -100V-40', { stroke: '#d8cfb8', 'stroke-width': 4 }); bucket(g, { x: -30, y: 0, s: .3 }); }]]
+    .forEach(([s, x, draw]) => { const g = G(p, { x, y: 800, s: .85 }); draw(g); phLabel(g, s, { y: 56, size: 30, fill: COL.dim, weight: 600 }); });
+}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+let PRACTICE;   // the practice beat's panel: its question pictures are drawn there
+const PICS = {
+  'p-work': g => { phActor(g, 'you', { x: 800, y: 860, s: 1.3, anim: 'catch' }); },
+  'p-book': g => { book(g, { x: 800, y: 730 }); forceArrow(g, { w: 10 }).set(870, 720, 90, 90, ''); distBar(g, { size: 26 }).set(720, 730, 720, 850, '0.5 m', 'left'); },
+  'p-simple': g => { miniRamp(g, { x: 560, y: 840, s: .8 }); miniSeesaw(g, { x: 1040, y: 840, s: .8 }); },
+  'p-lever': g => { wheelbarrow(g, { x: 660, y: 850, s: .7 }); },
+  'p-ful': g => { miniSeesaw(g, { x: 800, y: 850 }); },
+  'p-ramp': g => { miniRamp(g, { x: 800, y: 850 }); },
+  'p-wheel': g => { faucetPic(g, { x: 800, y: 770, s: .4 }); },
+  'p-pulley': g => { pulleyWheel(g, 800, 720, 36); path(g, 'M764 720V820M836 720V840', { stroke: '#d8cfb8', 'stroke-width': 4 }); bucket(g, { x: 764, y: 860, s: .3 }); },
+  'p-power': g => { phStopwatch(g, { x: 800, y: 770, r: 60 }); },
+};
+const withPics = qs => qs.map(q => ({ ...q, build(body, api) { const old = PRACTICE.querySelector('.pic'); if (old) old.remove(); const g = G(PRACTICE); g.classList.add('pic'); PICS[q.id]?.(g); return q.build(body, api); } }));
+
+boot();
+</script>
+</body>
+</html>

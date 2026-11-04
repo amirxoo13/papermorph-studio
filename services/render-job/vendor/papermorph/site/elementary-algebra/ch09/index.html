@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding and Subtracting Decimals — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 9, title: 'Adding and subtracting decimals', minutes: 7, next: '../ch10/' };
+
+/* ---------- column arithmetic: every digit sits in its place-value column ---------- */
+const CW = 60, DS = 64;                               // column width, digit size
+const colX = (xDot, place) => xDot + (place >= 0 ? -(place + .5) * CW - 8 : (-place - .5) * CW + 8);
+const caption = (p, str, t0, y = 140, fill = COL.dim, size = 30, x = 800) => show(T(p, str, { x, y, size, fill, weight: 600, anchor: 'middle', o: 0 }), t0);
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+function digit(p, place, ch, xDot, y, fill = COL.chalk, o = 0) {
+  return T(p, ch, { x: colX(xDot, place), y, size: DS, fill, font: MATH, anchor: 'middle', o });
+}
+// A decimal written into columns. pad = number of decimal places to fill with (hidden) zeros.
+function colNum(p, str, xDot, y, { fill = COL.chalk, pad = 0, sign = '' } = {}) {
+  const g = G(p, { o: 0 }), [ip, fp = ''] = str.split('.');
+  const d = {};
+  [...ip].forEach((c, i) => { d[ip.length - 1 - i] = digit(g, ip.length - 1 - i, c, xDot, y, fill, 1); });
+  [...fp].forEach((c, i) => { d[-1 - i] = digit(g, -1 - i, c, xDot, y, fill, 1); });
+  const dot = fp || pad ? T(g, '.', { x: xDot, y, size: DS, fill, font: MATH, anchor: 'middle', o: fp ? 1 : 0 }) : null;
+  const zeros = [];
+  for (let k = fp.length; k < pad; k++) zeros.push(digit(g, -1 - k, '0', xDot, y, COL.task, 0));
+  if (sign) T(g, sign, { x: colX(xDot, ip.length) - 10, y, size: DS, fill, font: MATH, anchor: 'middle' });
+  return { g, d, dot, zeros, ip, fp };
+}
+function ruleLine(p, xDot, y, from, to, t0) {
+  draw(path(p, `M${colX(xDot, from) - CW / 2 - 50} ${y}H${colX(xDot, to) + CW / 2}`, { stroke: COL.chalk, 'stroke-width': 3 }, { d: 0 }), t0, .5);
+}
+// Column labels over the places.
+function placeHeads(p, xDot, y, places, t0) {
+  const names = { 1: 'tens', 0: 'ones', '-1': 'tenths', '-2': 'hundredths', '-3': 'thousandths' };
+  places.forEach((pl, i) => {
+    const x = colX(xDot, pl), g = G(p, { o: 0 });
+    mk('rect', { x: x - CW / 2 + 3, y: y + 20, width: CW - 6, height: 250, rx: 8, fill: COL.chalk, 'fill-opacity': i % 2 ? .03 : .07 }, g);
+    T(g, names[pl], { x, y: y - (i % 2) * 24, size: 18, fill: COL.dim, anchor: 'middle' });
+    show(g, t0 + i * .1);
+  });
+}
+// Write the answer digits right to left: list of [place, ch, t0]. carry: [place, t0] marks a small 1 above that column.
+function answer(p, xDot, y, cells, fill = COL.chalk) { cells.forEach(([pl, ch, t0]) => show(digit(p, pl, ch, xDot, y, fill), t0, .3)); }
+function carry(p, xDot, y, place, t0, ch = '1') { show(T(p, ch, { x: colX(xDot, place) + 4, y, size: 30, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), t0, .3); }
+function colGlow(p, xDot, place, y1, y2, t0) {
+  const r = put(mk('rect', { x: colX(xDot, place) - CW / 2 + 2, y: y1, width: CW - 4, height: y2 - y1, rx: 10, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p), { o: 0 });
+  tw(r, { o: 1 }, t0, .2); tw(r, { o: 0 }, t0 + 1.4, .3);
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Adding and subtracting decimals', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 2, Chapter 9', { x: 800, y: 320, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Adding and subtracting decimals', { x: 800, y: 410, size: 72, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const ex = G(scene);
+    [['$4.75', 480, .8], ['12.38 s', 800, 2], ['−3.5 °C', 1120, 3.2]].forEach(([s, x, t]) => show(M(ex, [s], { x, y: 580, size: 48, fill: COL.dim, o: 0 }), t));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(ex, D - .9, .8);
+  }],
+  ['align', 'Line up the decimal points', (m) => {
+    const p = panel(0), xd = 800, y1 = 330, y2 = 410, y3 = 510;
+    mline(p, ['1.2 + 73.65'], 800, 150, .2, COL.chalk, 56);
+    const a = colNum(p, '1.2', xd, y1, { pad: 2, fill: COL.whole }), b = colNum(p, '73.65', xd, y2, { fill: COL.nat });
+    put(a.g, { x: CW });                                   // wrong: last digits lined up
+    show(a.g, m('wrong', -.5)); show(b.g, m('wrong', -.5));
+    const plus = T(p, '+', { x: colX(xd, 2) - 16, y: y2, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 });
+    show(plus, m('wrong', -.3));
+    const x = T(p, '✗ 2 tenths under 5 hundredths', { x: 1180, y: y1 + 10, size: 26, fill: COL.bad, weight: 600, anchor: 'middle', o: 0 });
+    show(x, m('wrong', 1)); hide(x, m('slide'), .3);
+    placeHeads(p, xd, 260, [1, 0, -1, -2], m('place'));
+    tw(a.g, { x: 0 }, m('slide'), 1, back);
+    a.zeros.forEach(z => show(z, m('pad')));
+    ruleLine(p, xd, y2 + 30, 1, -2, m('add', -.5));
+    [[-2, 'c1', '5'], [-1, 'c2', '8'], [0, 'c3', '4'], [1, 'c4', '7']].forEach(([pl, mk_, ch]) => {
+      colGlow(p, xd, pl, 290, y2 + 30, m(mk_));
+      answer(p, xd, y3, [[pl, ch, m(mk_, .6)]]);
+    });
+    show(T(p, '.', { x: xd, y: y3, size: DS, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('dot'));
+    mline(p, ['1.2 + 73.65 = 74.85'], 800, 680, m('ans'), COL.good, 50);
+  }],
+  ['carry', 'Carrying', (m) => {
+    const p = panel(0), xd = 800, y1 = 330, y2 = 410, y3 = 510;
+    mline(p, ['56.09 + 7.8'], 800, 150, m('q'), COL.chalk, 56);
+    placeHeads(p, xd, 260, [1, 0, -1, -2], .3);
+    const a = colNum(p, '56.09', xd, y1, { fill: COL.whole }), b = colNum(p, '7.8', xd, y2, { pad: 2, fill: COL.nat });
+    show(a.g, m('q', .5)); show(b.g, m('pad'));
+    b.zeros.forEach(z => show(z, m('pad', 1.2)));
+    T(p, '+', { x: colX(xd, 2) - 16, y: y2, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }); show(p.lastChild, m('pad'));
+    ruleLine(p, xd, y2 + 30, 1, -2, m('pad', 1.5));
+    colGlow(p, xd, -2, 290, y2 + 30, m('c1')); answer(p, xd, y3, [[-2, '9', m('c1', .5)]]);
+    colGlow(p, xd, -1, 290, y2 + 30, m('c2')); answer(p, xd, y3, [[-1, '8', m('c2', .5)]]);
+    colGlow(p, xd, 0, 290, y2 + 30, m('c3')); answer(p, xd, y3, [[0, '3', m('c3', 1.5)]]); carry(p, xd, 290, 1, m('c3', 2));
+    colGlow(p, xd, 1, 290, y2 + 30, m('c4')); answer(p, xd, y3, [[1, '6', m('c4', .8)]]);
+    show(T(p, '.', { x: xd, y: y3, size: DS, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('c4', 1));
+    mline(p, ['56.09 + 7.8 = 63.89'], 800, 680, m('ans'), COL.good, 50);
+  }],
+  ['whole', 'Whole numbers', (m) => {
+    const p = panel(0), xd = 800, y1 = 330, y2 = 410, y3 = 510;
+    mline(p, ['8 + 1.45'], 800, 150, m('q'), COL.chalk, 56);
+    placeHeads(p, xd, 260, [0, -1, -2], .3);
+    const a = colNum(p, '8', xd, y1, { pad: 2, fill: COL.whole }), b = colNum(p, '1.45', xd, y2, { fill: COL.nat });
+    show(a.g, m('q', .5)); show(b.g, m('q', .5));
+    show(a.dot, m('pt')); a.zeros.forEach((z, i) => show(z, m('pt', .5 + i * .3)));
+    T(p, '+', { x: colX(xd, 1) - 16, y: y2, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }); show(p.lastChild, m('q', .5));
+    ruleLine(p, xd, y2 + 30, 0, -2, m('pt', 1.5));
+    answer(p, xd, y3, [[-2, '5', m('ans')], [-1, '4', m('ans', .3)], [0, '9', m('ans', .6)]]);
+    show(T(p, '.', { x: xd, y: y3, size: DS, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('ans', .6));
+  }],
+  ['q1', 'Quick check', () => {
+    const p = panel(0), xd = 760;
+    S.q1 = { p, xd };
+    placeHeads(p, xd, 200, [1, 0, -1, -2], .1);
+    show(colNum(p, '4.7', xd, 270, { fill: COL.whole }).g, .2);
+    show(colNum(p, '12.35', xd, 350, { fill: COL.nat }).g, .3);
+    show(T(p, '+', { x: colX(xd, 2) - 16, y: 350, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }), .3);
+    ruleLine(p, xd, 380, 1, -2, .4);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-add', prompt: ['Add.'],
+    build: blanks([{ parts: ['4.7 + 12.35 = ', { box: '17.05' }], why: 'Write 4.7 as 4.70: 0 + 5 = 5, 7 + 3 = 10 (write 0, carry 1), 4 + 2 + 1 = 7, 1 comes down: 17.05.',
+      hint: 'Line up the points and write 4.7 as 4.70.',
+      fx: () => { const { p, xd } = S.q1; const L = S.q || qlayer(); [[-2, '5'], [-1, '0'], [0, '7'], [1, '1']].forEach(([pl, ch], i) => fx(digit(L, pl, ch, xd, 460, COL.good), { o: 1 }, i * .25, .3)); fx(T(L, '.', { x: xd, y: 460, size: DS, fill: COL.good, font: MATH, anchor: 'middle', o: 0 }), { o: 1 }, .5, .3); } }]),
+  }], done) }],
+  ['signs', 'Different signs', (m) => {
+    const p = panel(0), xd = 800, y1 = 360, y2 = 440, y3 = 540;
+    mline(p, ['−9.81 + 3.27'], 800, 150, m('q'), COL.chalk, 56);
+    mline(p, ['|−9.81| − |3.27| = 9.81 − 3.27'], 800, 225, m('diff'), COL.dim, 38);
+    placeHeads(p, xd, 290, [0, -1, -2], m('diff', 1));
+    const a = colNum(p, '9.81', xd, y1, { fill: COL.nat }), b = colNum(p, '3.27', xd, y2, { fill: COL.whole });
+    show(a.g, m('diff', 1.5)); show(b.g, m('diff', 1.5));
+    T(p, '−', { x: colX(xd, 1) - 16, y: y2, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }); show(p.lastChild, m('diff', 1.5));
+    ruleLine(p, xd, y2 + 30, 0, -2, m('diff', 2));
+    colGlow(p, xd, -2, 320, y2 + 30, m('b1'));
+    const slash = path(p, `M${colX(xd, -1) - 18} ${y1 + 8}L${colX(xd, -1) + 18} ${y1 - 50}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 });
+    draw(slash, m('b1', 1), .3);
+    show(T(p, '7', { x: colX(xd, -1), y: y1 - 62, size: 30, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('b1', 1.3));
+    show(T(p, '1', { x: colX(xd, -2) - 22, y: y1 - 36, size: 30, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('b1', 1.6));
+    answer(p, xd, y3, [[-2, '4', m('b1', 3.5)]]);
+    colGlow(p, xd, -1, 320, y2 + 30, m('b2')); answer(p, xd, y3, [[-1, '5', m('b2', .8)]]);
+    colGlow(p, xd, 0, 320, y2 + 30, m('b3')); answer(p, xd, y3, [[0, '6', m('b3', .8)]]);
+    show(T(p, '.', { x: xd, y: y3, size: DS, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('b3', 1));
+    mline(p, ['−9.81 + 3.27 = −6.54'], 800, 700, m('sign', 2), NEG, 50);
+  }],
+  ['subNeg', 'Subtracting', (m) => {
+    const p = panel(0), xd = 820, y1 = 400, y2 = 480, y3 = 580;
+    const e = mline(p, ['−0.379 − 10.5'], 800, 150, m('q'), COL.chalk, 56);
+    hide(e, m('rw'), .3);
+    mline(p, ['−0.379 + (−10.5)'], 800, 150, m('rw', .3), COL.chalk, 56);
+    caption(p, 'Same signs: add the absolute values, keep the −', m('same'), 230, COL.task);
+    placeHeads(p, xd, 320, [1, 0, -1, -2, -3], m('col'));
+    const a = colNum(p, '0.379', xd, y1, { fill: COL.nat }), b = colNum(p, '10.5', xd, y2, { pad: 3, fill: COL.nat });
+    show(a.g, m('col', .3)); show(b.g, m('col', .3));
+    b.zeros.forEach((z, i) => show(z, m('col', 1 + i * .3)));
+    T(p, '+', { x: colX(xd, 2) - 16, y: y2, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }); show(p.lastChild, m('col', .3));
+    ruleLine(p, xd, y2 + 30, 1, -3, m('col', 1.5));
+    answer(p, xd, y3, [[-3, '9', m('ans')], [-2, '7', m('ans', .3)], [-1, '8', m('ans', .6)], [0, '0', m('ans', .9)], [1, '1', m('ans', 1.2)]]);
+    show(T(p, '.', { x: xd, y: y3, size: DS, fill: COL.task, font: MATH, anchor: 'middle', o: 0 }), m('ans', 1.2));
+    mline(p, ['= −10.879'], 800, 720, m('ans', 3), NEG, 54);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [{
+    id: 'c-sign', prompt: ['Is ', $m('−4.2 + 1.9'), ' positive or negative?'],
+    build: choice([['Positive'], ['Negative']], 1, '−4.2 is farther from zero, so the sum is negative.', ['Which number is farther from zero: −4.2 or 1.9?', null]),
+  }, {
+    id: 'c-diff', prompt: ['Now find it.'],
+    build: blanks([{ parts: ['−4.2 + 1.9 = ', { box: '-2.3' }], why: '4.2 − 1.9 = 2.3, and the sign is negative.', hint: 'Subtract the absolute values: 4.2 − 1.9.' }]),
+  }], done) }],
+  ['story', 'Cooling soup', (m) => {
+    const p = panel(0);
+    const th = thermometer(p, { x: 380, lo: -20, hi: 50, step: 10, value: 42.6, bottom: 640, top: 200 });
+    show(th.g, .1, .01);
+    show(T(p, '42.6 °C', { x: 420, y: th.Yt(42.6) + 9, size: 24, fill: POS, o: 0 }), .4);
+    th.set(-15.65, m('cool'), tw, 2.5);
+    mline(p, ['42.6 − 58.25'], 1000, 200, m('expr'), COL.chalk, 52);
+    mline(p, ['= 42.6 + (−58.25)'], 1000, 280, m('expr', 2), COL.dim, 44);
+    const xd = 1000;
+    const a = colNum(p, '58.25', xd, 400, { fill: COL.nat }), b = colNum(p, '42.6', xd, 480, { pad: 2, fill: COL.whole });
+    show(a.g, m('diff')); show(b.g, m('diff')); b.zeros.forEach(z => show(z, m('diff', 1)));
+    T(p, '−', { x: colX(xd, 2) - 16, y: 480, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }); show(p.lastChild, m('diff'));
+    ruleLine(p, xd, 510, 1, -2, m('diff', 1.5));
+    answer(p, xd, 590, [[-2, '5', m('diff', 5)], [-1, '6', m('diff', 5.3)], [0, '5', m('diff', 5.6)], [1, '1', m('diff', 5.9)]]);
+    show(T(p, '.', { x: xd, y: 590, size: DS, fill: COL.chalk, font: MATH, anchor: 'middle', o: 0 }), m('diff', 5.6));
+    mline(p, ['−15.65 °C'], 1000, 700, m('ans'), NEG, 56);
+    show(T(p, '−15.65 °C', { x: 420, y: th.Yt(-15.65) + 9, size: 24, fill: NEG, o: 0 }), m('ans'));
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0);
+    show(T(p, 'Mia simplifies −3.64 − (−1.2):', { x: 300, y: 170, size: 34, weight: 600, o: 0 }), .2);
+    [['Step 1', '= −3.64 + 1.2'], ['Step 2', '3.64 + 1.20 = 4.84'], ['Step 3', '= −4.84']].forEach(([s, f], i) => {
+      const g = G(p, { o: 0 }), y = 270 + i * 90;
+      T(g, s, { x: 300, y, size: 30, fill: COL.task, weight: 600 });
+      M(g, [f], { x: 440, y, size: 42, anchor: 'start' });
+      show(g, .4 + i * .2);
+      S['step' + (i + 1)] = g;
+    });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-error', prompt: ['Which step has the mistake?'],
+    build: choice([['Step 1'], ['Step 2'], ['Step 3']], 1, 'The signs in step 1 are different, so she should subtract: 3.64 − 1.20 = 2.44. The answer is −2.44.',
+      ['Step 1 is right: subtracting −1.2 is adding 1.2.', null, 'Step 3 follows from step 2. The mistake is earlier.'],
+      () => { pulseFx(S.step2, 1.06); shakeFx(S.step2); }),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Line up the decimal points; fill empty places with zeros.', 'w1'], ['Add or subtract each column, carrying or borrowing.', 'w2'],
+     ['Bring the decimal point straight down.', 'w3'], ['Use the same sign rules as for integers.', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 230, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 230, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 290, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-calc', prompt: ['Simplify each expression.'], build: blanks(CALC),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-sign', prompt: ['Is each answer positive, negative, or zero?'],
+    build: grid(SIGNQ, [['p', 'Positive', POS], ['n', 'Negative', NEG], ['z', 'Zero', COL.chalk]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['True or false?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CALC = [
+  { parts: ['8.4 + (−2.6) = ', { box: '5.8' }], why: '8.4 − 2.6 = 5.8.' },
+  { parts: ['6.3 + (−7.9) = ', { box: '-1.6' }], why: '7.9 − 6.3 = 1.6, and −7.9 is farther from zero.' },
+  { parts: ['−2.5 − 4.75 = ', { box: '-7.25' }], why: '−2.5 + (−4.75) = −7.25.' },
+  { parts: ['5.2 − (−0.8) = ', { box: '6' }], why: '5.2 + 0.8 = 6.0 = 6.' },
+  { parts: ['0.46 − (−12.3) = ', { box: '12.76' }], why: '0.46 + 12.30 = 12.76.' },
+  { parts: ['−3.05 − (−7.4) = ', { box: '4.35' }], why: '−3.05 + 7.40 = 4.35.' },
+  { parts: ['−6 + 0.25 + (−1.8) = ', { box: '-7.55' }], why: '−6 + 0.25 = −5.75, and −5.75 + (−1.8) = −7.55.' },
+];
+const SIGNQ = [
+  { parts: [$m('−7.1 + 7.1')], ans: ['z'], why: 'Opposites add to zero.' },
+  { parts: [$m('2.35 − 2.4')], ans: ['n'], why: '2.4 is larger than 2.35, so the difference is negative: −0.05.' },
+  { parts: [$m('−0.9 − (−1.5)')], ans: ['p'], why: '−0.9 + 1.5 = 0.6.' },
+  { parts: [$m('−12.5 + 3.75')], ans: ['n'], why: '−12.5 is farther from zero.' },
+  { parts: [$m('0.01 − (−0.01)')], ans: ['p'], why: '0.01 + 0.01 = 0.02.' },
+  { parts: [$m('−4.4 − 0.6')], ans: ['n'], why: 'Two negatives: −5.' },
+];
+const TFQ = [
+  { parts: ['To add decimals, line up the last digits.'], ans: ['f'], why: 'Line up the decimal points so each column holds one place value.' },
+  { parts: [$m('3.5'), ' and ', $m('3.50'), ' are equal.'], ans: ['t'], why: 'Zeros after the last decimal digit do not change the value.' },
+  { parts: [$m('1.2 + 0.35 = 0.47')], ans: ['f'], why: 'Line up the points: 1.20 + 0.35 = 1.55.' },
+  { parts: [$m('−2.6 − 1.4 = −4')], ans: ['t'], why: '−2.6 + (−1.4) = −4.0.' },
+  { parts: [$m('9 + 0.4 = 9.4')], ans: ['t'], why: '9 is 9.0, so 9.0 + 0.4 = 9.4.' },
+  { parts: [$m('−5.5 + 2.25 = −7.75')], ans: ['f'], why: 'Different signs: subtract. 5.50 − 2.25 = 3.25, so −3.25.' },
+];
+boot();
+</script>
+</body>
+</html>

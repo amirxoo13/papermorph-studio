@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Absolute Value — Elementary Mathematics</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+<style>
+  .screen .grid.text .row { grid-template-columns: minmax(0, 1fr) auto 40px; }
+  .screen .grid.text .why { padding-left: 0; }
+  .blanks .say { display: inline-block; width: 900px; font-size: 30px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 3, title: 'Absolute Value', minutes: 9, language: 'en', next: '../ch04/' };
+AXIS.u = 80;   // number line −8…8 across the stage (as in ch02)
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500, font = UI } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, font, o: 0 }); show(e, t0); return e; };
+// Sign colour: positive blue, negative coral, zero chalk (engine POS / NEG).
+const pnCol = v => v > 0 ? POS : v < 0 ? NEG : COL.chalk;
+// Flip a dot across zero from a to b along an arc whose top is at y = peak (from ch02).
+function pnFlip(p, a, b, t0, { peak = 420, dur = 1.5, g } = {}) {
+  const x1 = X(a), x2 = X(b), cx = (x1 + x2) / 2, cy = 2 * peak - Y0;
+  draw(path(p, `M${x1} ${Y0}Q${cx} ${cy} ${x2} ${Y0}`, { stroke: COL.task, 'stroke-width': 3, opacity: .85 }, { d: 0 }), t0, dur, io);
+  if (!g) {
+    g = G(p, { x: x1, y: Y0, o: 0 });
+    mk('circle', { r: 12, fill: pnCol(a), stroke: COL.board, 'stroke-width': 2 }, g);
+    show(g, t0, .15);
+  }
+  prog(q => { const u = 1 - q; put(g, { x: u * u * x1 + 2 * u * q * cx + q * q * x2, y: u * u * Y0 + 2 * u * q * cy + q * q * Y0 }); }, t0, dur, io);
+  tw(g.firstChild, { c_fill: pnCol(b) }, t0 + dur * .45, .2, lin);
+  return g;
+}
+// Tap points on the line, with visible dots at the candidates (from ch01).
+const tapDots = (vals, ...rest) => (body, api) => {
+  const ctl = tap(vals, ...rest)(body, api);
+  for (const v of vals) {
+    const g = landDot(S.q, v, 0, COL.task, fx);
+    g.style.pointerEvents = 'none';
+    S.dots[v] = g;
+  }
+  return ctl;
+};
+// blanks with a sentence before each box (from ch02); a leading + or $ and thousands commas are accepted.
+const pnBlanks = rows => (body, api) => {
+  const ctl = blanks(rows.map(({ say, ...r }) => r))(body, api);
+  body.querySelectorAll('.bline').forEach((ln, i) => ln.prepend(h('span', 'say', [rich(rows[i].say, 30)])));
+  const check = ctl.check;
+  ctl.check = () => {
+    body.querySelectorAll('input.box').forEach(b => { b.value = b.value.replace(/^\s*[+$]\s*/, '').replace(/(\d),(?=\d{3}\b)/g, '$1'); });
+    check();
+  };
+  return ctl;
+};
+// Distance tape: an amber bar on the number line from a to b at height y, drawn from a towards b, with end caps
+// and an optional label above its middle. Lives in its own group, so it can be lifted or slid. run = tw or fx.
+function avTape(p, a, b, y, t0, { label, run = tw, w = 10 } = {}) {
+  const g = G(p, { x: 0, y }), x0 = X(a), x1 = X(b), dur = .4 + Math.abs(b - a) * .1;
+  const c0 = path(g, `M${x0} -15V15`, { stroke: COL.task, 'stroke-width': 3 }, { o: 0 });
+  const bar = path(g, `M${x0} 0H${x1}`, { stroke: COL.task, 'stroke-width': w, 'stroke-linecap': 'butt', opacity: .9 }, { d: 0 });
+  const c1 = path(g, `M${x1} -15V15`, { stroke: COL.task, 'stroke-width': 3 }, { o: 0 });
+  run(c0, { o: 1 }, t0, .2); run(bar, { d: 1 }, t0, dur, lin); run(c1, { o: 1 }, t0 + dur - .1, .2);
+  if (label) run(T(g, label, { x: (x0 + x1) / 2, y: -26, size: 30, fill: COL.task, anchor: 'middle', weight: 600, font: MATH, o: 0 }), { o: 1 }, t0 + dur, .3);
+  return g;
+}
+// A vertical distance tape (depths): x, from y0 to y1.
+function avVTape(p, x, y0, y1, t0, run = tw) {
+  const dur = .5 + Math.abs(y1 - y0) / 500;
+  run(path(p, `M${x - 15} ${y0}H${x + 15}`, { stroke: COL.task, 'stroke-width': 3 }, { o: 0 }), { o: 1 }, t0, .2);
+  run(path(p, `M${x} ${y0}V${y1}`, { stroke: COL.task, 'stroke-width': 10, 'stroke-linecap': 'butt', opacity: .9 }, { d: 0 }), { d: 1 }, t0, dur, lin);
+  run(path(p, `M${x - 15} ${y1}H${x + 15}`, { stroke: COL.task, 'stroke-width': 3 }, { o: 0 }), { o: 1 }, t0 + dur - .1, .2);
+}
+// Absolute value bars: an amber token, so the bars and the distance tapes share one colour.
+const BAR = { t: '|', fill: COL.task };
+const sv = v => ({ t: num(v), fill: pnCol(v) });   // a number token in its sign colour
+// A row of hidden tokens; showT(row, i, j, t0) fades tokens i..j in.
+const avRow = (p, items, x, y, size = 64, anchor = 'middle') => tokens(p, items, { x, y, size, anchor, o: 0 });
+const showT = (row, i, j, t0, step = .08) => { for (let k = i; k <= j; k++) show(row[k], t0 + (k - i) * step, .4); };
+// A box around tokens i..j of a row (a "do this first" frame).
+function avBox(p, row, i, j, t0) {
+  const l = row[i]._px - row[i]._w / 2, r = row[j]._px + row[j]._w / 2, s = row.size;
+  const b = put(mk('rect', { x: l - 10, y: row.y - s * .92, width: r - l + 20, height: s * 1.24, rx: 10, fill: 'none', stroke: COL.task, 'stroke-width': 3, 'stroke-dasharray': '9 7' }, p), { o: 0 });
+  show(b, t0, .3);
+  return b;
+}
+// A small diver, swimming right, centred on (x, y).
+function avDiver(p, x, y) {
+  const g = G(p, { x, y, o: 0 });
+  path(g, 'M-38 -2L-68 -16M-38 4L-68 16', { stroke: COL.chalk, 'stroke-width': 4 });
+  mk('ellipse', { rx: 40, ry: 12, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, g);
+  mk('rect', { x: -22, y: -24, width: 30, height: 11, rx: 5, fill: COL.board, stroke: COL.chalk, 'stroke-width': 2.5 }, g);
+  mk('circle', { cx: 52, cy: -3, r: 13, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, g);
+  mk('rect', { x: 52, y: -9, width: 12, height: 8, rx: 2, fill: COL.whole, opacity: .8 }, g);
+  for (const [bx, by, r] of [[70, -28, 5], [78, -48, 4], [72, -66, 3]]) mk('circle', { cx: bx, cy: by, r, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, g);
+  return g;
+}
+// A small submarine centred on (x, y) (from ch02's drawing).
+function avSub(p, x, y) {
+  const g = G(p, { x, y, o: 0 });
+  mk('ellipse', { rx: 44, ry: 15, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, g);
+  mk('rect', { x: -10, y: -28, width: 22, height: 14, rx: 3, fill: COL.board, stroke: COL.chalk, 'stroke-width': 3 }, g);
+  path(g, 'M4 -28V-40H14', { stroke: COL.chalk, 'stroke-width': 3 });
+  return g;
+}
+// Sea-level scale for the depth questions (q2): feet from −150 to 50, submarine at −120.
+const Q2Y = v => 300 - v * 3;
+const Q2POS = { x: 760, y: 120, w: 800, cls: 'side', maxH: 640 };
+
+/* ---------- beats: [id, title, run(m, D), { ask }?] ---------- */
+const BEATS = [
+  ['intro', 'Absolute value', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1 · The Number System · Chapter 3', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Absolute Value', { x: 800, y: 450, size: 96, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const mini = G(scene, { o: 0 });   // a tiny line: two equal amber distances from 0
+    path(mini, 'M600 600H1000', { stroke: COL.dim, 'stroke-width': 3 });
+    const ta = path(mini, 'M800 600H680', { stroke: COL.task, 'stroke-width': 8, 'stroke-linecap': 'butt' }, { d: 0 });
+    const tb = path(mini, 'M800 600H920', { stroke: COL.task, 'stroke-width': 8, 'stroke-linecap': 'butt' }, { d: 0 });
+    mk('circle', { cx: 680, cy: 600, r: 9, fill: NEG }, mini);
+    mk('circle', { cx: 920, cy: 600, r: 9, fill: POS }, mini);
+    mk('circle', { cx: 800, cy: 600, r: 8, fill: COL.chalk }, mini);
+    show(mini, .9, .6); draw(ta, 1.3, .6); draw(tb, 1.3, .6);
+    const r = text(scene, 'How far is a number from zero?', 800, 700, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8); hide(mini, D - .9, .8);
+  }],
+  ['distance', 'Distance from zero', (m) => {
+    const p = panel(0);
+    numberLine(.3, -8, 8);
+    landDot(p, -4, .8, NEG);
+    const qn = text(p, 'How far is −4 from 0?', 800, 190, m('far'), { size: 40, anchor: 'middle', weight: 600 });
+    for (let k = 0; k < 4; k++) {
+      const a = X(-k), b = X(-k - 1), t = m('h' + (k + 1), -.12);
+      draw(path(p, `M${a} ${Y0 - 14}Q${(a + b) / 2} ${Y0 - 72} ${b} ${Y0 - 14}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), t, .3, lin);
+      text(p, String(k + 1), (a + b) / 2, Y0 - 82, t + .15, { size: 28, fill: COL.task, anchor: 'middle', weight: 700 });
+    }
+    avTape(p, 0, -4, Y0 + 100, m('steps'));
+    text(p, 'distance: 4', X(-2), Y0 + 150, m('steps', .9), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+    hide(qn, m('def', -.2), .4);
+    text(p, 'Absolute value: a number’s distance from 0', 800, 190, m('def', .2), { size: 40, anchor: 'middle', weight: 700 });
+    const row = avRow(p, [BAR, sv(-4), BAR, ' = ', sv(4)], 800, 330, 84);
+    show(row[1], m('bars'), .4);
+    for (const [k, dx] of [[0, -50], [2, 50]]) { put(row[k], { x: row[k]._px + dx }); tw(row[k], { o: 1, x: row[k]._px }, m('bars', .8), .6, out); }
+    text(p, 'read: “the absolute value of −4”', 800, 400, m('read'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    showT(row, 3, 4, m('read', 3.2));
+  }],
+  ['itself', 'Positive numbers and zero', (m) => {
+    const p = panel(0);
+    landDot(p, 7, .3, POS);
+    for (let k = 0; k < 7; k++) {
+      const a = X(k), b = X(k + 1);
+      draw(path(p, `M${a} ${Y0 - 14}Q${(a + b) / 2} ${Y0 - 72} ${b} ${Y0 - 14}`, { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), m('seven', k * .22), .22, lin);
+    }
+    avTape(p, 0, 7, Y0 + 100, m('seven', 1.7));
+    text(p, 'distance: 7', X(3.5), Y0 + 150, m('seven', 2.6), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+    const r7 = avRow(p, [BAR, sv(7), BAR, ' = ', sv(7)], X(3.5), 360, 72);
+    showT(r7, 0, 4, m('same'));
+    text(p, 'positive: the number itself', X(3.5), 430, m('same', 2.4), { size: 28, fill: COL.dim, anchor: 'middle' });
+    const z = landDot(p, 0, m('zero'), COL.chalk);
+    pulse(z, m('zero', 1.6), 1.7);
+    const r0 = avRow(p, [BAR, sv(0), BAR, ' = ', sv(0)], X(-4), 360, 72);
+    showT(r0, 0, 4, m('zero', 2.2));
+    text(p, '0 steps from itself', X(-4), 430, m('zero', 3), { size: 28, fill: COL.dim, anchor: 'middle' });
+    text(p, 'An absolute value is never negative.', 800, 180, m('never', 1.6), { size: 40, anchor: 'middle', weight: 700 });
+    text(p, 'A distance can be 0, but never less than 0.', 800, 236, m('never', 2.4), { size: 30, fill: COL.dim, anchor: 'middle' });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [
+    { id: 'c-abs2', prompt: ['Tap the number whose absolute value is ', $m('2'), '.'],
+      build: tapDots([-3, -2, 0, 3], -2, '−2 is 2 steps from 0, so |−2| = 2.',
+        v => v === -3 ? 'That is −3: it is 3 steps from 0, so |−3| = 3.'
+          : v === 0 ? 'That is 0: it is 0 steps from itself, so |0| = 0.' : 'That is 3: |3| = 3. Look for a number exactly 2 steps from 0, on either side.',
+        () => { avTape(S.q, 0, -2, Y0 - 50, 0, { run: fx, label: '2' }); floatText('|−2| = 2', X(-2), Y0 - 120, COL.good); }) },
+    { id: 'c-farther', prompt: ['Which number has the greater absolute value? Tap it.'],
+      build: tapDots([-6, 4], -6, '−6 is 6 steps from 0, and 4 is only 4 steps: |−6| = 6 is greater than |4| = 4.',
+        () => '4 is the greater number, but it is closer to 0. Absolute value measures distance from 0.',
+        () => { avTape(S.q, 0, -6, Y0 - 50, 0, { run: fx, label: '6' }); avTape(S.q, 0, 4, Y0 - 50, .4, { run: fx, label: '4' }); }) },
+  ], done) }],
+  ['pair', 'Opposites, same distance', (m) => {
+    const p = panel(0);
+    landDot(p, 5, .3, POS); landDot(p, -5, .5, NEG);
+    const t5 = avTape(p, 0, 5, Y0, m('five'), { w: 12 });
+    const tn = avTape(p, 0, -5, Y0, m('nfive'), { w: 12 });
+    tw(tn, { x: 200, y: 300 }, m('lift'), 1.4);
+    tw(t5, { x: -200, y: 370 }, m('lift', .2), 1.4);
+    const ln = avRow(p, [BAR, sv(-5), BAR], 570, 314, 50, 'end'); showT(ln, 0, 2, m('lift', 1.6));
+    const lp = avRow(p, [BAR, sv(5), BAR], 570, 384, 50, 'end'); showT(lp, 0, 2, m('lift', 1.8));
+    draw(path(p, 'M1030 282Q1052 282 1052 300V318Q1052 335 1068 335Q1052 335 1052 352V370Q1052 388 1030 388', { stroke: COL.chalk, 'stroke-width': 3 }, { d: 0 }), m('same'), .5);
+    showT(avRow(p, ['= ', sv(5)], 1084, 352, 52, 'start'), 0, 1, m('same', .4));
+    text(p, 'Opposites have the same absolute value.', 800, 190, m('same', 1.4), { size: 40, anchor: 'middle', weight: 700 });
+    const big = avRow(p, [{ t: '−', fill: NEG }, { t: '5', fill: NEG }], 800, 790, 72);
+    showT(big, 0, 1, m('split'), 0);
+    tw(big[0], { x: 620 }, m('sign'), .7);
+    text(p, 'sign: which side of 0', 620, 850, m('sign', .5), { size: 28, fill: NEG, anchor: 'middle', weight: 600 });
+    tw(big[1], { x: 980, o: 0 }, m('size'), .7);
+    mline(p, ['5'], 980, 790, m('size', .3), COL.task, 72);
+    text(p, 'absolute value: how far', 980, 850, m('size', .5), { size: 28, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['world', 'How much, not which way', (m) => {
+    const p = panel(0);
+    hide(S.line, 0, .4);
+    const Yf = v => 300 - v * 11;
+    vAxis(p, { x: 300, Yf, lo: -40, hi: 10, step: 10, t0: .3 });
+    text(p, 'feet', 300, 160, .5, { size: 26, fill: COL.dim, anchor: 'middle' });
+    draw(path(p, `M320 ${Yf(0)}q16 -10 32 0t32 0t32 0t32 0t32 0t32 0t32 0t32 0t32 0t32 0`, { stroke: COL.dim, 'stroke-width': 3 }, { d: 0 }), .5, .8);
+    text(p, 'sea level', 650, Yf(0) + 8, .9, { size: 22, fill: COL.dim, weight: 600 });
+    show(avDiver(p, 520, Yf(-30)), m('diver'));
+    const dd = G(p, { x: 300, y: Yf(-30), s: 0, o: 0 }); mk('circle', { r: 10, fill: NEG }, dd); pop(dd, m('diver', .6));
+    text(p, 'position: −30 ft', 610, Yf(-30) + 10, m('diver', 1.6), { size: 30, fill: NEG, weight: 600 });
+    avVTape(p, 360, Yf(0), Yf(-30), m('depth'));
+    text(p, 'depth: 30 ft', 390, 430, m('depth', 1.2), { size: 30, fill: COL.task, weight: 600 });
+    mline(p, ['|', '−30', '| = 30'], 390, 490, m('depth', 3), COL.chalk, 40, 'start');
+    const card = G(p, { o: 0 });
+    mk('rect', { x: 900, y: 190, width: 560, height: 220, rx: 18, fill: 'none', stroke: COL.dim, 'stroke-width': 2.5 }, card);
+    T(card, 'Maya’s account balance', { x: 1180, y: 250, size: 28, fill: COL.dim, anchor: 'middle', weight: 600 });
+    M(card, ['−$42.75'], { x: 1180, y: 350, size: 72, fill: NEG });
+    show(card, m('bal'));
+    text(p, 'she owes $42.75', 1180, 490, m('owe'), { size: 34, fill: COL.task, anchor: 'middle', weight: 600 });
+    const r = avRow(p, [BAR, sv(-42.75), BAR, ' = ', sv(42.75)], 1180, 570, 50);
+    showT(r, 0, 4, m('owe', 2.4));
+    text(p, 'with a sign: position, balance', 800, 770, m('how'), { size: 30, fill: COL.chalk, anchor: 'middle', weight: 600 });
+    text(p, 'absolute value: depth, distance, amount owed', 800, 822, m('how', 2), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    vAxis(p, { x: 300, Yf: Q2Y, lo: -150, hi: 50, step: 50, t0: .1 });
+    text(p, 'feet', 300, 120, .2, { size: 26, fill: COL.dim, anchor: 'middle' });
+    draw(path(p, `M320 ${Q2Y(0)}q16 -10 32 0t32 0t32 0t32 0t32 0t32 0t32 0t32 0t32 0`, { stroke: COL.dim, 'stroke-width': 3 }, { d: 0 }), .2, .6);
+    show(avSub(p, 500, Q2Y(-120)), .3);
+    const d = G(p, { x: 300, y: Q2Y(-120), s: 0, o: 0 }); mk('circle', { r: 10, fill: NEG }, d); pop(d, .4);
+    text(p, '−120 ft', 560, Q2Y(-120) + 10, .5, { size: 30, fill: NEG, weight: 600 });
+  }, { ask: done => quiz(Q2POS, [
+    { id: 'c-depth', prompt: ['The submarine is at ', $m('−120'), ' feet. How many feet below sea level is it?'],
+      build: blanks([{ parts: [{ box: '120' }, ' feet'], why: 'Its depth is the distance from sea level: |−120| = 120 feet.',
+        hint: 'How far is −120 from 0? Leave off the sign.',
+        fx: () => { const L = S.q || qlayer(); avVTape(L, 360, Q2Y(0), Q2Y(-120), fx); floatText('depth 120 ft', 440, Q2Y(-60), COL.good); } }]) },
+    { id: 'c-debt', prompt: ['Leo’s account balance is ', $m('−$18.25'), '. How much money does he owe?'],
+      build: blanks([{ parts: ['$', { box: '18.25' }], why: 'He owes the size of the balance: |−18.25| = 18.25 dollars.',
+        hint: 'A negative balance is a debt. The amount owed is its absolute value.' }]) },
+  ], done) }],
+  ['inside', 'Inside the bars first', (m) => {
+    const p = panel(0);
+    show(S.line, .2, .5);
+    const row = avRow(p, [BAR, '5 − 3', BAR, ' = ', BAR, sv(2), BAR, ' = ', sv(2)], 800, 250, 72);
+    showT(row, 0, 2, .4);
+    const box = avBox(p, row, 1, 1, m('first'));
+    move(p, 0, 5, 520, m('five'));
+    move(p, 5, 2, 460, m('back'));
+    landDot(p, 2, m('back', 1.2), POS);
+    hide(box, m('inside'), .3);
+    showT(row, 3, 6, m('inside'));
+    avTape(p, 0, 2, Y0 + 100, m('abs'));
+    text(p, 'distance: 2', X(1), Y0 + 150, m('abs', .7), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+    showT(row, 7, 8, m('abs', 2.4));
+    text(p, 'Inside first, then the absolute value.', 800, 370, m('rule'), { size: 34, anchor: 'middle', weight: 600 });
+  }],
+  ['outside', 'A sign outside the bars', (m) => {
+    const p = panel(0);
+    const r1 = avRow(p, ['−', BAR, sv(6), BAR, ' = ', '−(', sv(6), ')', ' = ', sv(-6)], 560, 200, 60, 'start');
+    const r2 = avRow(p, ['−', BAR, sv(-7), BAR, ' = ', '−(', sv(7), ')', ' = ', sv(-7)], 560, 300, 60, 'start');
+    showT(r1, 0, 3, .4);
+    pulse(r1[0], m('six', 4.6), 1.5);
+    showT(r1, 4, 7, m('inside', .3));
+    const d6 = landDot(p, 6, m('inside', .8), POS);
+    pulse(r1[0], m('then', .2), 1.6);
+    pnFlip(p, 6, -6, m('flip'), { peak: 420, g: d6 });
+    const arc6 = p.lastElementChild;
+    hide(arc6, m('seven'), .4); hide(d6, m('seven'), .4);
+    showT(r1, 8, 9, m('flip', 1.4));
+    showT(r2, 0, 3, m('seven'));
+    showT(r2, 4, 7, m('inside2', .3));
+    const d7 = landDot(p, 7, m('inside2', .8), POS);
+    const ghost = G(p, { x: r2[9]._px, y: 300, o: 0 });
+    M(ghost, ['7'], { size: 60, fill: COL.bad });
+    path(ghost, 'M-24 8L24 -48', { stroke: COL.bad, 'stroke-width': 4 });
+    show(r2[8], m('wrong'), .4); show(ghost, m('wrong', .3), .4);
+    const not7 = text(p, 'not 7', r2[9]._px + 46, 290, m('wrong', 1), { size: 26, fill: COL.bad, weight: 600 });
+    hide(ghost, m('flip2'), .4); hide(not7, m('flip2'), .4);
+    pnFlip(p, 7, -7, m('flip2'), { peak: 380, g: d7 });
+    show(r2[9], m('flip2', 1.4), .4);
+    text(p, 'Inside first, then outside.', 800, 780, m('rule'), { size: 34, anchor: 'middle', weight: 600 });
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz(BAND, [
+    { id: 'c-outside', prompt: ['Tap ', $m('−|−3|'), ' on the number line.'],
+      build: tapDots([-4, -3, 3, 4], -3, 'Inside: |−3| = 3. Outside: the minus makes it the opposite, −3.',
+        v => v === 3 ? 'That is |−3| only. Now apply the minus outside the bars.'
+          : 'Count again: −3 is 3 steps from 0, so |−3| = 3, not 4.',
+        () => floatText('−|−3| = −(3) = −3', X(-3), Y0 - 50, COL.good)) },
+    { id: 'c-inside', prompt: ['Tap ', $m('|6 − 2|'), ' on the number line.'],
+      build: tapDots([-4, -2, 2, 4], 4, 'Inside first: 6 − 2 = 4. Then |4| = 4.',
+        v => v < 0 ? 'An absolute value is never negative. Work out 6 − 2 first.'
+          : 'Do the inside first: 6 − 2 is 4, not 2.',
+        () => { avTape(S.q, 0, 4, Y0 - 50, 0, { run: fx, label: '4' }); floatText('|6 − 2| = |4| = 4', X(4), Y0 - 120, COL.good); }) },
+  ], done) }],
+  ['times', 'A number in front', (m) => {
+    const p = panel(0);
+    const row = avRow(p, ['2', BAR, sv(-4), BAR, ' = ', '2 · 4', ' = ', sv(8)], 800, 230, 72);
+    showT(row, 0, 3, .4);
+    pulse(row[0], m('front', .4), 1.5);
+    text(p, 'a number in front of the bars means multiply', 800, 320, m('front', 1.4), { size: 30, fill: COL.dim, anchor: 'middle' });
+    landDot(p, -4, m('inside'), NEG);
+    const ta = avTape(p, 0, -4, Y0 - 50, m('inside', .5), { label: '4' });
+    showT(row, 4, 5, m('times'));
+    tw(ta, { x: X(4) - X(0) }, m('tapes'), 1.1);
+    avTape(p, 4, 8, Y0 - 50, m('tapes', 1.3), { label: '4' });
+    landDot(p, 8, m('eight'), POS);
+    showT(row, 6, 7, m('eight', .3));
+  }],
+  ['ways', 'Ways to write multiply', (m) => {
+    const p = panel(0);
+    hide(S.line, 0, .4);
+    text(p, 'all of these mean multiply', 470, 170, .3, { size: 28, fill: COL.dim, anchor: 'middle', weight: 600 });
+    const opts = { xEq: 540, size: 56 };
+    [['2 × 4', .4], ['2 · 4', m('ways', .4)], ['(2)(4)', m('ways', 1.4)], ['2(4)', m('ways', 3.2)]]
+      .map(([l, t], i) => eqLine(p, [l], ['8'], 270 + i * 100, t, opts));
+    draw(path(p, 'M616 222H630V584H616', { stroke: COL.task, 'stroke-width': 3 }, { d: 0 }), m('same'), .6);
+    text(p, 'all the same: 8', 650, 413, m('same', .5), { size: 28, fill: COL.task, weight: 600 });
+    text(p, 'with letters', 1170, 170, m('var'), { size: 28, fill: COL.dim, anchor: 'middle', weight: 600 });
+    eqLine(p, ['ab'], ['a · b'], 300, m('ab'), { xEq: 1170, size: 56 });
+    eqLine(p, ['3x'], ['3 · x'], 410, m('three'), { xEq: 1170, size: 56 });
+    show(put(mk('circle', { cx: 1170 - 56 * .6 - mathW(['x'], 56) / 2 - 1, cy: 396, r: 18, fill: 'none', stroke: COL.task, 'stroke-width': 3 }, p), { o: 0 }), m('word', .2), .4);
+    text(p, 'Variable: a letter that stands for a number we don’t know yet', 800, 740, m('word', .6), { size: 34, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Absolute value is distance from 0: |−4| = 4 and |7| = 7.', 'w1'],
+     ['It is never negative, and opposites share it: |−5| = |5| = 5.', 'w2'],
+     ['Inside the bars first, then the sign outside: −|−7| = −7.', 'w3'],
+     ['A number in front means multiply: 2|−4| = 2 · 4 = 8.', 'w4']].forEach(([str, mk_], i) => {
+      const g = G(p, { x: -16, y: 250 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mk_), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-evaluate', prompt: ['Find each absolute value.'],
+    build: blanks(PRACTICE1),
+  }], done, 'Chapter practice · set 1 of 4') }],
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-steps', prompt: ['Evaluate: inside the bars first, then outside.'],
+    build: blanks(PRACTICE2),
+  }], done, 'Chapter practice · set 2 of 4') }],
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-world', prompt: ['Answer with a number (no sign needed).'],
+    build: pnBlanks(PRACTICE3),
+  }], done, 'Chapter practice · set 3 of 4') }],
+  ['final4', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-truefalse', prompt: ['True or false?'],
+    build: grid(PRACTICE4, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice · set 4 of 4') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- practice data ---------- */
+const PRACTICE1 = [
+  { parts: ['|−23| = ', { box: '23' }], why: '−23 is 23 steps from 0.', hint: 'Distance from 0 is never negative.' },
+  { parts: ['|61| = ', { box: '61' }], why: 'A positive number is its own absolute value.', hint: 'How far is 61 from 0?' },
+  { parts: ['|−3.5| = ', { box: '3.5' }], why: '−3.5 is 3.5 units from 0.', hint: 'Decimals work the same way: keep the size, drop the sign.' },
+  { parts: ['|−', F(3, 8), '| = ', { box: '3/8' }], why: '−3/8 is 3/8 of a unit from 0.', hint: 'Write the fraction without its sign, like 1/2.' },
+  { parts: ['|0| = ', { box: '0' }], why: '0 is 0 steps from itself.', hint: 'How far is 0 from 0?' },
+];
+const PRACTICE2 = [
+  { parts: ['|9 − 4| = ', { box: '5' }], why: 'Inside first: 9 − 4 = 5, and |5| = 5.', hint: 'Work out 9 − 4 first.' },
+  { parts: ['|3 · 4| = ', { box: '12' }], why: 'Inside first: 3 · 4 = 12, and |12| = 12.', hint: 'The dot means multiply: 3 · 4 first.' },
+  { parts: ['−|38| = ', { box: '-38' }], why: '|38| = 38, then the minus outside: −38.', hint: 'The minus sign is outside the bars, so it stays.' },
+  { parts: ['−|−12| = ', { box: '-12' }], why: '|−12| = 12, then the minus outside: −12. The two signs do not cancel.', hint: 'Inside: |−12| = 12. Then apply the minus outside.' },
+  { parts: ['3|−5| = ', { box: '15' }], why: '|−5| = 5, then 3 · 5 = 15.', hint: 'A number in front means multiply: 3 times |−5|.' },
+];
+const PRACTICE3 = [
+  { say: 'Theo’s balance is −$64.20. How many dollars does he owe?', parts: [{ box: '64.20' }], why: 'He owes |−64.20| = 64.20 dollars.', hint: 'The debt is the absolute value of the balance.' },
+  { say: 'A cave floor is at −85 feet. How many feet below the ground is it?', parts: [{ box: '85' }], why: 'Its depth is |−85| = 85 feet.', hint: 'Depth is a distance from 0: no sign.' },
+  { say: 'At night it is −9 °C. How many degrees below zero is that?', parts: [{ box: '9' }], why: '|−9| = 9 degrees below zero.', hint: 'How far is −9 from 0?' },
+];
+const PRACTICE4 = [
+  { parts: [$m('|−8| = 8')], ans: ['t'], why: '−8 is 8 steps from 0.' },
+  { parts: ['An absolute value can be negative.'], ans: ['f'], why: 'A distance is never negative: an absolute value is positive or 0.' },
+  { parts: [$m('|−6|'), ' is greater than ', $m('|4|'), '.'], ans: ['t'], why: '|−6| = 6 and |4| = 4, and 6 is greater than 4.' },
+  { parts: [$m('−|−2| = 2')], ans: ['f'], why: 'Inside: |−2| = 2. Then the minus outside: −2.' },
+  { parts: [$m('|−10| = |10|')], ans: ['t'], why: 'Opposites are the same distance from 0: both are 10.' },
+];
+boot();
+</script>
+</body>
+</html>

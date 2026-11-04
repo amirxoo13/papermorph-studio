@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding and Subtracting Radicals — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 59, title: 'Adding and Subtracting Radicals', minutes: 8, next: '../ch60/' };
+const IDX = COL.nat, RAD = COL.irr, COEF = COL.int, R5 = COL.whole, R3 = COL.rat, HIT = COL.good;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A rounded tile holding one radical, e.g. √5, so the radical reads as a single object.
+function rtile(p, parts, color, x, y, t0, w = 120) {
+  const g = G(p, { x, y, s: 0, o: 0 });
+  mk('rect', { x: -w / 2, y: -42, width: w, height: 84, rx: 16, fill: mix(COL.board, color, .3), stroke: color, 'stroke-width': 3 }, g);
+  M(g, parts, { y: 16, size: 42 });
+  pop(g, t0);
+  return g;
+}
+const tileRun = (p, n, parts, color, x0, y, t0, gap = 140, step = .12) => Array.from({ length: n }, (_, i) => rtile(p, parts, color, x0 + i * gap, y, t0 + i * step));
+// A label with a short pointer line to (tx, ty).
+function callout(p, str, x, y, tx, ty, color, t0) {
+  draw(path(p, `M${x} ${y}L${tx} ${ty}`, { stroke: color, 'stroke-width': 3 }, { d: 0 }), t0, .4);
+  text(p, str, x, y + (y > ty ? 30 : -10), t0 + .2, { size: 30, fill: color, anchor: 'middle', weight: 600 });
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Adding radicals', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 11, Chapter 59', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Adding and Subtracting', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Radicals', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['3', R(5), ' + 4', R(5), ' = 7', R(5)], 800, 630, m('sub'), COL.dim, 54);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['parts', 'Index and radicand', (m) => {
+    const p = panel(0);
+    const big = G(p, { x: 800, y: 330, o: 0 });
+    M(big, [R('−16', 3)], { size: 140 });
+    show(big, .2);
+    callout(p, 'index', 560, 180, 700, 250, IDX, m('idx'));
+    callout(p, 'radicand', 1100, 180, 900, 260, RAD, m('rad'));
+    mline(p, [R(15), ' = ', R(15, 2)], 800, 540, m('two'), COL.chalk, 56);
+    text(p, 'index 2 is not written', 800, 600, m('two', .5), { size: 26, fill: IDX, anchor: 'middle' });
+    mline(p, ['13', R(200, 8), ' = 13 × ', R(200, 8)], 800, 740, m('coef'), COL.chalk, 56);
+    const cw = M(p, ['13', R(200, 8), ' = 13 × ', R(200, 8)], { size: 56, o: 0 })._w, c13 = 800 - cw / 2 + M(p, ['13'], { size: 56, o: 0 })._w / 2;   // measure only
+    callout(p, 'coefficient', c13 - 60, 820, c13, 760, COEF, m('coef', .8));
+  }],
+  ['like', 'Like radicals', (m) => {
+    const p = panel(0);
+    text(p, 'same index, same radicand', 800, 110, .3, { size: 30, fill: COL.dim, anchor: 'middle' });
+    mline(p, ['3', R(5), ' + 4', R(5)], 800, 210, m('think'), COL.chalk, 60);
+    const a = tileRun(p, 3, [R(5)], R5, 260, 360, m('seven')), b = tileRun(p, 4, [R(5)], R5, 840, 360, m('seven', 1));
+    hide(mline(p, '+', 700, 376, m('seven', .9), COL.chalk, 60), m('ans'), .3);
+    [...a, ...b].forEach((t, i) => { tw(t, { x: 380 + i * 140, y: 490 }, m('ans', i * .06), .7); });
+    mline(p, ['= 7', R(5)], 800, 640, m('ans', .9), HIT, 66);
+    mline(p, '3x + 4x = 7x', 800, 740, m('keep'), COL.dim, 46);
+    mline(p, ['9', R(5), ' − 6', R(5), ' = 3', R(5)], 800, 840, m('sub'), COL.chalk, 46);
+  }],
+  ['unlike', 'Unlike radicals', (m) => {
+    const p = panel(0);
+    rtile(p, [R(2)], R5, 600, 220, m('ex'));
+    rtile(p, [R(3)], R3, 1000, 220, m('ex', .3));
+    mline(p, '+', 800, 236, m('ex', .2), COL.chalk, 60);
+    mline(p, [R(2), ' + ', R(3), ' ≠ ', R(5)], 800, 400, m('no'), COL.bad, 60);
+    mline(p, '1.41… + 1.73… ≈ 3.14', 800, 530, m('chk'), COL.dim, 46);
+    mline(p, [R(5), ' ≈ 2.24'], 800, 610, m('chk', 4), COL.dim, 46);
+    text(p, 'different radicands: leave it as it is', 800, 740, m('leave'), { size: 32, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-like', prompt: ['Combine.'],
+    build: blanks([
+      { parts: [R(13), ' + 6', R(13), ' = ', { box: '7' }, R(13)], why: '1 + 6 = 7. √13 alone has coefficient 1.', hint: '√13 means 1√13.' },
+      { parts: ['5', R(14), ' − 8', R(14), ' = ', { box: '-3' }, R(14)], why: '5 − 8 = −3.', hint: 'Subtract the coefficients.' },
+    ]),
+  }], done) }],
+  ['simp', 'Simplify first', (m) => {
+    const p = panel(0), X = 360;
+    mline(p, [R(12), ' + 8', R(3)], 800, 140, m('ex'), COL.chalk, 60);
+    mline(p, [R(12), ' = ', R('4 · 3'), ' = 2', R(3)], X, 290, m('s1'), COL.chalk, 52, 'start');
+    mline(p, ['= 2', R(3), ' + 8', R(3)], X, 410, m('now'), COL.chalk, 56, 'start');
+    const ts = [...tileRun(p, 2, [R(3)], R3, 900, 400, m('now', .5), 130), ...tileRun(p, 8, [R(3)], R3, 360, 530, m('now', 1.2), 110)];
+    ts.forEach((t, i) => tw(t, { x: 305 + i * 110, y: 530 }, m('ans', -.8 + i * .05), .7));
+    mline(p, ['= 10', R(3)], X, 680, m('ans'), HIT, 64, 'start');
+    text(p, 'Simplify every radical before combining.', 800, 800, m('rule'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['mixed', 'A longer example', (m) => {
+    const p = panel(0), X = 260;
+    mline(p, [R(128, 3), ' − ', R(54, 3), ' + ', R(24, 3)], 800, 130, m('ex'), COL.chalk, 58);
+    mline(p, [R(128, 3), ' = ', R('64 · 2', 3), ' = 4', R(2, 3)], 1000, 260, m('a'), R5, 40, 'start');
+    mline(p, [R(54, 3), ' = ', R('27 · 2', 3), ' = 3', R(2, 3)], 1000, 340, m('b'), R5, 40, 'start');
+    mline(p, [R(24, 3), ' = ', R('8 · 3', 3), ' = 2', R(3, 3)], 1000, 420, m('c'), R3, 40, 'start');
+    mline(p, ['= 4', R(2, 3), ' − 3', R(2, 3), ' + 2', R(3, 3)], X, 330, m('c', 1), COL.chalk, 52, 'start');
+    const x1 = X + M(p, ['= '], { size: 52, o: 0 })._w, w1 = M(p, ['4', R(2, 3), ' − 3', R(2, 3)], { size: 52, o: 0 })._w;   // measure only
+    const box = put(mk('rect', { x: x1 - 8, y: 272, width: w1 + 8, height: 78, rx: 14, fill: 'none', stroke: R5, 'stroke-width': 3 }, p), { o: 0 });
+    show(box, m('comb'));
+    mline(p, ['= ', R(2, 3), ' + 2', R(3, 3)], X, 520, m('ans'), HIT, 60, 'start');
+    text(p, 'different radicands: done', X, 600, m('ans', 1), { size: 28, fill: COL.dim });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 240, w: 1080, cls: 'side' }, [{
+    id: 'c-simp', prompt: ['Simplify ', $m(R(3), ' + ', R(75)), '.'],
+    build: choice([[$m(R(78))], [$m('6', R(3))], [$m('5', R(3))]], 1, '√75 = 5√3, and √3 + 5√3 = 6√3.', ['Radicands don’t add: simplify √75 first.', null, 'Don’t forget the √3 itself: 1 + 5 = 6.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A radical: index, radicand, and maybe a coefficient.', 'w1', IDX], ['Like radicals: add or subtract the coefficients.', 'w2', R5],
+     ['Unlike radicals can’t be combined.', 'w3', COL.bad], ['Simplify each radical first.', 'w4', HIT]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-like', prompt: ['Add or subtract.'], build: blanks([
+      { parts: ['2', R(7), ' + 9', R(7), ' = ', { box: '11' }, R(7)], why: '2 + 9 = 11.' },
+      { parts: ['6', R(10, 3), ' − 10', R(10, 3), ' = ', { box: '-4' }, R(10, 3)], why: '6 − 10 = −4.' },
+      { parts: [R(6), ' + ', R(6), ' + ', R(6), ' = ', { box: '3' }, R(6)], why: 'Three of √6.' },
+      { parts: ['index of ', R(11, 3), ': ', { box: '3' }, '     radicand of 9', R(20), ': ', { box: '20' }], why: 'The index of a square root is 2 when unwritten; here ∛ has index 3. The radicand is under the sign.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-simp', prompt: ['Simplify first, then combine.'], build: blanks([
+      { parts: [R(45), ' − ', R(80), ' = ', { box: '-1' }, R(5)], why: '3√5 − 4√5 = −√5.', hint: '√45 = 3√5 and √80 = 4√5.' },
+      { parts: [R(50), ' + ', R(8), ' = ', { box: '7' }, R(2)], why: '5√2 + 2√2 = 7√2.', hint: '√50 = 5√2 and √8 = 2√2.' },
+      { parts: [R(27), ' + ', R(12), ' − ', R(3), ' = ', { box: '4' }, R(3)], why: '3√3 + 2√3 − √3 = 4√3.', hint: 'Write each as a multiple of √3.' },
+      { parts: [R(16, 3), ' + ', R(54, 3), ' = ', { box: '5' }, R(2, 3)], why: '2∛2 + 3∛2 = 5∛2.', hint: '16 = 8 · 2 and 54 = 27 · 2.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {
+    const p = panel(0), A = [980, 700], B = [1480, 700], C = [1120, 300];
+    draw(path(p, `M${A}L${B}L${C}Z`, { stroke: COL.irr, 'stroke-width': 4, fill: mix(COL.board, COL.irr, .12) }, { d: 0 }), .2, .8);
+    mline(p, [R(175)], 1230, 760, .5, R5, 40);
+    mline(p, [R(112)], 1320, 480, .6, R5, 40, 'start');
+    mline(p, [R(162)], 1030, 480, .7, R3, 40, 'end');
+    text(p, 'sides in inches (not to scale)', 1230, 830, .8, { size: 22, fill: COL.dim, anchor: 'middle' });
+  }, { ask: done => quiz({ x: 0, y: 0, w: 900, cls: 'screen' }, [{
+    id: 'p-per', prompt: ['Find the perimeter of the triangle.'], build: blanks([
+      { parts: [R(175), ' = ', { box: '5' }, R(7), ',   ', R(112), ' = ', { box: '4' }, R(7), ',   ', R(162), ' = ', { box: '9' }, R(2)], why: '175 = 25 · 7, 112 = 16 · 7, 162 = 81 · 2.', hint: 'Find the greatest perfect square factor of each.' },
+      { parts: ['perimeter = ', { box: '9' }, R(7), ' + ', { box: '9' }, R(2), ' inches'], why: '5√7 + 4√7 = 9√7; 9√2 stays.', hint: 'Combine only the √7 terms.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+boot();
+</script>
+</body>
+</html>

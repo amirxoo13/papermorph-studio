@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring Using Special Formulas — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 56, title: 'Factoring Using Special Formulas', minutes: 10, next: '../ch57/' };
+const CA = COL.whole, CB = COL.nat, CAB = COL.int, HIT = COL.good;
+const SAME = COL.whole, OPP = COL.nat, POSC = COL.irr;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A rectangle piece drawn around its own centre, so it can turn in place.
+function piece(p, cx, cy, w, h, color, o = 1) {
+  const g = G(p, { x: cx, y: cy, o });
+  mk('rect', { x: -w / 2, y: -h / 2, width: w, height: h, fill: mix(COL.board, color, .45), stroke: color, 'stroke-width': 3 }, g);
+  return g;
+}
+// A measured side: a line with its length label; returns the group so it can be hidden later.
+const side = (p, x1, y1, x2, y2, label, color, t0, off = 34) => {
+  const g = G(p);
+  draw(path(g, `M${x1} ${y1}L${x2} ${y2}`, { stroke: color, 'stroke-width': 4 }, { d: 0 }), t0, .4);
+  const vert = x1 === x2;
+  mline(g, label, (x1 + x2) / 2 + (vert ? off : 0), (y1 + y2) / 2 + (vert ? 14 : off), t0 + .2, color, 40, vert ? (off > 0 ? 'start' : 'end') : 'middle');
+  return g;
+};
+// The two numbers of (dx + e)(fx − g) rebuild ax² + c (difference of squares, any order).
+const dsq = (a, c) => ([d, e, f, g]) => d * f === a && e * f - d * g === 0 && -e * g === c;
+const pw = (b, e) => [b, E(e)];
+
+/* ---------- beats ---------- */
+const SA = 420, SB = 160, SX = 260, SY = 220;   // the big square: side, cut corner, top-left
+const BEATS = [
+  ['intro', 'Special patterns', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 10, Chapter 56', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Factoring Using', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Special Formulas', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['a', E(2), ' − b', E(2), ' = (a + b)(a − b)'], 800, 630, m('sub'), COL.dim, 50);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['dos', 'Difference of squares', (m) => {
+    const p = panel(0);
+    const top = piece(p, SX + SA / 2, SY + (SA - SB) / 2, SA, SA - SB, CA, 0);
+    const low = piece(p, SX + (SA - SB) / 2, SY + SA - SB / 2, SA - SB, SB, CA, 0);
+    const cut = piece(p, SX + SA - SB / 2, SY + SA - SB / 2, SB, SB, CB, 0);
+    [top, low, cut].forEach(e => show(e, m('sq'), .5));
+    const s1 = side(p, SX, SY - 30, SX + SA, SY - 30, 'a', CA, m('sq', .4), -18);
+    const s2 = side(p, SX - 30, SY, SX - 30, SY + SA, 'a', CA, m('sq', .7), -18);
+    show(M(cut, ['b', E(2)], { y: 14, size: 40, o: 0 }), m('cut'));
+    tw(cut, { x: SX + SA - SB / 2 + 40, y: SY + SA - SB / 2 + 40 }, m('cut', 1), .8);
+    hide(cut, m('cut', 2.4), .6);
+    mline(p, ['a', E(2), ' − b', E(2)], 1200, 300, m('cut', 2.6), COL.chalk, 56);
+    // The cut line between the two pieces, then the lower piece turns and moves to the right.
+    const sl = path(p, `M${SX} ${SY + SA - SB}H${SX + SA - SB}`, { stroke: COL.task, 'stroke-width': 4, 'stroke-dasharray': '10 8' }, { o: 0 });
+    show(sl, m('slice'), .4);
+    [s1, s2, sl].forEach(e => hide(e, m('move'), .4));
+    tw(low, { x: SX + SA + SB / 2 + 4, y: SY + (SA - SB) / 2, r: 90 }, m('move'), 1.4);
+    const fy = SY + SA - SB;
+    side(p, SX, fy + 34, SX + SA + SB + 4, fy + 34, 'a + b', COL.task, m('rect'), 40);
+    side(p, SX + SA + SB + 40, SY, SX + SA + SB + 40, fy, 'a − b', COL.task, m('rect', .8), 20);
+    const r = G(p, { o: 0, x: 1200, y: 600 });
+    mk('rect', { x: -330, y: -62, width: 660, height: 96, rx: 18, fill: 'none', stroke: HIT, 'stroke-width': 3 }, r);
+    M(r, ['a', E(2), ' − b', E(2), ' = (a + b)(a − b)'], { y: 4, size: 48, fill: HIT });
+    show(r, m('ans'));
+  }],
+  ['dosex', 'Spotting the squares', (m) => {
+    const p = panel(0);
+    mline(p, ['a', E(2), ' − 81b', E(2)], 800, 170, m('ex'), COL.chalk, 64);
+    mline(p, ['= (a)', E(2), ' − (9b)', E(2)], 800, 300, m('sq'), COL.chalk, 56);
+    mline(p, '= (a + 9b)(a − 9b)', 800, 430, m('ans'), HIT, 60);
+    mline(p, ['a', E(2), ' + b', E(2)], 800, 620, m('no'), COL.bad, 56);
+    text(p, 'a sum of squares does not factor with real numbers', 800, 690, m('no', .5), { size: 28, fill: COL.bad, anchor: 'middle', weight: 600 });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-dos', prompt: ['Factor ', $m('49x', E(2), ' − 25'), '.'],
+    build: blanks([{ parts: ['(', { box: '7' }, 'x + ', { box: '5' }, ')(', { box: '7' }, 'x − ', { box: '5' }, ')'], test: dsq(49, -25), why: '49x² = (7x)² and 25 = 5².', hint: 'What squared gives 49x²? What squared gives 25?' }]),
+  }], done) }],
+  ['pst', 'Perfect square trinomials', (m) => {
+    const p = panel(0);
+    const G2 = areaGrid(p, 300, 260, [300, 150], [300, 150], ['a', 'b'], ['a', 'b'], m('sq'), { size: 46 });
+    G2.cell(0, 0, ['a', E(2)], m('parts'), { tint: CA });
+    G2.cell(1, 1, ['b', E(2)], m('parts', 1.2), { tint: CB });
+    G2.cell(0, 1, 'ab', m('parts', 2.4), { tint: CAB }); G2.cell(1, 0, 'ab', m('parts', 2.8), { tint: CAB });
+    mline(p, ['(a + b)', E(2), ' = a', E(2), ' + 2ab + b', E(2)], 1150, 330, m('sum'), COL.chalk, 46);
+    mline(p, ['(a − b)', E(2), ' = a', E(2), ' − 2ab + b', E(2)], 1150, 430, m('minus'), COL.chalk, 46);
+    ['first term: a perfect square', 'last term: a perfect square', 'middle term: 2 × (root × root)'].forEach((s, i) => text(p, s, 860, 560 + i * 54, m('test', i * 1.6), { size: 28, fill: COL.task, weight: 600 }));
+  }],
+  ['pstex', 'Checking the middle', (m) => {
+    const p = panel(0);
+    const t = tokens(p, [['4m', E(2)], ' − ', '20mn', ' + ', ['25n', E(2)]], { x: 800, y: 170, size: 64, anchor: 'middle', o: 0 });
+    t.forEach(e => show(e, .2));
+    mline(p, ['(2m)', E(2)], t[0]._px, 270, m('ends'), CA, 46);
+    mline(p, ['(5n)', E(2)], t[4]._px, 270, m('ends', 1), CB, 46);
+    mline(p, '2 · 2m · 5n = 20mn  ✓', 800, 400, m('mid'), CAB, 50);
+    const sg = put(mk('circle', { cx: t[1]._px, cy: 155, r: 32, fill: 'none', stroke: COL.task, 'stroke-width': 3.5 }, p), { o: 0 });
+    show(sg, m('sign'));
+    mline(p, ['(2m − 5n)', E(2)], 800, 560, m('ans'), HIT, 64);
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-pst', prompt: ['Is ', $m('25p', E(2), ' − 15pq + 9q', E(2)), ' a perfect square trinomial?'],
+    build: choice([['Yes: ', $m('(5p − 3q)', E(2))], ['No']], 1, '2 · 5p · 3q = 30pq, not 15pq, so the middle term doesn’t match.', ['(5p − 3q)² = 25p² − 30pq + 9q²: the middle term would be 30pq.', null]),
+  }], done) }],
+  ['cubes', 'Sum and difference of cubes', (m) => {
+    const p = panel(0);
+    const sgn = (s, c) => ({ t: s, fill: c });
+    const r1 = tokens(p, [['a', E(3), ' + b', E(3), ' = (a '], sgn('+', SAME), [' b)(a', E(2), ' '], sgn('−', OPP), ' ab ', sgn('+', POSC), [' b', E(2)], ')'], { x: 800, y: 190, size: 52, anchor: 'middle', o: 0 });
+    r1.forEach(e => show(e, m('sum')));
+    const r2 = tokens(p, [['a', E(3), ' − b', E(3), ' = (a '], sgn('−', SAME), [' b)(a', E(2), ' '], sgn('+', OPP), ' ab ', sgn('+', POSC), [' b', E(2)], ')'], { x: 800, y: 300, size: 52, anchor: 'middle', o: 0 });
+    r2.forEach(e => show(e, m('diff')));
+    [['same sign', SAME], ['opposite sign', OPP], ['always positive', POSC]].forEach(([s, c], i) => text(p, s, 520 + i * 280, 400, m('soap', i * 1.8), { size: 28, fill: c, anchor: 'middle', weight: 700 }));
+    mline(p, ['a', E(3), ' + 8b', E(3)], 800, 520, m('ex'), COL.chalk, 52);
+    mline(p, ['= (a)', E(3), ' + (2b)', E(3)], 800, 610, m('cube'), COL.chalk, 48);
+    mline(p, ['= (a + 2b)(a', E(2), ' − 2ab + 4b', E(2), ')'], 800, 720, m('ans'), HIT, 52);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-cube', prompt: ['Factor ', $m('x', E(3), ' − 27'), '.'],
+    build: choice([[$m('(x − 3)(x', E(2), ' + 3x + 9)')], [$m('(x − 3)(x', E(2), ' − 3x + 9)')], [$m('(x + 3)(x', E(2), ' − 3x + 9)')]], 0, '27 = 3³. Same sign (−), opposite (+), always positive (+).',
+      [null, 'The middle sign is the opposite of the minus: it should be +3x.', 'For a difference of cubes, the binomial has a minus: x − 3.']),
+  }], done) }],
+  ['combo', 'GCF first', (m) => {
+    const p = panel(0), X = 300;
+    mline(p, ['18ax', E(2), ' − 32a'], 800, 140, m('ex'), COL.chalk, 60);
+    [[['= 2a(9x', E(2), ' − 16)'], m('gcf'), 'GCF: 2a'], [['= 2a[(3x)', E(2), ' − 4', E(2), ']'], m('dos'), 'difference of squares'], [['= 2a(3x + 4)(3x − 4)'], m('ans'), '']].forEach(([parts, t0, note], i) => {
+      mline(p, parts, X, 290 + i * 130, t0, i === 2 ? HIT : COL.chalk, 54, 'start');
+      if (note) text(p, note, 1100, 280 + i * 130, t0, { size: 28, fill: COL.task, weight: 600 });
+    });
+  }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['a² − b² = (a + b)(a − b)', 'w1', CA], ['a² ± 2ab + b² = (a ± b)²', 'w2', CAB],
+     ['a³ ± b³ = (a ± b)(a² ∓ ab + b²)', 'w3', POSC], ['GCF first, then look for a pattern.', 'w4', COL.task]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 300, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 300, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      if (i < 3) M(g, [str], { x: 360, size: 46, anchor: 'start' }); else T(g, str, { x: 360, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-kind', prompt: ['Which pattern fits?'],
+    build: grid(KINDQ, [['d', 'Diff. of squares', CA, '1'], ['p', 'Perfect square', CAB, '2'], ['s', 'Sum of cubes', POSC, '3'], ['c', 'Diff. of cubes', CB, '4'], ['n', 'None', null, '5']], { multi: false, text: true }),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-fac', prompt: ['Fill in the missing numbers.'], build: blanks([
+      { parts: ['m', E(2), ' − 121 = (m + ', { box: '11' }, ')(m − ', { box: '11' }, ')'], why: '121 = 11².', hint: 'What squared is 121?' },
+      { parts: ['9x', E(2), ' + 6xy + y', E(2), ' = (', { box: '3' }, 'x + y)', E(2)], why: '9x² = (3x)², and 2 · 3x · y = 6xy.', hint: 'What squared is 9x²?' },
+      { parts: ['25f', E(16), ' − 36g', E(36), ' = (5f', E(8), ' + ', { box: '6' }, 'g', E(18), ')(5f', E(8), ' − ', { box: '6' }, 'g', E(18), ')'], why: '36g³⁶ = (6g¹⁸)².', hint: 'Halve the exponent; take the square root of 36.' },
+      { parts: ['64 − a', E(3), 'b', E(6), ' = (4 − ab', E(2), ')(', { box: '16' }, ' + 4ab', E(2), ' + a', E(2), 'b', E(4), ')'], why: '64 = 4³, so the first term of the trinomial is 4² = 16.', hint: 'Difference of cubes: the trinomial starts with the square of 4.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-gcf', prompt: ['Factor completely: GCF first.'], build: blanks([
+      { parts: ['4m', E(2), 'n', E(8), ' − 36n', E(2), 'p', E(8), ' = 4n', E(2), '(mn', E(3), ' − ', { box: '3' }, 'p', E(4), ')(mn', E(3), ' + ', { box: '3' }, 'p', E(4), ')'], why: '4n²(m²n⁶ − 9p⁸), a difference of squares.', hint: 'After the GCF 4n², what is left is m²n⁶ − 9p⁸.' },
+      { parts: ['8a', E(8), 'b', E(4), ' − 40a', E(5), 'b', E(6), ' + 50a', E(2), 'b', E(8), ' = 2a', E(2), 'b', E(4), '(2a', E(3), ' − ', { box: '5' }, 'b', E(2), ')', E(2)], why: '2a²b⁴(4a⁶ − 20a³b² + 25b⁴), a perfect square.', hint: '25b⁴ = (5b²)².' },
+      { parts: ['16a', E(6), 'b', E(3), ' + 54b', E(18), 'c', E(3), ' = 2b', E(3), '(2a', E(2), ' + 3b', E(5), 'c)(', { box: '4' }, 'a', E(4), ' − 6a', E(2), 'b', E(5), 'c + ', { box: '9' }, 'b', E(10), 'c', E(2), ')'], why: '2b³(8a⁶ + 27b¹⁵c³), a sum of cubes.', hint: 'Square 2a² and 3b⁵c for the first and last terms.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const KINDQ = [
+  { parts: [$m('m', E(2), ' − 121')], ans: ['d'], why: 'm² − 11².' },
+  { parts: [$m('9x', E(2), ' + 6xy + y', E(2))], ans: ['p'], why: '(3x + y)².' },
+  { parts: [$m('64 − a', E(3), 'b', E(6))], ans: ['c'], why: '4³ − (ab²)³.' },
+  { parts: [$m('27a', E(6), ' + 64b', E(3), 'c', E(15))], ans: ['s'], why: '(3a²)³ + (4bc⁵)³.' },
+  { parts: [$m('x', E(2), ' + 49')], ans: ['n'], why: 'A sum of squares doesn’t factor.' },
+  { parts: [$m('121p', E(4), ' − 66p', E(2), 'r + 9r', E(2))], ans: ['p'], why: '(11p² − 3r)².' },
+];
+boot();
+</script>
+</body>
+</html>

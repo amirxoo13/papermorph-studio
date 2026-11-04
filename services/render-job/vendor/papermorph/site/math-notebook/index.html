@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elementary Mathematics — Papermorph</title>
+<meta name="description" content="Animated middle-school mathematics, with narrated lessons, interactive quick checks, and chapter practice.">
+<link rel="canonical" href="https://papermorph.diamonddoge.org/math-notebook/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Papermorph">
+<meta property="og:title" content="Elementary Mathematics — Papermorph">
+<meta property="og:description" content="Animated middle-school mathematics, with narrated lessons, interactive quick checks, and chapter practice.">
+<meta property="og:url" content="https://papermorph.diamonddoge.org/math-notebook/">
+<meta property="og:image" content="https://papermorph.diamonddoge.org/assets/bookshelf.webp">
+<meta property="og:image:alt" content="A wooden bookshelf of animated books">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d2b27'/%3E%3Ctext x='32' y='45' text-anchor='middle' font-size='48' fill='%23f0b45a'%3E∞%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="lib/units.css">
+<link rel="stylesheet" href="lib/contents.css">
+<link rel="stylesheet" href="../lib/books.css">
+<script src="lib/units.js"></script>
+<script src="lib/contents.js"></script>
+<script src="unit-art.js"></script>
+<link rel="expect" href="#ch01" blocking="render">
+</head>
+<body>
+<section id="cover">
+  <div class="chalk" aria-hidden="true"><!-- a few faint formulas or phrases from the book, drawn in chalk -->
+    <span style="left:7%;top:13%;--d:1.6">−3 &lt; −2 &lt; −1</span>
+    <span style="right:8%;top:17%;--d:1.9">√2 = 1.414213…</span>
+    <span style="left:5%;bottom:20%;--d:2.2">0.25 = 1/4</span>
+    <span style="right:6%;bottom:15%;--d:2.5">π = 3.14159…</span>
+  </div>
+  <svg class="mascot draw" id="guide" width="210" height="147" aria-hidden="true"></svg>
+  <h1>Elementary Mathematics</h1>
+  <p class="kicker">An animated book</p>
+  <p class="lede">Middle-school math you can watch and try: numbers sort themselves into families, slide along the number line, and wait for you to place the next one.</p>
+  <div class="acts">
+    <a class="btn go" href="#contents" data-t="open">Open the book<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5 11.5 8 6 13.5 4.6 12.1 8.7 8 4.6 3.9z"/></svg></a>
+    <a class="btn quiet" id="resume" hidden></a>
+  </div>
+  <p class="meta" id="meta"></p>
+  <p class="inspiration">Inspired by <a href="https://www.hachettebookgroup.com/titles/workman-publishing/everything-you-need-to-ace-math-in-one-big-fat-notebook/9780761160960/?lens=workman-publishing-company" target="_blank" rel="noopener noreferrer"><i>Everything You Need to Ace Math in One Big Fat Notebook</i></a>.</p>
+  <a class="back-shelf cover-back" href="../">← Back to the bookshelf</a>
+</section>
+
+<main id="contents">
+  <header class="top">
+    <a class="home" href="#book" aria-label="Back to the cover" data-t-label="toCover"><svg class="mascot" id="guideSmall" width="52" height="36" aria-hidden="true"></svg><strong>Elementary Mathematics</strong></a>
+    <span class="prog" id="prog"></span>
+    <a class="back-shelf contents-back" href="../">← Bookshelf</a>
+  </header>
+  <div id="units"></div>
+</main>
+
+<script>
+// Add a chapter here when its lesson is ready; chapters are numbered in order from start.
+Contents.book({
+  units: [   // [unit title, [[chapter title, minutes], ...], { unit, chapter, sample }?]
+    ['The Number System', [['Types of Numbers and the Number Line', 9], ['Positive and Negative Numbers', 8], ['Absolute Value', 9], ['Factors and Greatest Common Factor', 11], ['Multiples and Least Common Multiple', 10], ['Fraction Basics: Types of Fractions and Adding and Subtracting Fractions', 13], ['Multiplying and Dividing Fractions', 12], ['Adding and Subtracting Decimals', 11], ['Multiplying Decimals', 12], ['Dividing Decimals', 10], ['Adding Positive and Negative Numbers', 12], ['Subtracting Positive and Negative Numbers', 13], ['Multiplying and Dividing Positive and Negative Numbers', 14], ['Inequalities', 10]]],
+    ['Ratios, Proportions, and Percents', [['Ratios', 9], ['Unit Rate and Unit Price', 10], ['Proportions', 12], ['Converting Measurements', 13], ['Percent', 13], ['Percent Word Problems', 13], ['Taxes and Fees', 9], ['Discounts and Markups', 11], ['Gratuity and Commission', 7]]],
+  ],
+  hues: ['#f4a48c', '#86c9e8', '#f3c95c', '#e8a0c8', '#8fd6b0', '#bba8ee', '#f0b45a'],
+});
+</script>
+</body>
+</html>

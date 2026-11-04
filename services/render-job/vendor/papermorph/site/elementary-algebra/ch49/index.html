@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multiplying and Dividing Powers — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 49, title: 'Multiplying and Dividing Powers', minutes: 8, next: '../ch50/' };
+const CA = COL.whole, CB = COL.nat, KEEP = COL.task;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// n copies of the base as separate factor tokens, centred on x at height y. Returns the tokens (dots between them are separate).
+function factors(p, base, n, x, y, color, t0, { size = 56, gap = 84, step = .12 } = {}) {
+  const x0 = x - (n - 1) * gap / 2, out = [];
+  out.dots = [];
+  for (let i = 0; i < n; i++) {
+    const e = M(p, [base], { x: x0 + i * gap, y, size, fill: color, o: 0, s: .6 });
+    tw(e, { o: 1, s: 1 }, t0 + i * step, .35, back);
+    out.push(e);
+    if (i < n - 1) { const d = M(p, ['·'], { x: x0 + (i + .5) * gap, y, size: size * .8, fill: COL.dim, o: 0 }); show(d, t0 + i * step); out.dots.push(d); }
+  }
+  return out;
+}
+const dotsBetween = (p, xs, y, t0, size = 44) => xs.slice(1).forEach((x, i) => show(M(p, ['·'], { x: (xs[i] + x) / 2, y, size, fill: COL.dim, o: 0 }), t0));
+// Slash a factor token out.
+function slash(p, e, t0, color = COL.bad, run = tw) {
+  const { x, y } = st(e);
+  const l = path(p, `M${x - 22} ${y + 8}L${x + 22} ${y - 44}`, { stroke: color, 'stroke-width': 4 }, { d: 0 });
+  run(l, { d: 1 }, t0, .25);
+  run(e, { o: .35 }, t0 + .1, .3);
+}
+const pow = (b, e) => [b, E(e)];
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Powers with the same base', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 9, Chapter 49', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Multiplying and Dividing', { x: 800, y: 400, size: 80, weight: 600, anchor: 'middle' });
+    T(g, 'Powers', { x: 800, y: 490, size: 80, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['x', E('a'), ' · x', E('b'), ' = x', E('a + b')], 800, 630, m('sub'), COL.dim, 52);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['mult', 'Multiplying: add', (m) => {
+    const p = panel(0);
+    mline(p, [...pow('5', 2), ' · ', ...pow('5', 4)], 800, 140, .2, COL.chalk, 64);
+    const a = factors(p, '5', 2, 380, 330, CA, m('expand'));
+    const b = factors(p, '5', 4, 1050, 330, CB, m('expand2'));
+    text(p, '2 fives', 380, 410, m('expand', .4), { size: 26, fill: CA, anchor: 'middle' });
+    text(p, '4 fives', 1050, 410, m('expand2', .4), { size: 26, fill: CB, anchor: 'middle' });
+    // All six join one row.
+    const all = [...a, ...b], xs = all.map((_, i) => 800 + (i - 2.5) * 100);
+    [...a.dots, ...b.dots].forEach(d => hide(d, m('join'), .3));
+    all.forEach((e, i) => tw(e, { x: xs[i], y: 540 }, m('join', i * .08), .8));
+    dotsBetween(p, xs, 540, m('join', 1));
+    all.forEach((e, i) => { tw(e, { s: 1.35 }, m('count', i * .3), .15); tw(e, { s: 1 }, m('count', i * .3 + .15), .25); show(T(p, String(i + 1), { x: xs[i], y: 610, size: 24, fill: KEEP, anchor: 'middle', weight: 700, o: 0 }), m('count', i * .3)); });
+    mline(p, [...pow('5', '2 + 4'), ' = ', ...pow('5', 6)], 800, 720, m('ans'), COL.good, 60);
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 430, y: 770, width: 740, height: 86, rx: 16, fill: 'none', stroke: KEEP, 'stroke-width': 3 }, r);
+    M(r, ['x', E('a'), ' · x', E('b'), ' = x', E('a + b')], { x: 800, y: 828, size: 44, fill: KEEP });
+    show(r, m('rule'));
+  }],
+  ['same', 'Same base only', (m) => {
+    const p = panel(0);
+    mline(p, [...pow('3', 2), ' · ', ...pow('3', 9), ' = ', ...pow('3', 11)], 160, 190, m('ok'), COL.chalk, 52, 'start');
+    text(p, '✓  same base', 1000, 180, m('ok', .8), { size: 30, fill: COL.good, weight: 600 });
+    mline(p, [...pow('8', 5), ' · ', ...pow('7', 4)], 160, 330, m('no'), COL.chalk, 52, 'start');
+    text(p, '✗  different bases: leave it', 1000, 320, m('no', .8), { size: 30, fill: COL.bad, weight: 600 });
+    factors(p, '8', 5, 420, 430, CA, m('no', 1.4), { size: 36, gap: 50 });
+    factors(p, '7', 4, 830, 430, CB, m('no', 1.6), { size: 36, gap: 50 });
+    const rows = [[[...pow('3', 5), ' · ', ...pow('3', 7), ' = ', ...pow('3', 12)], '✓', COL.good], [[...pow('9', 12)], '✗  multiplied the bases', COL.bad], [[...pow('3', 35)], '✗  multiplied the exponents', COL.bad]];
+    rows.forEach(([parts, note, c], i) => {
+      const y = 580 + i * 90;
+      mline(p, parts, i ? 560 : 160, y, m('warn', i * 1.8), i ? c : COL.chalk, 48, 'start');
+      text(p, note, 1000, y - 10, m('warn', i * 1.8 + .5), { size: 28, fill: c, weight: 600 });
+    });
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-mult', prompt: ['Write each as one power: find n.'],
+    build: blanks([
+      { parts: [...pow('7', 2), ' · ', ...pow('7', 8), ' = 7', E('n'), ',     n = ', { box: '10' }], why: '2 + 8 = 10.', hint: 'Add the exponents.' },
+      { parts: [...pow('x', 4), ' · x = x', E('n'), ',     n = ', { box: '5' }], why: 'x is x¹, so 4 + 1 = 5.', hint: 'A lone x has exponent 1.' },
+    ]),
+  }], done) }],
+  ['div', 'Dividing: subtract', (m) => {
+    const p = panel(0);
+    mline(p, [...pow('8', 7), ' ÷ ', ...pow('8', 3)], 800, 140, .2, COL.chalk, 64);
+    const top = factors(p, '8', 7, 800, 360, CA, m('frac'), { gap: 96 });
+    const bot = factors(p, '8', 3, 800, 520, CB, m('frac', .6), { gap: 96 });
+    show(path(p, 'M440 410H1160', { stroke: COL.chalk, 'stroke-width': 4 }, { o: 0 }), m('frac'));
+    const pairs = [[2, 0], [3, 1], [4, 2]];
+    pairs.forEach(([t, b], i) => { slash(p, top[t], m('cancel', i * .9)); slash(p, bot[b], m('cancel', i * .9 + .2)); });
+    text(p, '3 pairs cancel', 1260, 450, m('left'), { size: 28, fill: COL.bad, weight: 600 });
+    mline(p, [...pow('8', '7 − 3'), ' = ', ...pow('8', 4)], 800, 680, m('ans'), COL.good, 60);
+    const r = G(p, { o: 0 });
+    mk('rect', { x: 430, y: 740, width: 740, height: 86, rx: 16, fill: 'none', stroke: KEEP, 'stroke-width': 3 }, r);
+    M(r, ['x', E('a'), ' ÷ x', E('b'), ' = x', E('a − b')], { x: 800, y: 798, size: 44, fill: KEEP });
+    show(r, m('rule'));
+  }],
+  ['one', 'An unwritten exponent', (m) => {
+    const p = panel(0);
+    const row = tokens(p, [[...pow('(−2)', 9)], ' ÷ ', '(−2)'], { x: 800, y: 300, size: 64, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, m('ex')));
+    const one = M(p, ['1'], { x: row[2]._px + row[2]._w / 2 + 14, y: 300 - 30, size: 40, fill: KEEP, o: 0 });
+    tw(one, { o: 1 }, m('one'), .4); pulse(one, m('one', .5), 1.6);
+    text(p, 'no exponent written: exponent 1', 800, 400, m('one', .8), { size: 28, fill: KEEP, anchor: 'middle', weight: 600 });
+    mline(p, [...pow('(−2)', '9 − 1'), ' = ', ...pow('(−2)', 8)], 800, 560, m('ans'), COL.good, 60);
+  }],
+  ['neg', 'A negative result', (m) => {
+    const p = panel(0);
+    mline(p, [...pow('6', 5), ' ÷ ', ...pow('6', 7)], 800, 140, m('ex'), COL.chalk, 64);
+    mline(p, [...pow('6', '5 − 7'), ' = ', ...pow('6', '−2')], 800, 250, m('sub'), COL.chalk, 52);
+    const top = factors(p, '6', 5, 800, 420, CA, m('why'), { gap: 90, step: .05 });
+    const bot = factors(p, '6', 7, 800, 570, CB, m('why', .2), { gap: 90, step: .05 });
+    show(path(p, 'M490 470H1110', { stroke: COL.chalk, 'stroke-width': 4 }, { o: 0 }), m('why'));
+    top.forEach((e, i) => { slash(p, e, m('why', 1 + i * .3)); slash(p, bot[i + 1], m('why', 1.1 + i * .3)); });
+    mline(p, ['= ', F(1, '6²'), ' = ', F(1, 36)], 800, 740, m('ans'), COL.good, 60);
+    text(p, 'two 6s left on the bottom', 1150, 590, m('why', 2.8), { size: 26, fill: CB, weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 260, w: 1080, cls: 'side' }, [{
+    id: 'c-div', prompt: ['Write each as one power: find n.'],
+    build: blanks([
+      { parts: [...pow('9', 3), ' ÷ 9 = 9', E('n'), ',     n = ', { box: '2' }], why: '3 − 1 = 2.', hint: '9 means 9¹.' },
+      { parts: [...pow('(−12)', 2), ' ÷ ', ...pow('(−12)', '−9'), ' = (−12)', E('n'), ',     n = ', { box: '11' }], why: '2 − (−9) = 11.', hint: 'Subtracting −9 is adding 9.' },
+    ]),
+  }], done) }],
+  ['chain', 'Longer chains', (m) => {
+    const p = panel(0);
+    const L = (parts, note, y, t0, fill = COL.chalk) => eqLine(p, [], parts, y, t0, { xEq: 360, fill, note, noteX: 1080, size: 54 });
+    mline(p, [...pow('9', 7), ' · ', ...pow('9', 3), ' ÷ ', ...pow('9', 2)], 800, 160, m('ex'), COL.chalk, 60);
+    L([...pow('9', '7 + 3'), ' ÷ ', ...pow('9', 2)], 'multiply: add', 330, m('step1'));
+    L([...pow('9', 10), ' ÷ ', ...pow('9', 2)], '', 440, m('step1', 1.5));
+    L([...pow('9', '10 − 2')], 'divide: subtract', 550, m('step2'));
+    L([...pow('9', 8)], '', 660, m('ans'), COL.good);
+    mline(p, ['7 + 3 − 2 = 8'], 800, 800, m('quick'), KEEP, 44);
+  }],
+  ['q3', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 260, y: 220, w: 1080, cls: 'side' }, [{
+    id: 'c-who', prompt: ['Four students simplified ', $m(...pow('3', 5), ' · ', ...pow('3', 7)), '. Who is correct?'],
+    build: choice([['Ahmed: ', $m(...pow('6', 12))], ['Brian: ', $m(...pow('9', 12))], ['Celia: ', $m(...pow('3', 12))], ['Dee: ', $m(...pow('3', 35))]], 2, 'Same base, so keep the 3 and add 5 + 7.',
+      ['The base stays 3; it is not 3 + 3.', 'The base stays 3; it is not 3 · 3.', null, 'Multiplying powers adds the exponents; it doesn’t multiply them.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['Multiply powers with the same base: add the exponents.', 'w1', CA], ['Divide powers with the same base: subtract the exponents.', 'w2', CB],
+     ['The base stays the same; different bases don’t combine.', 'w3', KEEP]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 170, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 170, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 230, size: 32, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-exp', prompt: ['Write each as one power: find n.'], build: blanks([
+      { parts: [...pow('4', 6), ' · ', ...pow('4', 3), ' = 4', E('n'), ',     n = ', { box: '9' }], why: '6 + 3 = 9.', hint: 'Add.' },
+      { parts: [...pow('a', 10), ' ÷ ', ...pow('a', 4), ' = a', E('n'), ',     n = ', { box: '6' }], why: '10 − 4 = 6.', hint: 'Subtract.' },
+      { parts: [...pow('(−5)', 3), ' · (−5) = (−5)', E('n'), ',     n = ', { box: '4' }], why: '3 + 1 = 4.', hint: '(−5) is (−5)¹.' },
+      { parts: [...pow('2', 3), ' ÷ ', ...pow('2', 8), ' = 2', E('n'), ',     n = ', { box: '-5' }], why: '3 − 8 = −5.', hint: 'The result can be negative.' },
+      { parts: [...pow('y', '−2'), ' · ', ...pow('y', 6), ' = y', E('n'), ',     n = ', { box: '4' }], why: '−2 + 6 = 4.', hint: 'Add −2 and 6.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-chain', prompt: ['Simplify each chain: find n.'], build: blanks([
+      { parts: [...pow('3', 8), ' · ', ...pow('3', 6), ' ÷ ', ...pow('3', 9), ' = 3', E('n'), ',     n = ', { box: '5' }], why: '8 + 6 − 9 = 5.', hint: 'Add, then subtract.' },
+      { parts: [...pow('(−5)', 7), ' ÷ ', ...pow('(−5)', 6), ' · ', ...pow('(−5)', 3), ' = (−5)', E('n'), ',     n = ', { box: '4' }], why: '7 − 6 + 3 = 4.', hint: 'Left to right: subtract, then add.' },
+      { parts: [...pow('6', 12), ' ÷ ', ...pow('6', 9), ' ÷ ', ...pow('6', 5), ' = 6', E('n'), ',     n = ', { box: '-2' }], why: '12 − 9 − 5 = −2.', hint: 'Subtract both.' },
+    ]),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-can', prompt: ['Can the expression be written as a single power?'],
+    build: grid(CANQ, [['y', 'Yes', COL.good, 'Y'], ['n', 'No', COL.bad, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const CANQ = [
+  { parts: [$m(...pow('3', 2), ' · ', ...pow('3', 9))], ans: ['y'], why: 'Same base: 3¹¹.' },
+  { parts: [$m(...pow('8', 5), ' · ', ...pow('7', 4))], ans: ['n'], why: 'Different bases.' },
+  { parts: [$m(...pow('4', 5), ' ÷ ', ...pow('3', 5))], ans: ['n'], why: 'The exponents match, but the bases differ.' },
+  { parts: [$m(...pow('x', 3), ' · ', ...pow('x', 3))], ans: ['y'], why: 'x⁶.' },
+  { parts: [$m(...pow('x', 4), ' · ', ...pow('y', 4))], ans: ['n'], why: 'x and y are different bases.' },
+  { parts: [$m(...pow('10', 9), ' ÷ ', ...pow('10', 9))], ans: ['y'], why: '10⁰, which is 1.' },
+];
+boot();
+</script>
+</body>
+</html>

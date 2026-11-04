@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Systems by Graphing — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 36, title: 'Solving Systems of Linear Equations by Graphing', minutes: 6, next: '../ch37/' };
+const L1 = COL.whole, L2 = COL.rat, PT = COL.task;   // first line, second line, solution
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const side = (p, parts, y, t0, fill = COL.chalk, size = 40) => mline(p, parts, 1000, y, t0, fill, size, 'start');
+function makePlane(t0) { S.pg = G(scene); S.P = plane(S.pg, { cx: 520, cy: 450, u: 40, x0: -8, x1: 8, y0: -8, y1: 8, t0 }); return S.P; }
+function stage() { const p = panel(0), P = S.P; P.layer = p; S.qp = p; return [p, P]; }
+// Two equations joined by a brace; the first line's baseline is y.
+function system(p, a, b, x, y, t0, size = 40, gap = 64) {
+  const g = G(p, { o: 0 }), y1 = y - size * .85, y2 = y + gap + size * .3, ym = (y1 + y2) / 2;
+  path(g, `M${x + 14} ${y1}Q${x} ${y1} ${x} ${y1 + 14}V${ym - 10}Q${x} ${ym} ${x - 12} ${ym}Q${x} ${ym} ${x} ${ym + 10}V${y2 - 14}Q${x} ${y2} ${x + 14} ${y2}`, { stroke: COL.dim, 'stroke-width': 3 });
+  M(g, [].concat(a), { x: x + 28, y, size, fill: L1, anchor: 'start' });
+  M(g, [].concat(b), { x: x + 28, y: y + gap, size, fill: L2, anchor: 'start' });
+  show(g, t0);
+  return g;
+}
+// One of the three outcomes as a small picture.
+function outcome(p, cx, cy, lines, t0) {
+  const g = G(p, { o: 0 });
+  mk('rect', { x: cx - 130, y: cy - 130, width: 260, height: 260, rx: 18, fill: 'none', stroke: COL.faint, 'stroke-width': 2 }, g);
+  path(g, `M${cx - 120} ${cy}H${cx + 120}M${cx} ${cy - 120}V${cy + 120}`, { stroke: COL.faint, 'stroke-width': 1.5 });
+  show(g, t0);
+  lines.forEach(([d, color, extra], i) => draw(path(p, d, { stroke: color, 'stroke-width': 6, ...extra }, { d: 0 }), t0 + .2 + i * .4, .6));
+}
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Systems by graphing', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 6, Chapter 36', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Solving Systems of Linear', { x: 800, y: 400, size: 76, weight: 600, anchor: 'middle' });
+    T(g, 'Equations by Graphing', { x: 800, y: 490, size: 76, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, ['one point on both lines'], 800, 620, m('q'), COL.dim, 44);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['system', 'A system of equations', (m) => {
+    const p = panel(0);
+    show(T(p, 'system of equations', { x: 800, y: 120, size: 30, fill: COL.dim, weight: 600, anchor: 'middle', o: 0 }), .2);
+    system(p, 'x + y = 5', '2x − y = 4', 640, 210, m('eqs'), 48, 72);
+    show(T(p, 'solution: an ordered pair that makes both equations true', { x: 800, y: 410, size: 30, fill: PT, weight: 600, anchor: 'middle', o: 0 }), m('sol'));
+    mline(p, ['(3, 2)'], 330, 520, m('t1'), PT, 42, 'start');
+    mline(p, ['3 + 2 = 5  ✓'], 560, 520, m('t1', .5), L1, 40, 'start');
+    mline(p, ['2(3) − 2 = 4  ✓'], 940, 520, m('t2'), L2, 40, 'start');
+    mline(p, ['(1, 4)'], 330, 630, m('t3'), PT, 42, 'start');
+    mline(p, ['1 + 4 = 5  ✓'], 560, 630, m('t3', .5), L1, 40, 'start');
+    mline(p, ['2(1) − 4 = −2  ✗'], 940, 630, m('t4'), COL.bad, 40, 'start');
+  }],
+  ['graph', 'Graph both lines', (m) => {
+    makePlane(0);
+    const [p, P] = stage();
+    system(p, 'x + y = 5', '2x − y = 4', 1000, 150, .3, 38, 60);
+    side(p, ['y = −x + 5'], 320, m('r1'), L1, 40);
+    side(p, ['y = 2x − 4'], 390, m('r2'), L2, 40);
+    P.dot(0, 5, L1, m('l1')); P.stair(0, 5, -1, 1, m('l1', .6), { labels: false }); P.line(0, 5, 1, 4, L1, m('l1', 2));
+    P.dot(0, -4, L2, m('l2')); P.stair(0, -4, 2, 1, m('l2', .6), { labels: false }); P.line(0, -4, 1, -2, L2, m('l2', 2));
+    pulse(P.dot(3, 2, PT, m('x'), { label: '(3, 2)', dx: 16, dy: -8 }), m('x', .8));
+    side(p, ['solution: (3, 2)'], 500, m('x', 1), PT, 40);
+  }],
+  ['q1', 'Quick check', () => {
+    const [p, P] = stage();
+    system(p, 'y = x + 1', 'y = −2x + 4', 1000, 150, .2, 38, 60);
+    P.line(0, 1, 1, 2, L1, .3); P.line(0, 4, 1, 2, L2, .5);
+  }, { ask: done => quiz({ x: 1000, y: 290, w: 580, cls: 'side' }, [{
+    id: 'c-cross', prompt: ['Pick the solution of the system: the point where the lines cross.'],
+    build: pickPoint(S.P, [1, 2], '(1, 2) is on both lines: 2 = 1 + 1 and 2 = −2 + 4.',
+      (x, y) => y === x + 1 ? 'That point is on y = x + 1 only. The solution has to be on both lines.' : y === -2 * x + 4 ? 'That point is on y = −2x + 4 only. The solution has to be on both lines.' : 'That point is on neither line. Look for where they cross.'),
+  }], done) }],
+  ['parallel', 'Parallel lines', (m) => {
+    const [p, P] = stage();
+    system(p, '2x + y = −2', '4x + 2y = 6', 1000, 150, m('eqs'), 38, 60);
+    side(p, ['y = −2x − 2'], 320, m('r'), L1, 40);
+    side(p, ['y = −2x + 3'], 390, m('r', 1.5), L2, 40);
+    P.line(0, -2, 1, -4, L1, m('lines')); P.line(0, 3, 1, 1, L2, m('lines', .5));
+    P.stair(-3, 4, -2, 1, m('lines', 1.2), { labels: false }); P.stair(-2, 2, -2, 1, m('lines', 1.2), { labels: false });
+    side(p, ['same slope: parallel'], 500, m('par'), COL.dim, 34);
+    side(p, ['no solution'], 580, m('none'), COL.bad, 40);
+  }],
+  ['same', 'The same line', (m) => {
+    const [p, P] = stage();
+    system(p, '4x − 2y = 6', '2x − y = 3', 1000, 150, .2, 38, 60);
+    side(p, ['y = 2x − 3'], 320, m('r'), L1, 40);
+    side(p, ['y = 2x − 3'], 390, m('r', 1.5), L2, 40);
+    P.line(0, -3, 1, -1, L1, m('line'), { w: 10 }); P.line(0, -3, 1, -1, L2, m('line', .8), { w: 4, dash: '16 12' });
+    [[-2, -7], [0, -3], [1, -1], [3, 3], [5, 7]].forEach(([x, y], i) => P.dot(x, y, PT, m('inf', .3 + i * .25), { r: 8 }));
+    side(p, ['same line'], 500, m('line', 1), COL.dim, 34);
+    side(p, ['infinitely many solutions'], 580, m('inf'), COL.good, 40);
+  }],
+  ['count', 'Three outcomes', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    const dash = { 'stroke-width': 3, 'stroke-dasharray': '14 10' };
+    [['one solution', 'different slopes', 'one', PT, c => [[`M${c - 100} 490L${c + 100} 290`, L1], [`M${c - 100} 330L${c + 100} 450`, L2]]],
+     ['no solution', 'same slope, different b', 'none', COL.bad, c => [[`M${c - 110} 480L${c + 70} 300`, L1], [`M${c - 70} 500L${c + 110} 320`, L2]]],
+     ['infinitely many', 'same slope, same b', 'inf', COL.good, c => [[`M${c - 90} 500L${c + 90} 280`, L1], [`M${c - 90} 500L${c + 90} 280`, L2, dash]]]].forEach(([n, d, mark, col, lines], i) => {
+      const cx = 380 + i * 420, cy = 390;
+      outcome(p, cx, cy, lines(cx), m(mark));
+      show(T(p, n, { x: cx, y: cy + 190, size: 32, fill: col, weight: 600, anchor: 'middle', o: 0 }), m(mark, .6));
+      show(T(p, d, { x: cx, y: cy + 232, size: 24, fill: COL.dim, anchor: 'middle', o: 0 }), m(mark, .8));
+    });
+  }],
+  ['q2', 'Quick check', () => {
+    show(S.pg, 0, .3);
+    const [p] = stage();
+    system(p, 'y = 3x + 1', '6x − 2y = −2', 1000, 150, .2, 38, 60);
+  }, { ask: done => quiz({ x: 1000, y: 290, w: 580, cls: 'side' }, [{
+    id: 'c-count', prompt: ['How many solutions does this system have?'],
+    build: choice([['One'], ['None'], ['Infinitely many']], 2, 'The second equation becomes y = 3x + 1 too: the same line.',
+      ['Rewrite 6x − 2y = −2 in slope-intercept form first.', 'The slopes match, but check the y-intercepts too.', null],
+      () => { const P = S.P; P.line(0, 1, 1, 4, L1, 0, { run: fx, into: S.qp, w: 10 }); P.line(0, 1, 1, 4, L2, .6, { run: fx, into: S.qp, w: 4, dash: '16 12' }); }),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    hide(S.pg, 0, .4);
+    const p = panel(0);
+    [['Write both equations as y = mx + b and graph them.', 'w1'], ['Where the lines cross is the solution. Check it in both.', 'w2'], ['Parallel: no solution.  Same line: infinitely many.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 260 + i * 140, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      M(g, [str], { x: 260, size: 36, anchor: 'start' });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-sol', prompt: ['Find the solution of each system.'], build: blanks(SOLQ),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-count', prompt: ['How many solutions does each system have?'],
+    build: grid(COUNTQ, [['1', 'One', PT], ['0', 'None', COL.bad], ['i', 'Infinitely many', COL.good]], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-yes', prompt: ['Is the point a solution of the system?'],
+    build: grid(YESQ, [['y', 'Yes', null, 'Y'], ['n', 'No', null, 'N']], { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => {}, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const SOLQ = [
+  { parts: ['x + y = 5  and  3x + y = 7:      (', { box: '1' }, ', ', { box: '4' }, ')'], why: 'y = −x + 5 and y = −3x + 7 cross at (1, 4).' },
+  { parts: ['2x − 4y = 10  and  3x + 4y = 15:      (', { box: '5' }, ', ', { box: '0' }, ')'], why: 'Both lines pass through (5, 0).' },
+  { parts: ['3x − 2y = −10  and  −5x + 4y = 14:      (', { box: '-6' }, ', ', { box: '-4' }, ')'], why: '3(−6) − 2(−4) = −10 and −5(−6) + 4(−4) = 14.' },
+  { parts: ['5x − 3y = −14  and  3x + y = 0:      (', { box: '-1' }, ', ', { box: '3' }, ')'], why: '5(−1) − 3(3) = −14 and 3(−1) + 3 = 0.' },
+];
+const COUNTQ = [
+  { parts: [$m('6x + 3y = −9'), '   and   ', $m('−4x − 2y = 6')], ans: ['i'], why: 'Both become y = −2x − 3.' },
+  { parts: [$m('3x − 6y = 12'), '   and   ', $m('x = 2y')], ans: ['0'], why: 'y = ½x − 2 and y = ½x: same slope, different b.' },
+  { parts: [$m('y = 2x + 1'), '   and   ', $m('y = −x + 1')], ans: ['1'], why: 'Different slopes: they cross once, at (0, 1).' },
+  { parts: [$m('y = 4x − 1'), '   and   ', $m('y = 4x + 5')], ans: ['0'], why: 'Parallel lines.' },
+  { parts: [$m('y = ', F(1, 2), 'x + 3'), '   and   ', $m('2y − x = 6')], ans: ['i'], why: '2y = x + 6 gives y = ½x + 3.' },
+];
+const YESQ = [
+  { parts: ['(3, 2):   ', $m('x + y = 5'), '   and   ', $m('2x − y = 4')], ans: ['y'], why: '5 = 5 and 4 = 4.' },
+  { parts: ['(1, 4):   ', $m('x + y = 5'), '   and   ', $m('2x − y = 4')], ans: ['n'], why: '2(1) − 4 = −2, not 4.' },
+  { parts: ['(2, −1):   ', $m('y = x − 3'), '   and   ', $m('y = −2x + 3')], ans: ['y'], why: '−1 = 2 − 3 and −1 = −4 + 3.' },
+  { parts: ['(0, 3):   ', $m('y = 2x + 3'), '   and   ', $m('y = 2x − 3')], ans: ['n'], why: 'Parallel lines: no point works for both.' },
+  { parts: ['(−6, −4):   ', $m('3x − 2y = −10'), '   and   ', $m('−5x + 4y = 14')], ans: ['y'], why: '−18 + 8 = −10 and 30 − 16 = 14.' },
+];
+boot();
+</script>
+</body>
+</html>

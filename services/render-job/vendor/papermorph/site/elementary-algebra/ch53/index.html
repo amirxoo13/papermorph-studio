@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factoring by Grouping — Elementary Algebra</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/math.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 53, title: 'Factoring by Grouping', minutes: 8, next: '../ch54/' };
+const G1 = COL.whole, G2 = COL.nat, BIN = COL.task;
+
+/* ---------- chapter drawing helpers ---------- */
+const mline = (p, parts, x, y, t0, fill = COL.chalk, size = 48, anchor = 'middle') => { const e = M(p, [].concat(parts), { x, y, size, fill, anchor, o: 0 }); show(e, t0); return e; };
+const text = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+// A rounded bracket under tokens i..j of a row: marks a group.
+function under(p, row, i, j, color, t0, label) {
+  const x1 = row[i]._px - row[i]._w / 2, x2 = row[j]._px + row[j]._w / 2, y = row.y + 22;
+  draw(path(p, `M${x1} ${y}Q${x1} ${y + 18} ${x1 + 18} ${y + 18}H${x2 - 18}Q${x2} ${y + 18} ${x2} ${y}`, { stroke: color, 'stroke-width': 4 }, { d: 0 }), t0, .5);
+  if (label) mline(p, label, (x1 + x2) / 2, y + 72, t0 + .4, color, 44);
+}
+// A highlight box around token k of a row.
+function boxTok(p, row, k, color, t0, pad = 2) {
+  const e = row[k], r = put(mk('rect', { x: e._px - e._w / 2 - pad, y: row.y - row.size * .9, width: e._w + 2 * pad, height: row.size * 1.25, rx: 12, fill: 'none', stroke: color, 'stroke-width': 3.5 }, p), { o: 0 });
+  show(r, t0, .3);
+  return r;
+}
+const step = (p, parts, y, t0, note, fill = COL.chalk, X = 330) => eqLine(p, [], parts, y, t0, { xEq: X, fill, note, noteX: 1080, size: 50 });
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', 'Factoring by grouping', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 10, Chapter 53', { x: 800, y: 330, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Factoring by Grouping', { x: 800, y: 430, size: 88, weight: 600, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = mline(scene, 'ax + ay + bx + b\u200By = (x + y)(a + b)', 800, 600, m('sub'), COL.dim, 46);
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+  ['idea', 'Pairs', (m) => {
+    const p = panel(0);
+    const row = tokens(p, [{ t: 'ax', fill: G1 }, ' + ', { t: 'ay', fill: G1 }, ' + ', { t: 'bx', fill: G2 }, ' + ', { t: 'b\u200By', fill: G2 }], { x: 800, y: 190, size: 72, anchor: 'middle', o: 0 });
+    row.forEach(e => show(e, .2));
+    text(p, 'no factor shared by all four terms', 800, 290, m('none'), { size: 28, fill: COL.dim, anchor: 'middle' });
+    under(p, row, 0, 2, G1, m('group'));
+    under(p, row, 4, 6, G2, m('group', .4));
+    const r2 = tokens(p, [{ t: 'a', fill: G1 }, '(x + y)', ' + ', { t: 'b', fill: G2 }, '(x + y)'], { x: 800, y: 440, size: 72, anchor: 'middle', o: 0 });
+    [0, 1].forEach(k => show(r2[k], m('f1'))); [2, 3, 4].forEach(k => show(r2[k], m('f2')));
+    boxTok(p, r2, 1, BIN, m('same')); boxTok(p, r2, 4, BIN, m('same', .3));
+    const pulled = M(p, ['(x + y)'], { x: r2[1]._px, y: 440, size: 72, fill: BIN, o: 0 });
+    show(pulled, m('pull'), .1); tw(pulled, { x: 640, y: 640 }, m('pull'), .9);
+    mline(p, '(a + b)', 920, 640, m('ans'), COL.chalk, 72);
+    const res = put(mk('rect', { x: 470, y: 570, width: 640, height: 100, rx: 18, fill: 'none', stroke: COL.good, 'stroke-width': 3 }, p), { o: 0 });
+    show(res, m('ans', .6));
+  }],
+  ['area', 'An area picture', (m) => {
+    const p = panel(0);
+    const A = areaGrid(p, 520, 260, [280, 220], [220, 180], ['x', 'y'], ['a', 'b'], m('tiles'), { size: 50 });
+    [[0, 0, 'ax', G1], [0, 1, 'ay', G1], [1, 0, 'bx', G2], [1, 1, 'b\u200By', G2]].forEach(([i, j, s, c], k) => A.cell(i, j, s, m('tiles', .6 + k * .3), { tint: c }));
+    A.ring(0, 0, G1, m('rows')); A.ring(0, 1, G1, m('rows'));
+    A.ring(1, 0, G2, m('rows2')); A.ring(1, 1, G2, m('rows2'));
+    const xs = A.xs, ys = A.ys;
+    draw(path(p, `M${xs[0]} ${ys[2] + 40}H${xs[2]}`, { stroke: BIN, 'stroke-width': 4 }, { d: 0 }), m('sides'), .5);
+    mline(p, 'x + y', (xs[0] + xs[2]) / 2, ys[2] + 96, m('sides', .3), BIN, 46);
+    draw(path(p, `M${xs[2] + 40} ${ys[0]}V${ys[2]}`, { stroke: COL.irr, 'stroke-width': 4 }, { d: 0 }), m('sides', .8), .5);
+    mline(p, 'a + b', xs[2] + 60, (ys[0] + ys[2]) / 2 + 16, m('sides', 1.1), COL.irr, 46, 'start');
+    mline(p, 'area = (a + b)(x + y)', 800, 160, m('ans'), COL.good, 50);
+  }],
+  ['q1', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-grp', prompt: ['Factor ', $m('x', E(2), ' + 5x + xy + 5y'), ' by grouping.'],
+    build: blanks([{ parts: ['x(x + ', { box: '5' }, ') + y(x + ', { box: '5' }, ') = (x + 5)(x + y)'], why: 'x is common to x² + 5x, and y to xy + 5y. Both leave x + 5.', hint: 'Factor x out of x² + 5x, and y out of xy + 5y.' }]),
+  }], done) }],
+  ['ex', 'Another example', (m) => {
+    const p = panel(0);
+    mline(p, 'pq − 3q + 4p − 12', 800, 130, .2, COL.chalk, 60);
+    step(p, '(pq − 3q) + (4p − 12)', 270, m('group'));
+    step(p, 'q(p − 3) + 4(p − 3)', 380, m('f1'), 'q and 4 come out');
+    step(p, '(p − 3)(q + 4)', 490, m('ans'), 'p − 3 is shared', COL.good);
+    mline(p, '(p − 3)(q + 4) = pq + 4p − 3q − 12  ✓', 800, 650, m('chk'), COL.dim, 40);
+  }],
+  ['neg', 'Watch the signs', (m) => {
+    const p = panel(0);
+    mline(p, 'mx − m\u200By − nx + ny', 800, 130, m('q'), COL.chalk, 60);
+    step(p, 'm(x − y) − nx + ny', 270, m('f1'));
+    tokens(p, ['= m(x − y)', { t: ' − n', fill: COL.bad }, '(x', { t: ' − ', fill: COL.bad }, 'y)'], { x: 300, y: 380, size: 50, o: 0 }).forEach(e => show(e, m('f2', .5)));
+    text(p, '−n · x = −nx,   −n · (−y) = +ny', 1080, 372, m('flip'), { size: 26, fill: COL.bad, weight: 600 });
+    step(p, '(x − y)(m − n)', 490, m('ans'), '', COL.good);
+    text(p, 'Parentheses don’t match? Check the signs.', 800, 680, m('warn'), { size: 30, fill: COL.task, anchor: 'middle', weight: 600 });
+  }],
+  ['q2', 'Quick check', () => { panel(0); }, { ask: done => quiz({ x: 220, y: 260, w: 1160, cls: 'side' }, [{
+    id: 'c-sign', prompt: ['Factor ', $m('5ac − 15ad − bc + 3bd'), '.'],
+    build: choice([[$m('(c − 3d)(5a + b)')], [$m('(c − 3d)(5a − b)')], [$m('(c + 3d)(5a − b)')]], 1, '5a(c − 3d) − b(c − 3d) = (c − 3d)(5a − b).',
+      ['Factor −b out of −bc + 3bd: −b(c − 3d), so the second factor has −b.', null, '−15ad = 5a · (−3d), so the binomial is c − 3d.']),
+  }], done) }],
+  ['gcf', 'GCF first', (m) => {
+    const p = panel(0), X = 250;
+    mline(p, ['12m', E(5), 'n', E(2), ' − 8m', E(4), 'n', E(2), ' + 9m', E(3), 'n', E(5), ' − 6m', E(2), 'n', E(5)], 800, 130, m('q'), COL.chalk, 50);
+    eqLine(p, [], ['m', E(2), 'n', E(2), '(12m', E(3), ' − 8m', E(2), ' + 9mn', E(3), ' − 6n', E(3), ')'], 270, m('out'), { xEq: X, size: 46, note: 'GCF of all four terms', noteX: 1130 });
+    eqLine(p, [], ['m', E(2), 'n', E(2), '[4m', E(2), '(3m − 2) + 3n', E(3), '(3m − 2)]'], 400, m('pairs'), { xEq: X, size: 46, note: 'group inside', noteX: 1130 });
+    eqLine(p, [], ['m', E(2), 'n', E(2), '(3m − 2)(4m', E(2), ' + 3n', E(3), ')'], 530, m('ans'), { xEq: X, size: 46, fill: COL.good });
+  }],
+  ['q3', 'Quick check', () => {
+    const p = panel(0), X = 250;
+    mline(p, ['8x', E(5), 'y', E(6), ' − 2x', E(3), 'y', E(9), ' − 24x', E(5), 'y', E(4), ' + 6x', E(3), 'y', E(7)], 800, 120, .2, COL.chalk, 44);
+    [[['(8x', E(5), 'y', E(6), ' − 2x', E(3), 'y', E(9), ') − (24x', E(5), 'y', E(4), ' + 6x', E(3), 'y', E(7), ')'], 'line 1'],
+     [['2x', E(3), 'y', E(6), '(4x', E(2), ' − y', E(3), ') − 6x', E(3), 'y', E(4), '(4x', E(2), ' + y', E(3), ')'], 'line 2'],
+     ['no common binomial, so it can’t be factored', 'line 3']].forEach(([parts, lab], i) => {
+      text(p, lab, 120, 250 + i * 100, .3 + i * .2, { size: 24, fill: COL.dim, weight: 600 });
+      if (typeof parts === 'string') text(p, parts, 260, 252 + i * 100, .3 + i * .2, { size: 34 });
+      else mline(p, parts, 260, 255 + i * 100, .3 + i * .2, COL.chalk, 40, 'start');
+    });
+  }, { ask: done => quiz({ x: 220, y: 560, w: 1160, cls: 'side' }, [{
+    id: 'c-chuck', prompt: ['Where is the first mistake?'],
+    build: choice([['line 1'], ['line 2'], ['line 3'], ['no mistake']], 0, '−24x⁵y⁴ + 6x³y⁷ = −(24x⁵y⁴ − 6x³y⁷): the sign of 6x³y⁷ must flip inside.',
+      [null, 'Line 2 follows from line 1, but line 1 already has a sign error.', 'The conclusion is wrong because of an earlier sign error.', 'With the signs fixed, both groups share 4x² − y³.']),
+  }], done) }],
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['First, factor out any GCF of all the terms.', 'w1', COL.task], ['Group the terms in pairs; factor each pair.', 'w2', G1],
+     ['If the pairs share a binomial, factor it out.', 'w3', BIN], ['Factoring out a negative flips the signs inside.', 'w4', COL.bad]].forEach(([str, mark, c], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 26, fill: c }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-grp', prompt: ['Factor by grouping.'], build: blanks([
+      { parts: ['3fm − gm + 6fn − 2gn = (3f − g)(m + ', { box: '2' }, 'n)'], why: 'm(3f − g) + 2n(3f − g).', hint: 'Factor m from the first pair and 2n from the second.' },
+      { parts: ['10a', E(2), ' + 14a − 15ab − 21b = (5a + ', { box: '7' }, ')(2a − ', { box: '3' }, 'b)'], why: '2a(5a + 7) − 3b(5a + 7).', hint: 'Factor 2a from the first pair and −3b from the second.' },
+      { parts: ['2m + 7am − 6n − 21a\u200Bn = (2 + ', { box: '7' }, 'a)(m − ', { box: '3' }, 'n)'], why: 'm(2 + 7a) − 3n(2 + 7a).', hint: 'Factor −3n from the second pair.' },
+      { parts: ['x', E(2), ' + 3x + 2x + 6 = (x + ', { box: '3' }, ')(x + ', { box: '2' }, ')'], test: ([a, b]) => (a === 3 && b === 2) || (a === 2 && b === 3), why: 'x(x + 3) + 2(x + 3).', hint: 'Factor x from the first pair and 2 from the second.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+  ['final2', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: ['Is the factorization correct?'], build: grid(TFQ, TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+  ['final3', 'Chapter practice', () => {}, { ask: done => quiz(SCREEN, [{
+    id: 'p-gcf', prompt: ['Factor completely: GCF first, then grouping.'], build: blanks([
+      { parts: ['30am', E(2), ' − 40amn + 16bmn − 12bm', E(2), ' = ', { box: '2' }, 'm(3m − 4n)(5a − ', { box: '2' }, 'b)'], why: '2m(15am − 20an + 8bn − 6bm) = 2m[5a(3m − 4n) − 2b(3m − 4n)].', hint: 'Every term has 2m. Then group inside.' },
+      { parts: ['2x', E(3), ' + 4x', E(2), ' + 6x + 12 = ', { box: '2' }, '(x + ', { box: '2' }, ')(x', E(2), ' + 3)'], why: '2(x³ + 2x² + 3x + 6) = 2[x²(x + 2) + 3(x + 2)].', hint: 'Every term is even: take out 2 first.' },
+    ]),
+  }], done, 'Chapter practice   3 of 3') }],
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+/* ---------- chapter practice data ---------- */
+const TFQ = [
+  { parts: [$m('ax − ay − bx + b\u200By = (x − y)(a − b)')], ans: ['t'], why: 'a(x − y) − b(x − y).' },
+  { parts: [$m('mx − m\u200By − nx + ny = (x − y)(m + n)')], ans: ['f'], why: 'It is (x − y)(m − n).' },
+  { parts: [$m('pq − 3q + 4p − 12 = (p − 3)(q + 4)')], ans: ['t'], why: 'q(p − 3) + 4(p − 3).' },
+  { parts: [$m('x', E(2), ' + 2x + 3x + 6 = (x + 2)(x + 6)')], ans: ['f'], why: 'x(x + 2) + 3(x + 2) = (x + 2)(x + 3).' },
+  { parts: [$m('2x', E(3), ' + 4x', E(2), ' + 3x + 6 = (x + 2)(2x', E(2), ' + 3)')], ans: ['t'], why: '2x²(x + 2) + 3(x + 2).' },
+  { parts: [$m('ab + 2a + 5b + 10 = (a + 5)(b + 2)')], ans: ['t'], why: 'a(b + 2) + 5(b + 2).' },
+];
+boot();
+</script>
+</body>
+</html>
