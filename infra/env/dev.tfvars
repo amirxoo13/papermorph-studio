@@ -1,0 +1,14 @@
+project_id         = "gen-lang-client-0484425781"
+project_number     = "149479920662"
+billing_account    = "01A7F9-B29FE7-D2A289"
+region             = "us-central1"
+firestore_location = "nam5"
+budget_amount_usd  = 100
+pro_model          = "gemini-2.5-pro"
+flash_model        = "gemini-2.5-flash"
+image_model        = "imagen-3.0-generate-002"
+tts_model_en       = "en-US-Chirp3-HD-Achernar"
+tts_model_fa       = "fa-IR-Standard-A"
+stt_model          = "chirp_2"
+enable_veo_clips   = false
+enable_lyria_music = false

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.next/
+.terraform/
+*.tfstate*
+*.tfvars.secret
+.env*
+*.mp4
+*.wav
+*.zip
+/tmp/
