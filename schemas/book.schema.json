@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "ContentFormat": {
+      "enum": [
+        "textbook_lesson",
+        "picture_book",
+        "documentary_shorts"
+      ],
+      "title": "ContentFormat",
+      "type": "string"
+    },
+    "LanguageCode": {
+      "enum": [
+        "en",
+        "fa"
+      ],
+      "title": "LanguageCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bookId": {
+      "title": "Bookid",
+      "type": "string"
+    },
+    "jobId": {
+      "title": "Jobid",
+      "type": "string"
+    },
+    "ownerUid": {
+      "title": "Owneruid",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "language": {
+      "$ref": "#/$defs/LanguageCode"
+    },
+    "format": {
+      "$ref": "#/$defs/ContentFormat"
+    },
+    "readerUrl": {
+      "title": "Readerurl",
+      "type": "string"
+    },
+    "video1080pUrl": {
+      "title": "Video1080Purl",
+      "type": "string"
+    },
+    "shorts9x16Url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shorts9X16Url"
+    },
+    "srtUrl": {
+      "title": "Srturl",
+      "type": "string"
+    },
+    "scormZipUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scormzipurl"
+    },
+    "sourcesMdUrl": {
+      "title": "Sourcesmdurl",
+      "type": "string"
+    },
+    "durationMs": {
+      "title": "Durationms",
+      "type": "integer"
+    },
+    "costUsd": {
+      "title": "Costusd",
+      "type": "number"
+    },
+    "publishedAt": {
+      "title": "Publishedat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "bookId",
+    "jobId",
+    "ownerUid",
+    "title",
+    "language",
+    "format",
+    "readerUrl",
+    "video1080pUrl",
+    "srtUrl",
+    "sourcesMdUrl",
+    "durationMs",
+    "costUsd"
+  ],
+  "title": "BookDoc",
+  "type": "object"
+}

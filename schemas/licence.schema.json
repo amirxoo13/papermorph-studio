@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "title": "Assetid",
+      "type": "string"
+    },
+    "assetType": {
+      "title": "Assettype",
+      "type": "string"
+    },
+    "uri": {
+      "title": "Uri",
+      "type": "string"
+    },
+    "licenceSpdx": {
+      "title": "Licencespdx",
+      "type": "string"
+    },
+    "attribution": {
+      "title": "Attribution",
+      "type": "string"
+    },
+    "verified": {
+      "default": true,
+      "title": "Verified",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "assetId",
+    "assetType",
+    "uri",
+    "licenceSpdx",
+    "attribution"
+  ],
+  "title": "LicenceEntry",
+  "type": "object"
+}

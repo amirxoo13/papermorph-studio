@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "WordTiming": {
+      "additionalProperties": false,
+      "properties": {
+        "word": {
+          "title": "Word",
+          "type": "string"
+        },
+        "startMs": {
+          "minimum": 0,
+          "title": "Startms",
+          "type": "integer"
+        },
+        "endMs": {
+          "minimum": 0,
+          "title": "Endms",
+          "type": "integer"
+        },
+        "confidence": {
+          "default": 0.99,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "word",
+        "startMs",
+        "endMs"
+      ],
+      "title": "WordTiming",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sceneId": {
+      "title": "Sceneid",
+      "type": "string"
+    },
+    "jobId": {
+      "title": "Jobid",
+      "type": "string"
+    },
+    "index": {
+      "minimum": 0,
+      "title": "Index",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "narrationText": {
+      "title": "Narrationtext",
+      "type": "string"
+    },
+    "targetDurationMs": {
+      "minimum": 1000,
+      "title": "Targetdurationms",
+      "type": "integer"
+    },
+    "actualDurationMs": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actualdurationms"
+    },
+    "visualPrompt": {
+      "title": "Visualprompt",
+      "type": "string"
+    },
+    "svgOverlaySpec": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Svgoverlayspec"
+    },
+    "audioUri": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Audiouri"
+    },
+    "imageUri": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Imageuri"
+    },
+    "videoShardUris": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Videosharduris",
+      "type": "array"
+    },
+    "wordTimings": {
+      "items": {
+        "$ref": "#/$defs/WordTiming"
+      },
+      "title": "Wordtimings",
+      "type": "array"
+    },
+    "citations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Citations",
+      "type": "array"
+    },
+    "status": {
+      "default": "pending",
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sceneId",
+    "jobId",
+    "index",
+    "title",
+    "narrationText",
+    "targetDurationMs",
+    "visualPrompt"
+  ],
+  "title": "SceneDoc",
+  "type": "object"
+}

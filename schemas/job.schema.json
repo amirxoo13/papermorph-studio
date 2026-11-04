@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "ContentFormat": {
+      "enum": [
+        "textbook_lesson",
+        "picture_book",
+        "documentary_shorts"
+      ],
+      "title": "ContentFormat",
+      "type": "string"
+    },
+    "JobState": {
+      "enum": [
+        "queued",
+        "ingesting",
+        "planning",
+        "awaiting_approval",
+        "scripting",
+        "synthesizing_voice",
+        "illustrating",
+        "rendering",
+        "critiquing",
+        "publishing",
+        "done",
+        "failed",
+        "paused_budget",
+        "cancelled"
+      ],
+      "title": "JobState",
+      "type": "string"
+    },
+    "LanguageCode": {
+      "enum": [
+        "en",
+        "fa"
+      ],
+      "title": "LanguageCode",
+      "type": "string"
+    },
+    "LicenceEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "title": "Assetid",
+          "type": "string"
+        },
+        "assetType": {
+          "title": "Assettype",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "licenceSpdx": {
+          "title": "Licencespdx",
+          "type": "string"
+        },
+        "attribution": {
+          "title": "Attribution",
+          "type": "string"
+        },
+        "verified": {
+          "default": true,
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "assetId",
+        "assetType",
+        "uri",
+        "licenceSpdx",
+        "attribution"
+      ],
+      "title": "LicenceEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "jobId": {
+      "title": "Jobid",
+      "type": "string"
+    },
+    "ownerUid": {
+      "title": "Owneruid",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "format": {
+      "$ref": "#/$defs/ContentFormat"
+    },
+    "language": {
+      "$ref": "#/$defs/LanguageCode",
+      "default": "en"
+    },
+    "stylePresetId": {
+      "default": "default-editorial",
+      "title": "Stylepresetid",
+      "type": "string"
+    },
+    "sourceUri": {
+      "title": "Sourceuri",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/JobState",
+      "default": "queued"
+    },
+    "requireApproval": {
+      "default": true,
+      "title": "Requireapproval",
+      "type": "boolean"
+    },
+    "approvedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approvedat"
+    },
+    "targetDurationMs": {
+      "default": 300000,
+      "title": "Targetdurationms",
+      "type": "integer"
+    },
+    "actualDurationMs": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actualdurationms"
+    },
+    "costUsd": {
+      "default": 0.0,
+      "minimum": 0.0,
+      "title": "Costusd",
+      "type": "number"
+    },
+    "costCapUsd": {
+      "default": 5.0,
+      "exclusiveMinimum": 0.0,
+      "title": "Costcapusd",
+      "type": "number"
+    },
+    "tokensIn": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Tokensin",
+      "type": "integer"
+    },
+    "tokensOut": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Tokensout",
+      "type": "integer"
+    },
+    "stageAttempts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Stageattempts",
+      "type": "object"
+    },
+    "artifacts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Artifacts",
+      "type": "object"
+    },
+    "licences": {
+      "items": {
+        "$ref": "#/$defs/LicenceEntry"
+      },
+      "title": "Licences",
+      "type": "array"
+    },
+    "errorMessage": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Errormessage"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "string"
+    },
+    "updatedAt": {
+      "title": "Updatedat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "jobId",
+    "ownerUid",
+    "title",
+    "format",
+    "sourceUri"
+  ],
+  "title": "JobDoc",
+  "type": "object"
+}

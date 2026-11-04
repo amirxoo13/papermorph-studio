@@ -1,0 +1,65 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "title": "Eventid",
+      "type": "string"
+    },
+    "jobId": {
+      "title": "Jobid",
+      "type": "string"
+    },
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "agent": {
+      "title": "Agent",
+      "type": "string"
+    },
+    "level": {
+      "default": "INFO",
+      "title": "Level",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "costDeltaUsd": {
+      "default": 0.0,
+      "title": "Costdeltausd",
+      "type": "number"
+    },
+    "traceId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Traceid"
+    },
+    "createdAt": {
+      "title": "Createdat",
+      "type": "string"
+    },
+    "expireAt": {
+      "title": "Expireat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "jobId",
+    "stage",
+    "agent",
+    "message",
+    "expireAt"
+  ],
+  "title": "EventDoc",
+  "type": "object"
+}
