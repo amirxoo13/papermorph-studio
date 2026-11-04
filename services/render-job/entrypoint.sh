@@ -14,7 +14,7 @@ export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
 export GOOGLE_GENAI_USE_VERTEXAI="true"
 
 # Ensure every run starts with a completely clean OpenCode session/state directory
-rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log
+rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log /tmp/pre_opencode.marker
 
 cd /app/vendor/papermorph
 
@@ -53,6 +53,10 @@ echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS} | SCENE1_TEMPLAT
 echo "BRIEF=${BRIEF}"
 echo "================================================================"
 
+# Record timestamp marker before running OpenCode to detect file writes
+touch /tmp/pre_opencode.marker
+sleep 1
+
 set +e
 opencode run --command papermorph "${BRIEF}" 2>&1 | tee /tmp/opencode.log
 OPENCODE_RC=${PIPESTATUS[0]}
@@ -67,6 +71,15 @@ echo "================================================================"
 if (( OPENCODE_RC != 0 )); then
   echo "FATAL: opencode exited non-zero (${OPENCODE_RC}). Failing before Stage 3 gates." >&2
   exit 20
+fi
+
+# Distinct failure (exit 21): if OpenCode exited 0 but made no tool calls (beyond loading the skill) or wrote no files
+MODIFIED_FILES_COUNT=$(find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -type f -newer /tmp/pre_opencode.marker 2>/dev/null | wc -l)
+TOOL_CALLS_COUNT=$(grep -Ec '(\|[[:space:]]+(Write|Edit|Bash|Read|Glob|Grep|Task|patch|write|edit|bash)|←|⚙)' /tmp/opencode.log || true)
+echo "OpenCode activity check: MODIFIED_FILES_COUNT=${MODIFIED_FILES_COUNT}, TOOL_CALLS_COUNT=${TOOL_CALLS_COUNT}"
+if (( MODIFIED_FILES_COUNT == 0 || TOOL_CALLS_COUNT == 0 )); then
+  echo "FATAL [Exit 21]: OpenCode exited 0 but made no tool calls (count=${TOOL_CALLS_COUNT}) or wrote no files (modified=${MODIFIED_FILES_COUNT}). Never mistaking no-op for success." >&2
+  exit 21
 fi
 
 echo "================================================================"
@@ -163,5 +176,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7h PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7i PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
