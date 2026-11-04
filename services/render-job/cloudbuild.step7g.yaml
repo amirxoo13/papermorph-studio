@@ -1,0 +1,18 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-render-job'
+    args:
+      - 'build'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7f'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7g'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-render-job'
+    args: ['push', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7g']
+images:
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7g'
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
