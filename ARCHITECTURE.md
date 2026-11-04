@@ -8,11 +8,12 @@ graph TD
   API -->|Enqueue| Tasks[Cloud Tasks: per-user rate limit]
   Tasks --> WF
   WF -->|Invoke ADK| Agents[23 Google ADK Agents + Cost Guard]
-  Agents -->|Streamable HTTP MCP| MCP[Cloud Run: FastMCP 21 Tools]
-  MCP -->|No-Egress VPC/Sandbox| Sandbox[Cloud Run: Python Sandbox]
-  MCP -->|Execute 10 Shards| RenderJob[Cloud Run Job: Vendored Papermorph 10x Shards]
-  RenderJob -->|Write Shards & MP4/SRT/SCORM| WorkGCS[(GCS: work)]
-  MCP -->|Publish Verified Assets| PubGCS[(GCS: published)]
-  Agents & MCP & WF -->|State, Scenes, Events, Licences| FS[(Firestore Native + 90d TTL)]
-  FS -->|Cloud Logging Sink| BQ[(BigQuery: job_costs & analytics)]
+  Agents -->|Streamable HTTP MCP| MCP[Cloud Run: FastMCP Tool Server]
+  MCP -->|Internal Ingress Only| Sandbox[Cloud Run: Isolated Python Sandbox]
+  WF -->|Execute 1 Task: 8 vCPU, --jobs 8| Render[Cloud Run Job: Papermorph export.py]
+  Render -->|Publish MP4 + SRT + HTML5 + SCORM| PubGCS[(GCS: published)]
+  Agents & WF & Render -->|State & Events| FS[(Firestore Native + 90d TTL)]
 ```
+
+## Rendering Design
+- **Single Cloud Run Job Task (`8 vCPU`, `--jobs 8`, no GPU)**: `services/render-job` packages the upstream `amirxoo13/Papermorph` repository under `/app/vendor/papermorph`. A single 8-vCPU task starts `serve.py` locally and runs `.claude/skills/papermorph/scripts/export.py --jobs 8`, which launches 8 parallel headless browsers (`frame f % 8`) and streams frames into `ffmpeg` in order.
