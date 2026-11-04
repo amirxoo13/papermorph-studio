@@ -8,71 +8,78 @@ set -euo pipefail
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
 DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
 
-echo "================================================================"
-echo "[STAGE 0/4]PREFLIGHT: BOOK_SLUG=${BOOK_SLUG} TARGET_SECONDS=${TARGET_SECONDS}"
-echo "[STAGE 0/4]BRIEF: ${BRIEF}"
-echo "================================================================"
+export GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-gen-lang-client-0484425781}"
+export VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
+export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
+export GOOGLE_GENAI_USE_VERTEXAI="true"
 
 cd /app/vendor/papermorph
 
-# Ensure clean target book & export directories
-rm -rf "/app/vendor/papermorph/site/${BOOK_SLUG}" /tmp/export
-mkdir -p /tmp/export
-
-echo "================================================================"
-echo "[STAGE 1/4]OPENCODE_START: Running opencode --command papermorph --model google-vertex/gemini-3.5-flash"
-echo "================================================================"
-FULL_PROMPT="Target book slug: site/${BOOK_SLUG}/ (chapter ch01, target duration ~${TARGET_SECONDS} seconds). Do not ask clarifying questions; proceed autonomously in headless mode and write all chapter files under site/${BOOK_SLUG}/ including ch01.html. Brief: ${BRIEF}"
-opencode run --command papermorph --model google-vertex/gemini-3.5-flash "${FULL_PROMPT}"
-echo "[STAGE 1/4]OPENCODE_DONE: Verify site/${BOOK_SLUG} exists"
-
-if [ ! -d "/app/vendor/papermorph/site/${BOOK_SLUG}" ]; then
-    echo "[ERROR] site/${BOOK_SLUG} was not created by opencode!" >&2
-    ls -la /app/vendor/papermorph/site >&2
-    exit 1
+CHAPTER_HTML="site/${BOOK_SLUG}/ch01/index.html"
+if [[ ! -f "${CHAPTER_HTML}" ]]; then
+  echo "FATAL: Scaffold file ${CHAPTER_HTML} missing before run" >&2
+  exit 10
 fi
-ls -la "/app/vendor/papermorph/site/${BOOK_SLUG}"
+TEMPLATE_SIZE=$(stat -c%s "${CHAPTER_HTML}")
 
 echo "================================================================"
-echo "[STAGE 2/4]SERVE_START: Starting serve.py 8765 site in background"
+echo "=== [STAGE 1/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
+echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS} | TEMPLATE_SIZE=${TEMPLATE_SIZE}B"
+echo "BRIEF=${BRIEF}"
 echo "================================================================"
-python3 .claude/skills/papermorph/scripts/serve.py 8765 site > /tmp/serve.log 2>&1 &
+
+opencode run --command papermorph "${BRIEF}"
+
+echo "================================================================"
+echo "=== [STAGE 2/5] VERIFYING AUTHORED CHAPTER & REAL AUDIO FILES ==="
+echo "================================================================"
+
+FINAL_HTML_SIZE=$(stat -c%s "${CHAPTER_HTML}")
+echo "${CHAPTER_HTML}: template=${TEMPLATE_SIZE}B -> final=${FINAL_HTML_SIZE}B"
+if (( FINAL_HTML_SIZE <= TEMPLATE_SIZE )); then
+  echo "FATAL: ${CHAPTER_HTML} (${FINAL_HTML_SIZE}B) is not larger than the scaffold template (${TEMPLATE_SIZE}B). Bare template counts as failure." >&2
+  exit 11
+fi
+
+# Check for real audio files in content/<slug>/ch01/ and/or site/<slug>/ch01/audio/ (where tts.py and sfx.py write)
+mkdir -p "content/${BOOK_SLUG}/ch01"
+if [[ -d "site/${BOOK_SLUG}/ch01/audio" ]]; then
+  cp -rn "site/${BOOK_SLUG}/ch01/audio/"* "content/${BOOK_SLUG}/ch01/" 2>/dev/null || true
+fi
+
+AUDIO_COUNT=$(find "content/${BOOK_SLUG}/ch01" "site/${BOOK_SLUG}/ch01" -type f \( -name "*.mp3" -o -name "*.wav" -o -name "*.m4a" -o -name "*.ogg" \) -size +100c 2>/dev/null | wc -l)
+echo "Verified non-empty audio file count for ch01: ${AUDIO_COUNT}"
+if (( AUDIO_COUNT == 0 )); then
+  echo "FATAL: No real audio files found in content/${BOOK_SLUG}/ch01/ or site/${BOOK_SLUG}/ch01/." >&2
+  exit 12
+fi
+
+echo "================================================================"
+echo "=== [STAGE 3/5] STARTING LOCAL HTTP SERVER (serve.py 8765 site) ==="
+echo "================================================================"
+python3 .claude/skills/papermorph/scripts/serve.py 8765 site &
 SERVE_PID=$!
 trap 'kill ${SERVE_PID} 2>/dev/null || true' EXIT
-
-# Wait briefly and verify server is listening
-for i in $(seq 1 15); do
-    if curl -fsS "http://localhost:8765/" >/dev/null 2>&1; then
-        echo "[STAGE 2/4]SERVE_READY: http://localhost:8765/ is up (PID=${SERVE_PID})"
-        break
-    fi
-    if [ "$i" -eq 15 ]; then
-        echo "[ERROR] serve.py failed to start on port 8765" >&2
-        cat /tmp/serve.log >&2 || true
-        exit 1
-    fi
-    sleep 1
-done
+sleep 2
+curl -fsS "http://localhost:8765/${BOOK_SLUG}/ch01/" >/dev/null
 
 echo "================================================================"
-echo "[STAGE 3/4]EXPORT_START: Running export.py ch01 --url http://localhost:8765/${BOOK_SLUG}/ --out /tmp/export --jobs 8"
+echo "=== [STAGE 4/5] RUNNING EXPORT.PY (ch01 --jobs 8) ==="
 echo "================================================================"
+mkdir -p /tmp/export
 python3 .claude/skills/papermorph/scripts/export.py ch01 \
-    --url "http://localhost:8765/${BOOK_SLUG}/" \
-    --out /tmp/export \
-    --jobs 8
-echo "[STAGE 3/4]EXPORT_DONE: Contents of /tmp/export:"
-ls -lh /tmp/export
+  --url "http://localhost:8765/${BOOK_SLUG}/" \
+  --out /tmp/export \
+  --jobs 8
 
-if [ ! -s "/tmp/export/ch01.mp4" ]; then
-    echo "[ERROR] /tmp/export/ch01.mp4 missing or empty!" >&2
-    exit 1
-fi
+ls -lh /tmp/export/
+test -s /tmp/export/ch01.mp4
+test -s /tmp/export/ch01.srt
 
 echo "================================================================"
-echo "[STAGE 4/4]UPLOAD_START: Uploading site/${BOOK_SLUG}/ and /tmp/export/ to ${DEST_PREFIX}/"
+echo "=== [STAGE 5/5] UPLOADING SITE & EXPORT TO ${DEST_PREFIX}/ ==="
 echo "================================================================"
-python3 - <<'PYEOF'
+python3 - <<'PYUPLOAD'
 import os
 from pathlib import Path
 from google.cloud import storage
@@ -84,31 +91,26 @@ book_slug = os.environ["BOOK_SLUG"]
 client = storage.Client(project=project_id)
 bucket = client.bucket(bucket_name)
 
-site_dir = Path("/app/vendor/papermorph/site") / book_slug
-export_dir = Path("/tmp/export")
-
 uploaded = 0
-for f in sorted(site_dir.rglob("*")):
-    if f.is_file():
-        rel = f.relative_to(site_dir).as_posix()
+site_root = Path(f"/app/vendor/papermorph/site/{book_slug}")
+for p in sorted(site_root.rglob("*")):
+    if p.is_file():
+        rel = p.relative_to(site_root).as_posix()
         blob_path = f"test/{book_slug}/site/{rel}"
-        bucket.blob(blob_path).upload_from_filename(str(f))
-        print(f"  Uploaded gs://{bucket_name}/{blob_path} ({f.stat().st_size} bytes)")
+        bucket.blob(blob_path).upload_from_filename(str(p))
         uploaded += 1
 
-for f in sorted(export_dir.rglob("*")):
-    if f.is_file():
-        rel = f.relative_to(export_dir).as_posix()
+export_root = Path("/tmp/export")
+for p in sorted(export_root.rglob("*")):
+    if p.is_file():
+        rel = p.relative_to(export_root).as_posix()
         blob_path = f"test/{book_slug}/export/{rel}"
-        bucket.blob(blob_path).upload_from_filename(str(f))
-        print(f"  Uploaded gs://{bucket_name}/{blob_path} ({f.stat().st_size} bytes)")
+        bucket.blob(blob_path).upload_from_filename(str(p))
         uploaded += 1
 
-if uploaded == 0:
-    raise RuntimeError("Zero files uploaded!")
-print(f"Total uploaded files: {uploaded}")
-PYEOF
+print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,export}}/")
+PYUPLOAD
 
 echo "================================================================"
-echo "[STAGE 4/4]UPLOAD_DONE: All artifacts uploaded to ${DEST_PREFIX}/"
+echo "=== [DONE] STEP 7e PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
