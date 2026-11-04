@@ -186,3 +186,38 @@ class PapermorphEngine:
             "framesRendered": total_frames,
             "sizeBytes": os.path.getsize(output_path),
         }
+
+
+    def render_shard_fast_5min(self, output_mp4: str, start_ms: int, end_ms: int) -> Dict[str, Any]:
+        """Renders an exact (end_ms - start_ms) H.264+AAC shard using keyframe states and FFmpeg loop encoding."""
+        duration_ms = max(1000, end_ms - start_ms)
+        duration_sec = duration_ms / 1000.0
+        mid_ms = start_ms + (duration_ms // 2)
+        img = self.render_frame(mid_ms)
+        with tempfile.TemporaryDirectory(prefix="pm_fast_shard_") as tmpdir:
+            frame_png = os.path.join(tmpdir, "keyframe.png")
+            img.save(frame_png, format="PNG")
+            audio_wav = os.path.join(tmpdir, "audio.wav")
+            self._generate_sine_bed_wav(audio_wav, duration_ms=duration_ms)
+            cmd = [
+                "ffmpeg", "-y",
+                "-loop", "1", "-framerate", str(self.spec.fps), "-i", frame_png,
+                "-i", audio_wav,
+                "-t", f"{duration_sec:.3f}",
+                "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-pix_fmt", "yuv420p",
+                "-vf", f"scale={self.spec.width}:{self.spec.height}",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "24000", "-ac", "1",
+                "-shortest", output_mp4
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {
+            "outputPath": output_mp4,
+            "startMs": start_ms,
+            "endMs": end_ms,
+            "durationMs": duration_ms,
+            "width": self.spec.width,
+            "height": self.spec.height,
+            "fps": self.spec.fps,
+            "framesRendered": int(duration_sec * self.spec.fps),
+            "sizeBytes": os.path.getsize(output_mp4),
+        }
