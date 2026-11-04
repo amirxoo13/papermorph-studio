@@ -23,7 +23,29 @@ fi
 TEMPLATE_SIZE=$(stat -c%s "${CHAPTER_HTML}")
 
 echo "================================================================"
-echo "=== [STAGE 1/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
+echo "=== [STAGE 1/5] STARTING PERSISTENT HTTP SERVER (serve.py 8765 site) ==="
+echo "================================================================"
+python3 .claude/skills/papermorph/scripts/serve.py 8765 site &
+SERVE_PID=$!
+trap 'kill ${SERVE_PID} 2>/dev/null || true' EXIT
+
+SERVER_READY=0
+for i in $(seq 1 30); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8765/" || true)
+  if [[ "${HTTP_CODE}" == "200" ]]; then
+    SERVER_READY=1
+    echo "Preview server ready at http://localhost:8765/ (PID=${SERVE_PID}, HTTP ${HTTP_CODE})"
+    break
+  fi
+  sleep 0.5
+done
+if (( SERVER_READY == 0 )); then
+  echo "FATAL: serve.py failed to return HTTP 200 on http://localhost:8765/" >&2
+  exit 13
+fi
+
+echo "================================================================"
+echo "=== [STAGE 2/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
 echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS} | TEMPLATE_SIZE=${TEMPLATE_SIZE}B"
 echo "BRIEF=${BRIEF}"
 echo "================================================================"
@@ -31,7 +53,7 @@ echo "================================================================"
 opencode run --command papermorph "${BRIEF}"
 
 echo "================================================================"
-echo "=== [STAGE 2/5] VERIFYING AUTHORED CHAPTER & REAL AUDIO FILES ==="
+echo "=== [STAGE 3/5] VERIFYING AUTHORED CHAPTER & REAL AUDIO FILES ==="
 echo "================================================================"
 
 FINAL_HTML_SIZE=$(stat -c%s "${CHAPTER_HTML}")
@@ -41,7 +63,6 @@ if (( FINAL_HTML_SIZE <= TEMPLATE_SIZE )); then
   exit 11
 fi
 
-# Check for real audio files in content/<slug>/ch01/ and/or site/<slug>/ch01/audio/ (where tts.py and sfx.py write)
 mkdir -p "content/${BOOK_SLUG}/ch01"
 if [[ -d "site/${BOOK_SLUG}/ch01/audio" ]]; then
   cp -rn "site/${BOOK_SLUG}/ch01/audio/"* "content/${BOOK_SLUG}/ch01/" 2>/dev/null || true
@@ -54,13 +75,7 @@ if (( AUDIO_COUNT == 0 )); then
   exit 12
 fi
 
-echo "================================================================"
-echo "=== [STAGE 3/5] STARTING LOCAL HTTP SERVER (serve.py 8765 site) ==="
-echo "================================================================"
-python3 .claude/skills/papermorph/scripts/serve.py 8765 site &
-SERVE_PID=$!
-trap 'kill ${SERVE_PID} 2>/dev/null || true' EXIT
-sleep 2
+# Confirm persistent server is still healthy before export.py
 curl -fsS "http://localhost:8765/${BOOK_SLUG}/ch01/" >/dev/null
 
 echo "================================================================"
@@ -112,5 +127,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7e PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7f PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
