@@ -1,2 +1,9 @@
 __pycache__/
 *.pyc
+*.session*
+.opencode/sessions/
+.opencode/state/
+.opencode/cache/
+.opencode/*.db*
+.opencode/*.json*
+.opencode/*.log*

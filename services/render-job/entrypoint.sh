@@ -13,6 +13,9 @@ export VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
 export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
 export GOOGLE_GENAI_USE_VERTEXAI="true"
 
+# Ensure every run starts with a completely clean OpenCode session/state directory
+rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log
+
 cd /app/vendor/papermorph
 
 SCENE1_JS="site/${BOOK_SLUG}/ch01/scene1.js"
@@ -50,13 +53,26 @@ echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS} | SCENE1_TEMPLAT
 echo "BRIEF=${BRIEF}"
 echo "================================================================"
 
-opencode run --command papermorph "${BRIEF}"
+set +e
+opencode run --command papermorph "${BRIEF}" 2>&1 | tee /tmp/opencode.log
+OPENCODE_RC=${PIPESTATUS[0]}
+set -e
+
+echo "================================================================"
+echo "=== OPENCODE FINISHED WITH EXIT CODE: ${OPENCODE_RC} ==="
+echo "=== LAST 80 LINES OF /tmp/opencode.log ==="
+tail -n 80 /tmp/opencode.log || true
+echo "================================================================"
+
+if (( OPENCODE_RC != 0 )); then
+  echo "FATAL: opencode exited non-zero (${OPENCODE_RC}). Failing before Stage 3 gates." >&2
+  exit 20
+fi
 
 echo "================================================================"
 echo "=== [STAGE 3/5] VERIFYING AUTHORED CHAPTER (AUDIO, TIMINGS, SCENE1, CHECK.PY) ==="
 echo "================================================================"
 
-# Ensure content/${BOOK_SLUG}/ch01 has any audio generated into site/${BOOK_SLUG}/ch01/audio
 mkdir -p "content/${BOOK_SLUG}/ch01"
 if [[ -d "site/${BOOK_SLUG}/ch01/audio" ]]; then
   cp -rn "site/${BOOK_SLUG}/ch01/audio/"* "content/${BOOK_SLUG}/ch01/" 2>/dev/null || true
@@ -96,11 +112,7 @@ fi
 
 # Gate 4: python3 .claude/skills/papermorph/scripts/check.py passes
 echo "Gate 4 - Running Papermorph check.py..."
-if python3 .claude/skills/papermorph/scripts/check.py --help 2>&1 | grep -q -- "--url"; then
-  python3 .claude/skills/papermorph/scripts/check.py ch01 --url "http://localhost:8765/${BOOK_SLUG}/"
-else
-  python3 .claude/skills/papermorph/scripts/check.py "http://localhost:8765/${BOOK_SLUG}/ch01/"
-fi
+python3 .claude/skills/papermorph/scripts/check.py ch01 --url "http://localhost:8765/${BOOK_SLUG}/"
 
 echo "================================================================"
 echo "=== [STAGE 4/5] RUNNING EXPORT.PY (ch01 --jobs 8) ==="
@@ -151,5 +163,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7g PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7h PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"

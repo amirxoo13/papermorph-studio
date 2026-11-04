@@ -1,0 +1,33 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-render-job'
+    args:
+      - 'build'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7g'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7h'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'check-baked-session-files'
+    args:
+      - 'run'
+      - '--rm'
+      - '--entrypoint'
+      - 'bash'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7h'
+      - '-c'
+      - |
+        echo "=== CONTAINER_SESSION_CHECK_START ==="
+        find /app/vendor/papermorph -name ".opencode*" -o -name "*.session*" -o -path "*opencode*" | head -30
+        ls -la /app/vendor/papermorph/.opencode/ 2>/dev/null || true
+        du -sh /root/.local/share/opencode 2>/dev/null || echo "NO /root/.local/share/opencode"; ls -la /root/.local/share/opencode 2>/dev/null || true
+        echo "=== CONTAINER_SESSION_CHECK_END ==="
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-render-job'
+    args: ['push', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7h']
+images:
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7h'
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY

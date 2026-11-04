@@ -45,4 +45,5 @@ COPY src /app/src
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+RUN rm -rf /root/.local/share/opencode /root/.cache/opencode /root/.config/opencode/sessions
 ENTRYPOINT ["/app/entrypoint.sh"]
