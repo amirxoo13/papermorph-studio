@@ -1,0 +1,24 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-render-job'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7d', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-render-job'
+    args: ['push', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7d']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'verify-intake-in-image'
+    args:
+      - 'run'
+      - '--rm'
+      - '--entrypoint'
+      - 'bash'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7d'
+      - '-c'
+      - |
+        ls -la /app/vendor/papermorph/books/lion-and-mouse/ /app/vendor/papermorph/books/lion-and-mouse/art/ /app/vendor/papermorph/site/lion-and-mouse/ /app/vendor/papermorph/site/lion-and-mouse/ch01/
+        head -n 5 /app/vendor/papermorph/books/lion-and-mouse/style.json
+images:
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step7d'
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
