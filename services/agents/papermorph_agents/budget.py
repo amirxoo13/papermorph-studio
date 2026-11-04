@@ -17,6 +17,9 @@ class BudgetExceeded(RuntimeError):
 
 # Pinned unit pricing table (USD)
 MODEL_PRICING_USD = {
+    "gemini-3.5-pro": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
+    "gemini-3-pro-preview": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
+    "gemini-3.5-flash": {"input_per_1k": 0.00015, "output_per_1k": 0.00060},
     "gemini-2.5-pro": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
     "gemini-2.5-flash": {"input_per_1k": 0.00015, "output_per_1k": 0.00060},
     "imagen-3.0-generate-002": {"per_image": 0.0400},

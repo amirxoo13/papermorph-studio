@@ -30,12 +30,12 @@ variable "budget_amount_usd" {
 
 variable "pro_model" {
   type        = string
-  default     = "gemini-2.5-pro"
+  default     = "gemini-3.5-flash"
 }
 
 variable "flash_model" {
   type        = string
-  default     = "gemini-2.5-flash"
+  default     = "gemini-3.5-flash"
 }
 
 variable "image_model" {

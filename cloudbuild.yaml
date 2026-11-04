@@ -1,24 +1,26 @@
 steps:
-  - name: 'python:3.12-slim'
-    id: 'unit-and-integration-tests'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        pip install --no-cache-dir pytest pydantic fastapi httpx google-cloud-firestore google-cloud-storage google-cloud-bigquery google-cloud-dlp pillow
-        PYTHONPATH=.:services/agents:services/api pytest schemas/test_phase2.py services/api/tests/test_phase7.py web/test_phase9.py
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-pm-sandbox'
+    args: ['build', '-f', 'services/sandbox/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-sandbox:v1.0.0', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-api-image'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/papermorph/pm-api:$COMMIT_SHA', 'services/api']
+    id: 'build-pm-mcp-tools'
+    args: ['build', '-f', 'services/mcp-tools/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-mcp-tools:v1.0.0', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-mcp-tools-image'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/papermorph/pm-mcp-tools:$COMMIT_SHA', 'services/mcp-tools']
+    id: 'build-pm-api'
+    args: ['build', '-f', 'services/api/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-api:v1.0.0', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-render-job-image'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/papermorph/pm-render-job:$COMMIT_SHA', 'services/render-job']
+    id: 'build-pm-render-job'
+    args: ['build', '-f', 'services/render-job/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:v1.0.0', '.']
+
+images:
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-sandbox:v1.0.0'
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-mcp-tools:v1.0.0'
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-api:v1.0.0'
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:v1.0.0'
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'

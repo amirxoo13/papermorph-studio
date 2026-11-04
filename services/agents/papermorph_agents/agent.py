@@ -10,9 +10,9 @@ from .budget import CostTracker, BudgetExceeded
 from .duration import evaluate_and_adjust_durations, DurationCheckResult
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "gen-lang-client-0484425781")
-REGION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-PRO_MODEL = os.environ.get("PRO_MODEL", "gemini-2.5-pro")
-FLASH_MODEL = os.environ.get("FLASH_MODEL", "gemini-2.5-flash")
+REGION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
+PRO_MODEL = os.environ.get("PRO_MODEL", "gemini-3.5-flash")
+FLASH_MODEL = os.environ.get("FLASH_MODEL", "gemini-3.5-flash")
 
 AGENT_SPECS: List[Dict[str, Any]] = [
     {"name": "router", "stage": "queued", "model": FLASH_MODEL, "tools": ["firestore_event_append"], "instruction": "Classify uploaded manuscript into format (textbook_lesson, picture_book, documentary_shorts) and language (en, fa)."},

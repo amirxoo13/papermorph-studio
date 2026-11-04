@@ -1,0 +1,8 @@
+.git
+.gitignore
+infra/.terraform
+infra/terraform.tfstate*
+web/node_modules
+web/.next
+**/__pycache__
+.pytest_cache
