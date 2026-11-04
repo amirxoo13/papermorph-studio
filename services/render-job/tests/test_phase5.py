@@ -87,3 +87,12 @@ def test_vertical_short_and_contact_sheet_farsi():
         assert sheet_res["width"] == 1920
         assert sheet_res["height"] == 720
         assert sheet_res["sizeBytes"] > 5000
+
+
+def test_vendored_papermorph_mit_and_mathjax_apache_licences():
+    vendor_root = Path("/content/papermorph-studio/services/render-job/vendor/papermorph")
+    lic_main = (vendor_root / "LICENSE").read_text()
+    lic_mj = (vendor_root / "LICENSE-MATHJAX").read_text()
+    assert "MIT License" in lic_main
+    assert "Apache License" in lic_mj
+    assert "MathJax" in lic_mj

@@ -59,3 +59,12 @@ def test_licence_ledger_passes_valid_entries_and_generates_sources_md():
     md = generate_sources_markdown("job-001", "Photosynthesis", entries)
     assert "OpenStax Biology 2e" in md
     assert "CC-BY-4.0" in md
+
+
+def test_sources_md_includes_papermorph_mit_and_mathjax_apache2():
+    entries = [
+        LicenceEntry(assetId="src-1", assetType="source_text", uri="gs://raw/doc.txt", licenceSpdx="CC-BY-4.0", attribution="OpenStax Biology 2e"),
+    ]
+    md = generate_sources_markdown("job-lic-check", "Licence Verification", entries)
+    assert "Papermorph Engine" in md and "`MIT`" in md
+    assert "Bundled MathJax" in md and "`Apache-2.0`" in md
