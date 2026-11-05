@@ -1,6 +1,6 @@
 # Picture books: from a story to an episode
 
-A picture book is a two-to-four-minute animated film of paper puppets in front of sets, made from a story: a fairy tale, a joke, something that happened to the user, or a story book's PDF. On the shelf at https://papermorph.diamonddoge.org/: *Little Red Riding Hood* (everything drawn in code) and *Joke Collection* (painted sets, puppets in code; a series of episodes).
+A picture book is a two-to-four-minute animated film of paper puppets in front of sets, made from a story: a fairy tale, a joke, something that happened to the user, or a story book's PDF. On the shelf at https://papermorph.diamonddoge.org/: *The Little Horse Crosses the River* and *Little Red Riding Hood* (everything drawn in code, a cast voiced by ElevenLabs, a listen-and-find stop; the newest and the bar) and *Joke Collection* (painted sets, puppets in code; a series of episodes).
 
 This file covers the story, the shots, the sound and the team; [puppets.md](puppets.md) the paper puppets and the stop-motion look; [painting.md](painting.md) sets and props painted by an image model. The engine, player, checks, voices and music are shared with every book ([core/sound.md](../core/sound.md), [core/review.md](../core/review.md), [core/engine.md](../core/engine.md)).
 
@@ -25,6 +25,7 @@ Ask as [core/style.md](../core/style.md#asking) says, skipping whatever the tell
 2. **The look** is the user's choice; there is no house style. Paper puppets moved in code ([puppets.md](puppets.md)) have worked best so far, so offer them first, in two ways, and welcome any other idea:
    - *Painted world, paper actors* (recommended when an image budget is fine): an image model paints the sets and everything that stays still; the puppets and anything that moves stay in code (Joke Collection, under a dollar of pictures per episode). Ask for a budget ceiling and keep to it ([painting.md](painting.md)).
    - *Paper, all in code*: sets and props drawn as SVG paper too. No image cost, plainer, very consistent (Little Red Riding Hood).
+   - *The book's own pictures*, when the user brings an illustrated story book whose pictures may be reused (public domain, like *Millions of Cats*, 1928): its pages become the sets and its drawn figures the puppets, lifted off the scans ([puppets.md](puppets.md#lifted-from-the-books-own-pictures)). An image model only fills what the book cannot give, such as the drawing hidden behind a lifted figure.
 3. **Language and voices**: the narration language, one voice per character ([core/sound.md](../core/sound.md#voices)).
 4. **A series or one film.** A series shares cast, sets and the series page; each episode is a chapter (`chNN`).
 
@@ -51,7 +52,7 @@ uv run --with edge-tts python "$SKILL/scripts/tts.py" "$N" "$A"
 python3 "$SKILL/scripts/level.py" "$A"/*.mp3
 python3 "$SKILL/scripts/mouths.py" "$N" "$A"
 python3 "$SKILL/scripts/join.py" "$A" scene1=s01,s02,s02b,s03 --words "$N"
-uv run --with numpy python "$SKILL/scripts/sfx.py" "site/$BOOK/ch01/audio/sfx" knock chime
+uv run --with numpy python "$SKILL/scripts/sfx.py" "site/$BOOK/ch01/audio/sfx" knock chime room
 ```
 
 Keep these commands in `tools/<book>/audio.sh` and rerun it after any narration change ([Sound](#sound)). As copied they voice the kit's sample episode, a check that the folder works; the episode's script then replaces the narration file, and its scenes the `join.py` list.
@@ -95,7 +96,7 @@ Voices, levels, effects and music work as in [core/sound.md](../core/sound.md); 
 - **Mouths** follow the words: `mouths.py` turns each line's word timings into mouth shapes (a Chinese or Japanese line opens and shuts once per character), and `lips(q, scene, pre, line…)` picks the frame's shape. Edge's word times run about a tenth of a second ahead of the sound (`eleven.py`'s are heard times and stay put); `mouths.py` and `join.py` move Edge's mouths and captions that much later and shut the mouth where the clip's sound stops, so a lip flap that leads or trails the voice is worth reporting.
 - **One clip per scene.** `join.py` joins a scene's lines into one clip with short pauses, and inserts silence where the action needs room (`line@T+S`: S seconds of silence T seconds into the line, after a word's sound has ended rather than where the next word begins) or after the last line (`name:S`, a stare or a tag). Gaps for a held stare, a fly landing, a class turning round belong here, not in rushed animation. `--words` writes every word's time in the scene clip beside the narration, for scene authors to time actions against (the beat clock adds the scene's `pre`).
 - **One script for the whole sound**, `tools/<book>/audio.sh`, rerun after any change: lines replaced by hand, `mouths.py`, level fixes, `join.py` with its holes, caption edits. Join arguments typed only in a terminal have had to be read back out of `shots.js`.
-- **Levels.** `level.py` runs right after `tts.py` and before `join.py`, at its default −18 LUFS ([core/sound.md](../core/sound.md#levels)). The line the joke hangs on must not be the quietest; one that must sit above the rest (a quiet old man's punchline) gets its own target (`level.py o1.mp3 --lufs -15`) and stays out of the others' list.
+- **Levels.** `level.py` runs right after `tts.py` and before `join.py`, at its default −18 LUFS ([core/sound.md](../core/sound.md#levels)); `eleven.py` levels to a film's −14 unless told, so a cast voiced there takes `--lufs -18` (*The Little Horse*'s `audio.sh`). The line the joke hangs on must not be the quietest; one that must sit above the rest (a quiet old man's punchline) gets its own target (`level.py o1.mp3 --lufs -15`) and stays out of the others' list.
 - **Sounds a voice makes.** A speaking animal (a dog's "Woof!") came out best as an Edge voice shouting the word, trimmed and normalized; synthesized barks lost to it. A whispered "Shh." is shaped pink noise, not Edge's voiced "shh-uh". Write such a clip over the line's MP3 and set its `dur` in `timings.js` before joining.
 - **Effects and music** go on the scene clock (`sfx(scene, t, …)`, `music(…, [scene ids], …)`). When silence is the joke, `window.MUSIC_OFF = { scene: t => … }` fades the music out for the stare.
 - **Captions** are on at a reader's first visit (`chapter.html` does this); after that the reader's own choice is remembered. A caption ends at the first real pause after its words; a hole inside a sentence keeps it up. When that gives words away before they are said (a punchline after a pause), split the caption at the hole in `shots.js` and hold a punchline's caption into the silence after it; do it in the audio script after `join.py`, so a rerun keeps it.
