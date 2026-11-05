@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# RENDER_ONLY=1 renders a book already finished inside the image: no model calls.
+if [[ "${RENDER_ONLY:-0}" == "1" ]]; then exec /app/render_only.sh; fi
+
 : "${BOOK_SLUG:?ERROR: BOOK_SLUG environment variable is required}"
 : "${BOOK_TITLE:?ERROR: BOOK_TITLE environment variable is required}"
 : "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"

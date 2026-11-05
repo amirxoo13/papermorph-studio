@@ -43,7 +43,8 @@ COPY opencode.json /app/vendor/papermorph/opencode.json
 RUN mkdir -p /root/.config/opencode && cp /app/vendor/papermorph/opencode.json /root/.config/opencode/opencode.json
 COPY src /app/src
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY render_only.sh /app/render_only.sh
+RUN chmod +x /app/entrypoint.sh /app/render_only.sh
 
 RUN rm -rf /root/.local/share/opencode /root/.cache/opencode /root/.config/opencode/sessions
 ENTRYPOINT ["/app/entrypoint.sh"]
