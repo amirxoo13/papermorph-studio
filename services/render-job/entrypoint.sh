@@ -97,7 +97,7 @@ fi
 
 # Gate 3: lint.py passes
 echo "Gate 3 - Running Papermorph lint.py..."
-python3 .claude/skills/papermorph/scripts/lint.py "site/${BOOK_SLUG}/ch01" 2>&1 | tee /tmp/lint_output.log
+python3 .claude/skills/papermorph/scripts/lint.py "site/${BOOK_SLUG}" ch01 2>&1 | tee /tmp/lint_output.log
 
 # Gate 4: check.py passes with 0 page errors and 0 console errors
 echo "Gate 4 - Running Papermorph check.py..."
@@ -156,5 +156,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7j PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7k PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
