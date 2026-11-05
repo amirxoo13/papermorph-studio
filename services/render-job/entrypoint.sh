@@ -9,6 +9,7 @@ if [[ "${RENDER_ONLY:-0}" == "1" ]]; then exec /app/render_only.sh; fi
 : "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"
 : "${TARGET_SECONDS:?ERROR: TARGET_SECONDS environment variable is required}"
 LANGUAGE="${LANGUAGE:-en}"
+TIER="${TIER:-picture}"   # picture | shorts | documentary | lesson
 OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-4-argon}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
@@ -43,6 +44,7 @@ title = os.environ["BOOK_TITLE"]
 story_text = os.environ["STORY_TEXT"]
 target_seconds = int(os.environ["TARGET_SECONDS"])
 lang = os.environ.get("LANGUAGE", "en")
+tier = os.environ.get("TIER", "picture")
 model_id = os.environ.get("OPENCODE_MODEL", "google-vertex/gemini-3.8-flash")
 
 book_dir = Path("books") / slug
@@ -55,7 +57,7 @@ story_md = f"# {title}\n\n{story_text.strip()}\n"
 # 2. Write books/$BOOK_SLUG/style.json from the picture-book template
 style_obj = {
     "schema": 1,
-    "tier": "picture",
+    "tier": tier,
     "book": {
         "title": title,
         "slug": slug,
@@ -118,7 +120,12 @@ style_obj = {
 print(f"Wrote {book_dir / 'story.md'} ({len(story_md)}B) and {book_dir / 'style.json'} (models={model_id})")
 PYSTAGE0
 
-python3 .claude/skills/papermorph/scripts/new_book.py picture "${BOOK_SLUG}" --lang "${LANGUAGE}"
+python3 .claude/skills/papermorph/scripts/new_book.py "${TIER}" "${BOOK_SLUG}" --lang "${LANGUAGE}"
+
+if [[ -z "${BRIEF:-}" ]] && [[ "${TIER}" != "picture" ]]; then
+  echo "FATAL: TIER=${TIER} requires an explicit BRIEF environment variable; the built-in brief is picture-book only." >&2
+  exit 15
+fi
 
 if [[ -z "${BRIEF:-}" ]]; then
   BRIEF="CRITICAL RULE: Your very first action MUST be a tool call (Read books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md) — NEVER reply with a text-only greeting, acknowledgment, or plan. You are authoring a Papermorph picture book autonomously in a single non-interactive turn. There is no user: never ask a question, never stop to confirm, never stop before all files are written and verified.
