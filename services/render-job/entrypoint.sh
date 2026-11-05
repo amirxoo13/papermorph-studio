@@ -6,6 +6,7 @@ set -euo pipefail
 : "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"
 : "${TARGET_SECONDS:?ERROR: TARGET_SECONDS environment variable is required}"
 LANGUAGE="${LANGUAGE:-en}"
+OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-4-argon}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
 DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
@@ -22,7 +23,7 @@ cd /app/vendor/papermorph
 
 echo "================================================================"
 echo "=== [STAGE 0/5] INITIALIZING BOOK SCAFFOLD FOR ${BOOK_SLUG} ==="
-echo "BOOK_TITLE=${BOOK_TITLE} | LANGUAGE=${LANGUAGE} | TARGET_SECONDS=${TARGET_SECONDS}"
+echo "BOOK_TITLE=${BOOK_TITLE} | LANGUAGE=${LANGUAGE} | TARGET_SECONDS=${TARGET_SECONDS} | MODEL=${OPENCODE_MODEL}"
 echo "================================================================"
 
 # Clean any pre-existing directories for this slug so every run starts fresh
@@ -39,6 +40,7 @@ title = os.environ["BOOK_TITLE"]
 story_text = os.environ["STORY_TEXT"]
 target_seconds = int(os.environ["TARGET_SECONDS"])
 lang = os.environ.get("LANGUAGE", "en")
+model_id = os.environ.get("OPENCODE_MODEL", "google-vertex/gemini-4-argon")
 
 book_dir = Path("books") / slug
 book_dir.mkdir(parents=True, exist_ok=True)
@@ -48,7 +50,6 @@ story_md = f"# {title}\n\n{story_text.strip()}\n"
 (book_dir / "story.md").write_text(story_md, encoding="utf-8")
 
 # 2. Write books/$BOOK_SLUG/style.json from the picture-book template
-model_id = "google-vertex/gemini-3.5-flash"
 style_obj = {
     "schema": 1,
     "tier": "picture",
@@ -95,23 +96,13 @@ style_obj = {
     "approved": [],
 }
 (book_dir / "style.json").write_text(json.dumps(style_obj, indent=2) + "\n", encoding="utf-8")
-print(f"Wrote {book_dir / 'story.md'} ({len(story_md)}B) and {book_dir / 'style.json'}")
+print(f"Wrote {book_dir / 'story.md'} ({len(story_md)}B) and {book_dir / 'style.json'} (models={model_id})")
 PYSTAGE0
 
 python3 .claude/skills/papermorph/scripts/new_book.py picture "${BOOK_SLUG}" --lang "${LANGUAGE}"
 
 if [[ -z "${BRIEF:-}" ]]; then
-  BRIEF="You are authoring a Papermorph picture book autonomously. There is no user: never ask a question, never stop to confirm, never just describe a plan — do the work with your tools.
-
-books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md already exist, so intake is done. A preview server is already running at http://localhost:8765/ — do not start your own serve.py.
-
-IMPORTANT: new_book.py has already created a scaffold under site/${BOOK_SLUG}/. Those scaffold files are an UNFINISHED TEMPLATE (silent placeholders, no real audio, no timings.js, example 'Red' cast). Do NOT mistake the scaffold for a finished chapter. Before writing any code, inspect one finished picture book on the shelf (for example site/little-red-riding-hood/ch01/index.html, site/little-red-riding-hood/ch01/scene1.js, site/little-red-riding-hood/ch01/timings.js, and site/little-red-riding-hood/lib/cast.js) to see the exact structure of a completed picture book.
-
-Follow references/picture-books/stories.md from step 3 onward for the book slug ${BOOK_SLUG}:
-1. Write content/${BOOK_SLUG}/ch01/narration.${LANGUAGE}.json for the story in books/${BOOK_SLUG}/story.md (about ${TARGET_SECONDS} seconds total) and run the Papermorph TTS/audio and timing scripts (edge-tts) so real non-empty audio files (.mp3) and timings.js are generated on disk.
-2. Draw the sets in code in books/${BOOK_SLUG}/art/sets.js and paper puppets in site/${BOOK_SLUG}/lib/cast.js, and bake puppets if needed.
-3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.
-4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain."
+  BRIEF="CRITICAL RULE: Your very first action MUST be a tool call (Read books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md) — NEVER reply with a text-only greeting, acknowledgment, or plan. You are authoring a Papermorph picture book autonomously in a single non-interactive turn. There is no user: never ask a question, never stop to confirm, never stop before all files are written and verified.\n\nbooks/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md already exist, so intake is done. A preview server is already running at http://localhost:8765/ — do not start your own serve.py.\n\nIMPORTANT: new_book.py has already created a scaffold under site/${BOOK_SLUG}/. Those scaffold files are an UNFINISHED TEMPLATE (silent placeholders, no real audio, no timings.js, example 'Red' cast). Do NOT mistake the scaffold for a finished chapter. Before writing any code, inspect one finished picture book on the shelf (for example site/little-red-riding-hood/ch01/index.html, site/little-red-riding-hood/ch01/scene1.js, site/little-red-riding-hood/ch01/timings.js, and site/little-red-riding-hood/lib/cast.js) to see the exact structure of a completed picture book.\n\nFollow references/picture-books/stories.md from step 3 onward for the book slug ${BOOK_SLUG}:\n1. Write content/${BOOK_SLUG}/ch01/narration.${LANGUAGE}.json for the story in books/${BOOK_SLUG}/story.md (about ${TARGET_SECONDS} seconds total) and run the Papermorph TTS/audio and timing scripts (edge-tts) so real non-empty audio files (.mp3) and timings.js are generated on disk.\n2. Draw the sets in code in books/${BOOK_SLUG}/art/sets.js and paper puppets in site/${BOOK_SLUG}/lib/cast.js, and bake puppets if needed.\n3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.\n4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain."
 fi
 
 echo "================================================================"
@@ -138,34 +129,49 @@ fi
 
 echo "================================================================"
 echo "=== [STAGE 2/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
-echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS}"
+echo "MODEL=${OPENCODE_MODEL} | BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS}"
 echo "BRIEF=${BRIEF}"
 echo "================================================================"
 
-touch /tmp/pre_opencode.marker
-sleep 1
+MAX_OPENCODE_ATTEMPTS=3
+OPENCODE_SUCCESS=0
 
-set +e
-opencode run --command papermorph "${BRIEF}" 2>&1 | tee /tmp/opencode.log
-OPENCODE_RC=${PIPESTATUS[0]}
-set -e
+for ATTEMPT in $(seq 1 ${MAX_OPENCODE_ATTEMPTS}); do
+  echo "--- OpenCode Attempt ${ATTEMPT}/${MAX_OPENCODE_ATTEMPTS} (model=${OPENCODE_MODEL}) ---"
+  rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log /tmp/pre_opencode.marker
+  touch /tmp/pre_opencode.marker
+  sleep 1
 
-echo "================================================================"
-echo "=== OPENCODE FINISHED WITH EXIT CODE: ${OPENCODE_RC} ==="
-echo "=== LAST 80 LINES OF /tmp/opencode.log ==="
-tail -n 80 /tmp/opencode.log || true
-echo "================================================================"
+  set +e
+  opencode run --model "${OPENCODE_MODEL}" --command papermorph "${BRIEF}" 2>&1 | tee /tmp/opencode.log
+  OPENCODE_RC=${PIPESTATUS[0]}
+  set -e
 
-if (( OPENCODE_RC != 0 )); then
-  echo "FATAL: opencode exited non-zero (${OPENCODE_RC}). Failing before Stage 3 gates." >&2
-  exit 20
-fi
+  echo "================================================================"
+  echo "=== OPENCODE ATTEMPT ${ATTEMPT} FINISHED WITH EXIT CODE: ${OPENCODE_RC} ==="
+  echo "=== LAST 80 LINES OF /tmp/opencode.log ==="
+  tail -n 80 /tmp/opencode.log || true
+  echo "================================================================"
 
-MODIFIED_FILES_COUNT=$(find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -type f -newer /tmp/pre_opencode.marker 2>/dev/null | wc -l)
-TOOL_CALLS_COUNT=$(grep -Ec '(\|[[:space:]]+(Write|Edit|Bash|Read|Glob|Grep|Task|patch|write|edit|bash)|←|⚙)' /tmp/opencode.log || true)
-echo "OpenCode activity check: MODIFIED_FILES_COUNT=${MODIFIED_FILES_COUNT}, TOOL_CALLS_COUNT=${TOOL_CALLS_COUNT}"
-if (( MODIFIED_FILES_COUNT == 0 || TOOL_CALLS_COUNT == 0 )); then
-  echo "FATAL [Exit 21]: OpenCode exited 0 but made no tool calls (count=${TOOL_CALLS_COUNT}) or wrote no files (modified=${MODIFIED_FILES_COUNT}). Never mistaking no-op for success." >&2
+  if (( OPENCODE_RC != 0 )); then
+    echo "FATAL: opencode exited non-zero (${OPENCODE_RC}) on attempt ${ATTEMPT}. Failing before Stage 3 gates." >&2
+    exit 20
+  fi
+
+  MODIFIED_FILES_COUNT=$(find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -type f -newer /tmp/pre_opencode.marker 2>/dev/null | wc -l)
+  TOOL_CALLS_COUNT=$(grep -Ec '(\|[[:space:]]+(Write|Edit|Bash|Read|Glob|Grep|Task|patch|write|edit|bash)|←|⚙)' /tmp/opencode.log || true)
+  echo "Attempt ${ATTEMPT} activity check: MODIFIED_FILES_COUNT=${MODIFIED_FILES_COUNT}, TOOL_CALLS_COUNT=${TOOL_CALLS_COUNT}"
+
+  if (( MODIFIED_FILES_COUNT > 0 && TOOL_CALLS_COUNT > 0 )); then
+    OPENCODE_SUCCESS=1
+    break
+  fi
+
+  echo "WARNING: OpenCode attempt ${ATTEMPT}/${MAX_OPENCODE_ATTEMPTS} exited 0 but made no tool calls (count=${TOOL_CALLS_COUNT}) or wrote no files (modified=${MODIFIED_FILES_COUNT})." >&2
+done
+
+if (( OPENCODE_SUCCESS == 0 )); then
+  echo "FATAL [Exit 21]: OpenCode exited 0 but made no tool calls or wrote no files across all ${MAX_OPENCODE_ATTEMPTS} attempts. Never mistaking no-op for success." >&2
   exit 21
 fi
 
@@ -252,5 +258,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7l PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7n PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
