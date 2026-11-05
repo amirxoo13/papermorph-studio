@@ -96,3 +96,26 @@ def test_vendored_papermorph_mit_and_mathjax_apache_licences():
     assert "MIT License" in lic_main
     assert "Apache License" in lic_mj
     assert "MathJax" in lic_mj
+
+def test_engine_direct_2sec_shard(tmp_path):
+    spec = RenderSpec(
+        job_id="job-direct-2sec",
+        title="Direct 2s Shard Test",
+        language="en",
+        total_duration_ms=2000,
+        scenes=[
+            SceneSpec(
+                scene_id="scene-1",
+                title="Test Scene",
+                narration_text="Rendering a two second shard directly with PapermorphEngine.",
+                start_ms=0,
+                end_ms=2000,
+            )
+        ],
+    )
+    engine = PapermorphEngine(spec)
+    out_mp4 = str(tmp_path / "shard_2s.mp4")
+    res = engine.render_shard_mp4(0, 2000, out_mp4)
+    assert res["durationMs"] == 2000
+    assert res["sizeBytes"] > 0
+    assert Path(out_mp4).exists()

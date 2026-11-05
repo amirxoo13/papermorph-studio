@@ -1,0 +1,42 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'pull-step5-cache'
+    entrypoint: 'bash'
+    args: ['-c', 'docker pull us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step5 || true']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-render-job'
+    args:
+      - 'build'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step5'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step65'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-render-job'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step65'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'test-headless-chain'
+    args:
+      - 'run'
+      - '--rm'
+      - '--network=cloudbuild'
+      - '-e'
+      - 'GOOGLE_CLOUD_PROJECT=gen-lang-client-0484425781'
+      - '-e'
+      - 'VERTEX_LOCATION=global'
+      - '-e'
+      - 'GOOGLE_CLOUD_LOCATION=global'
+      - '-e'
+      - 'GOOGLE_GENAI_USE_VERTEXAI=true'
+      - '--entrypoint'
+      - '/bin/bash'
+      - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step65'
+      - '/app/test_headless_chain.sh'
+images:
+  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:step65'
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY

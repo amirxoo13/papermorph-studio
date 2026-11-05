@@ -2,8 +2,10 @@
 set -euo pipefail
 
 : "${BOOK_SLUG:?ERROR: BOOK_SLUG environment variable is required}"
-: "${BRIEF:?ERROR: BRIEF environment variable is required}"
+: "${BOOK_TITLE:?ERROR: BOOK_TITLE environment variable is required}"
+: "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"
 : "${TARGET_SECONDS:?ERROR: TARGET_SECONDS environment variable is required}"
+LANGUAGE="${LANGUAGE:-en}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
 DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
@@ -17,6 +19,100 @@ export GOOGLE_GENAI_USE_VERTEXAI="true"
 rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log /tmp/pre_opencode.marker /tmp/check_output.log /tmp/lint_output.log
 
 cd /app/vendor/papermorph
+
+echo "================================================================"
+echo "=== [STAGE 0/5] INITIALIZING BOOK SCAFFOLD FOR ${BOOK_SLUG} ==="
+echo "BOOK_TITLE=${BOOK_TITLE} | LANGUAGE=${LANGUAGE} | TARGET_SECONDS=${TARGET_SECONDS}"
+echo "================================================================"
+
+# Clean any pre-existing directories for this slug so every run starts fresh
+rm -rf "books/${BOOK_SLUG}" "content/${BOOK_SLUG}" "site/${BOOK_SLUG}"
+mkdir -p "books/${BOOK_SLUG}"
+
+python3 - <<'PYSTAGE0'
+import json
+import os
+from pathlib import Path
+
+slug = os.environ["BOOK_SLUG"]
+title = os.environ["BOOK_TITLE"]
+story_text = os.environ["STORY_TEXT"]
+target_seconds = int(os.environ["TARGET_SECONDS"])
+lang = os.environ.get("LANGUAGE", "en")
+
+book_dir = Path("books") / slug
+book_dir.mkdir(parents=True, exist_ok=True)
+
+# 1. Write books/$BOOK_SLUG/story.md
+story_md = f"# {title}\n\n{story_text.strip()}\n"
+(book_dir / "story.md").write_text(story_md, encoding="utf-8")
+
+# 2. Write books/$BOOK_SLUG/style.json from the picture-book template
+model_id = "google-vertex/gemini-3.5-flash"
+style_obj = {
+    "schema": 1,
+    "tier": "picture",
+    "book": {
+        "title": title,
+        "slug": slug,
+        "language": lang,
+        "readers": "young children",
+        "pilot": "ch01",
+        "target_seconds": target_seconds,
+        "chapters": 1,
+    },
+    "words": [
+        f"Make a picture book, one chapter, about {target_seconds} seconds long, from {title} in books/{slug}/story.md. Sets and puppets drawn in code (no painted sets).",
+        f"Host model note: OpenCode headless runs all steps in the single conversation model {model_id} without per-subagent model switching; recorded across all models keys per style.md.",
+    ],
+    "look": f"Warm cut-paper collage picture book with sets and paper puppets drawn entirely in SVG/JS code, target length about {target_seconds} seconds in one chapter (ch01).",
+    "voice": {
+        "engine": "edge",
+        "narrator": {
+            "voice": "en-US-AndrewNeural" if lang == "en" else "fa-IR-DilaraNeural",
+            "rate": "-4%",
+        },
+        "cast": {},
+    },
+    "illustration": {
+        "sets": "drawn in code, not painted (no image model calls; paint.py must never be reached)",
+        "budget": 0,
+        "cast": [],
+    },
+    "engine": {
+        "source": "DozenTwelve/Papermorph",
+        "ref": "engine-v2.8",
+        "license": "MIT",
+    },
+    "models": {
+        "script": model_id,
+        "kit": model_id,
+        "scenes": model_id,
+        "sound": model_id,
+        "director": model_id,
+        "reviewers": model_id,
+    },
+    "approved": [],
+}
+(book_dir / "style.json").write_text(json.dumps(style_obj, indent=2) + "\n", encoding="utf-8")
+print(f"Wrote {book_dir / 'story.md'} ({len(story_md)}B) and {book_dir / 'style.json'}")
+PYSTAGE0
+
+python3 .claude/skills/papermorph/scripts/new_book.py picture "${BOOK_SLUG}" --lang "${LANGUAGE}"
+
+if [[ -z "${BRIEF:-}" ]]; then
+  BRIEF="You are authoring a Papermorph picture book autonomously. There is no user: never ask a question, never stop to confirm, never just describe a plan — do the work with your tools.
+
+books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md already exist, so intake is done. A preview server is already running at http://localhost:8765/ — do not start your own serve.py.
+
+IMPORTANT: new_book.py has already created a scaffold under site/${BOOK_SLUG}/. Those scaffold files are an UNFINISHED TEMPLATE (silent placeholders, no real audio, no timings.js, example 'Red' cast). Do NOT mistake the scaffold for a finished chapter. Before writing any code, inspect one finished picture book on the shelf (for example site/little-red-riding-hood/ch01/index.html, site/little-red-riding-hood/ch01/scene1.js, site/little-red-riding-hood/ch01/timings.js, and site/little-red-riding-hood/lib/cast.js) to see the exact structure of a completed picture book.
+
+Follow references/picture-books/stories.md from step 3 onward for the book slug ${BOOK_SLUG}:
+1. Write content/${BOOK_SLUG}/ch01/narration.${LANGUAGE}.json for the story in books/${BOOK_SLUG}/story.md (about ${TARGET_SECONDS} seconds total) and run the Papermorph TTS/audio and timing scripts (edge-tts) so real non-empty audio files (.mp3) and timings.js are generated on disk.
+2. Draw the sets in code in books/${BOOK_SLUG}/art/sets.js and paper puppets in site/${BOOK_SLUG}/lib/cast.js, and bake puppets if needed.
+3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.
+4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain."
+fi
 
 echo "================================================================"
 echo "=== [STAGE 1/5] STARTING PERSISTENT HTTP SERVER (serve.py 8765 site) ==="
@@ -156,5 +252,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7k PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7l PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
