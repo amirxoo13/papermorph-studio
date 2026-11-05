@@ -6,7 +6,7 @@ set -euo pipefail
 : "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"
 : "${TARGET_SECONDS:?ERROR: TARGET_SECONDS environment variable is required}"
 LANGUAGE="${LANGUAGE:-en}"
-OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-4-argon}"
+OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-3.8-flash}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
 DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
@@ -40,7 +40,7 @@ title = os.environ["BOOK_TITLE"]
 story_text = os.environ["STORY_TEXT"]
 target_seconds = int(os.environ["TARGET_SECONDS"])
 lang = os.environ.get("LANGUAGE", "en")
-model_id = os.environ.get("OPENCODE_MODEL", "google-vertex/gemini-4-argon")
+model_id = os.environ.get("OPENCODE_MODEL", "google-vertex/gemini-3.8-flash")
 
 book_dir = Path("books") / slug
 book_dir.mkdir(parents=True, exist_ok=True)
@@ -102,7 +102,22 @@ PYSTAGE0
 python3 .claude/skills/papermorph/scripts/new_book.py picture "${BOOK_SLUG}" --lang "${LANGUAGE}"
 
 if [[ -z "${BRIEF:-}" ]]; then
-  BRIEF="CRITICAL RULE: Your very first action MUST be a tool call (Read books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md) — NEVER reply with a text-only greeting, acknowledgment, or plan. You are authoring a Papermorph picture book autonomously in a single non-interactive turn. There is no user: never ask a question, never stop to confirm, never stop before all files are written and verified.\n\nbooks/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md already exist, so intake is done. A preview server is already running at http://localhost:8765/ — do not start your own serve.py.\n\nIMPORTANT: new_book.py has already created a scaffold under site/${BOOK_SLUG}/. Those scaffold files are an UNFINISHED TEMPLATE (silent placeholders, no real audio, no timings.js, example 'Red' cast). Do NOT mistake the scaffold for a finished chapter. Before writing any code, inspect one finished picture book on the shelf (for example site/little-red-riding-hood/ch01/index.html, site/little-red-riding-hood/ch01/scene1.js, site/little-red-riding-hood/ch01/timings.js, and site/little-red-riding-hood/lib/cast.js) to see the exact structure of a completed picture book.\n\nFollow references/picture-books/stories.md from step 3 onward for the book slug ${BOOK_SLUG}:\n1. Write content/${BOOK_SLUG}/ch01/narration.${LANGUAGE}.json for the story in books/${BOOK_SLUG}/story.md (about ${TARGET_SECONDS} seconds total) and run the Papermorph TTS/audio and timing scripts (edge-tts) so real non-empty audio files (.mp3) and timings.js are generated on disk.\n2. Draw the sets in code in books/${BOOK_SLUG}/art/sets.js and paper puppets in site/${BOOK_SLUG}/lib/cast.js, and bake puppets if needed.\n3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.\n4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain."
+  BRIEF="CRITICAL RULE: Your very first action MUST be a tool call (Read books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md) — NEVER reply with a text-only greeting, acknowledgment, or plan. You are authoring a Papermorph picture book autonomously in a single non-interactive turn. There is no user: never ask a question, never stop to confirm, never stop before all files are written and verified.
+
+books/${BOOK_SLUG}/style.json and books/${BOOK_SLUG}/story.md already exist, so intake is done. A preview server is already running at http://localhost:8765/ — do not start your own serve.py.
+
+IMPORTANT: new_book.py has already created a scaffold under site/${BOOK_SLUG}/. Those scaffold files are an UNFINISHED TEMPLATE (silent placeholders, no real audio, no timings.js, example 'Red' cast). Do NOT mistake the scaffold for a finished chapter. Before writing any code, inspect one finished picture book on the shelf (for example site/little-red-riding-hood/ch01/index.html, site/little-red-riding-hood/ch01/scene1.js, site/little-red-riding-hood/ch01/timings.js, and site/little-red-riding-hood/lib/cast.js) to see the exact structure of a completed picture book.
+
+Follow references/picture-books/stories.md from step 3 onward for the book slug ${BOOK_SLUG}:
+1. Write content/${BOOK_SLUG}/ch01/narration.${LANGUAGE}.json for the story in books/${BOOK_SLUG}/story.md (about ${TARGET_SECONDS} seconds total) and run the Papermorph TTS/audio and timing scripts (edge-tts) so real non-empty audio files (.mp3) and timings.js are generated on disk.
+2. Draw the sets in code in books/${BOOK_SLUG}/art/sets.js and paper puppets in site/${BOOK_SLUG}/lib/cast.js, and bake puppets if needed.
+3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.
+4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain.
+
+STRICT TIME & REVIEW BUDGET:
+- Keep it simple and fast: 2 scenes maximum, simple clean SVG sets and puppets, ONE review pass only (run lint.py and check.py once, fix any errors, run them once more to confirm 0 errors, then STOP IMMEDIATELY).
+- Do NOT do multiple visual polish rounds, do NOT re-bake or re-record audio once timings.js and audio exist and check.py passes with 0 errors.
+- Your entire authoring run MUST finish in under 15 minutes so Stage 4 (export.py) can run."
 fi
 
 echo "================================================================"
@@ -258,5 +273,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7n PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7o PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
