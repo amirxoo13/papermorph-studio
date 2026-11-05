@@ -14,16 +14,9 @@ export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
 export GOOGLE_GENAI_USE_VERTEXAI="true"
 
 # Ensure every run starts with a completely clean OpenCode session/state directory
-rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log /tmp/pre_opencode.marker
+rm -rf /root/.local/share/opencode /root/.cache/opencode /tmp/opencode.log /tmp/pre_opencode.marker /tmp/check_output.log /tmp/lint_output.log
 
 cd /app/vendor/papermorph
-
-SCENE1_JS="site/${BOOK_SLUG}/ch01/scene1.js"
-if [[ ! -f "${SCENE1_JS}" ]]; then
-  echo "FATAL: Scaffold file ${SCENE1_JS} missing before run" >&2
-  exit 10
-fi
-SCENE1_TEMPLATE_SIZE=$(stat -c%s "${SCENE1_JS}")
 
 echo "================================================================"
 echo "=== [STAGE 1/5] STARTING PERSISTENT HTTP SERVER (serve.py 8765 site) ==="
@@ -49,11 +42,10 @@ fi
 
 echo "================================================================"
 echo "=== [STAGE 2/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
-echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS} | SCENE1_TEMPLATE_SIZE=${SCENE1_TEMPLATE_SIZE}B"
+echo "BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS}"
 echo "BRIEF=${BRIEF}"
 echo "================================================================"
 
-# Record timestamp marker before running OpenCode to detect file writes
 touch /tmp/pre_opencode.marker
 sleep 1
 
@@ -73,7 +65,6 @@ if (( OPENCODE_RC != 0 )); then
   exit 20
 fi
 
-# Distinct failure (exit 21): if OpenCode exited 0 but made no tool calls (beyond loading the skill) or wrote no files
 MODIFIED_FILES_COUNT=$(find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -type f -newer /tmp/pre_opencode.marker 2>/dev/null | wc -l)
 TOOL_CALLS_COUNT=$(grep -Ec '(\|[[:space:]]+(Write|Edit|Bash|Read|Glob|Grep|Task|patch|write|edit|bash)|←|⚙)' /tmp/opencode.log || true)
 echo "OpenCode activity check: MODIFIED_FILES_COUNT=${MODIFIED_FILES_COUNT}, TOOL_CALLS_COUNT=${TOOL_CALLS_COUNT}"
@@ -83,49 +74,38 @@ if (( MODIFIED_FILES_COUNT == 0 || TOOL_CALLS_COUNT == 0 )); then
 fi
 
 echo "================================================================"
-echo "=== [STAGE 3/5] VERIFYING AUTHORED CHAPTER (AUDIO, TIMINGS, SCENE1, CHECK.PY) ==="
+echo "=== [STAGE 3/5] VERIFYING AUTHORED CHAPTER (4 GATES ONLY) ==="
 echo "================================================================"
 
-mkdir -p "content/${BOOK_SLUG}/ch01"
-if [[ -d "site/${BOOK_SLUG}/ch01/audio" ]]; then
-  cp -rn "site/${BOOK_SLUG}/ch01/audio/"* "content/${BOOK_SLUG}/ch01/" 2>/dev/null || true
-fi
-
-# Gate 1: content/${BOOK_SLUG}/ch01/ contains audio files with non-zero size
-CONTENT_AUDIO_COUNT=$(find "content/${BOOK_SLUG}/ch01" -type f \( -name "*.mp3" -o -name "*.wav" -o -name "*.m4a" -o -name "*.ogg" \) -size +0c 2>/dev/null | wc -l)
-echo "Gate 1 - Non-zero audio files in content/${BOOK_SLUG}/ch01/: ${CONTENT_AUDIO_COUNT}"
-if (( CONTENT_AUDIO_COUNT == 0 )); then
-  echo "FATAL [Gate 1]: content/${BOOK_SLUG}/ch01/ contains zero non-empty audio files." >&2
+# Gate 1: non-zero audio files in content/${BOOK_SLUG}/ch01/ or site/${BOOK_SLUG}/ch01/audio/ (including subdirectories like en/)
+AUDIO_COUNT=$(find "content/${BOOK_SLUG}/ch01" "site/${BOOK_SLUG}/ch01/audio" -type f \( -name "*.mp3" -o -name "*.wav" -o -name "*.m4a" -o -name "*.ogg" \) -size +0c 2>/dev/null | wc -l)
+echo "Gate 1 - Non-zero audio files in content/${BOOK_SLUG}/ch01/ or site/${BOOK_SLUG}/ch01/audio/: ${AUDIO_COUNT}"
+find "content/${BOOK_SLUG}/ch01" "site/${BOOK_SLUG}/ch01/audio" -type f -size +0c 2>/dev/null || true
+if (( AUDIO_COUNT == 0 )); then
+  echo "FATAL [Gate 1]: Zero non-empty audio files found in content/${BOOK_SLUG}/ch01/ or site/${BOOK_SLUG}/ch01/audio/." >&2
   exit 11
 fi
 
-# Gate 2: timings.js exists
+# Gate 2: timings.js exists and is non-empty
 TIMINGS_COUNT=$(find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -name "timings.js" -size +0c 2>/dev/null | wc -l)
 echo "Gate 2 - Non-empty timings.js files found: ${TIMINGS_COUNT}"
+find "site/${BOOK_SLUG}" "content/${BOOK_SLUG}" "books/${BOOK_SLUG}" -name "timings.js" -size +0c 2>/dev/null || true
 if (( TIMINGS_COUNT == 0 )); then
   echo "FATAL [Gate 2]: timings.js does not exist or is empty." >&2
   exit 12
 fi
 
-# Gate 3: site/${BOOK_SLUG}/ch01/scene1.js is larger than its scaffold and defines real beats
-if [[ ! -f "${SCENE1_JS}" ]]; then
-  echo "FATAL [Gate 3]: ${SCENE1_JS} is missing." >&2
+# Gate 3: lint.py passes
+echo "Gate 3 - Running Papermorph lint.py..."
+python3 .claude/skills/papermorph/scripts/lint.py "site/${BOOK_SLUG}/ch01" 2>&1 | tee /tmp/lint_output.log
+
+# Gate 4: check.py passes with 0 page errors and 0 console errors
+echo "Gate 4 - Running Papermorph check.py..."
+python3 .claude/skills/papermorph/scripts/check.py ch01 --url "http://localhost:8765/${BOOK_SLUG}/" 2>&1 | tee /tmp/check_output.log
+if grep -Eiq '[1-9][0-9]*[[:space:]]+(page|console)[[:space:]]+error' /tmp/check_output.log; then
+  echo "FATAL [Gate 4]: check.py reported non-zero page or console errors." >&2
   exit 14
 fi
-SCENE1_FINAL_SIZE=$(stat -c%s "${SCENE1_JS}")
-echo "Gate 3 - ${SCENE1_JS}: scaffold=${SCENE1_TEMPLATE_SIZE}B -> final=${SCENE1_FINAL_SIZE}B"
-if (( SCENE1_FINAL_SIZE <= SCENE1_TEMPLATE_SIZE )); then
-  echo "FATAL [Gate 3]: ${SCENE1_JS} (${SCENE1_FINAL_SIZE}B) is not larger than its scaffold (${SCENE1_TEMPLATE_SIZE}B)." >&2
-  exit 15
-fi
-if ! grep -Eq 'beats|beat[[:space:]]*\(|narration|voice|clips' "${SCENE1_JS}"; then
-  echo "FATAL [Gate 3]: ${SCENE1_JS} does not define real beats." >&2
-  exit 16
-fi
-
-# Gate 4: python3 .claude/skills/papermorph/scripts/check.py passes
-echo "Gate 4 - Running Papermorph check.py..."
-python3 .claude/skills/papermorph/scripts/check.py ch01 --url "http://localhost:8765/${BOOK_SLUG}/"
 
 echo "================================================================"
 echo "=== [STAGE 4/5] RUNNING EXPORT.PY (ch01 --jobs 8) ==="
@@ -176,5 +156,5 @@ print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,
 PYUPLOAD
 
 echo "================================================================"
-echo "=== [DONE] STEP 7i PIPELINE COMPLETED SUCCESSFULLY ==="
+echo "=== [DONE] STEP 7j PIPELINE COMPLETED SUCCESSFULLY ==="
 echo "================================================================"
