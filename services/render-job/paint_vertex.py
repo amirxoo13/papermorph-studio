@@ -9,6 +9,7 @@ Drop-in replacement for paint_openai.py using Google Cloud Vertex AI credits:
     python3 paint_vertex.py --total books/<book>/art/costs.tsv
 """
 import argparse
+import time
 import io
 import mimetypes
 import os
@@ -41,6 +42,36 @@ def _load_ledger():
 
 
 append, print_total = _load_ledger()
+
+RETRY_WAITS = [35, 65, 95, 125]   # seconds; the measured limit is about 2 requests per minute
+
+
+def _generate_with_backoff(client, model, contents, aspect_ratio):
+    """Call Vertex, waiting out 429 RESOURCE_EXHAUSTED. Bounded: after the last
+    wait the exception is re-raised verbatim and the caller exits non-zero.
+    Every wait is printed, so a slow run is visible rather than silent."""
+    last = None
+    for attempt in range(len(RETRY_WAITS) + 1):
+        try:
+            return client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"],
+                    image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+                ),
+            )
+        except Exception as exc:
+            text = str(exc)
+            quota = "RESOURCE_EXHAUSTED" in text or "429" in text
+            if not quota or attempt == len(RETRY_WAITS):
+                raise
+            wait = RETRY_WAITS[attempt]
+            print(f"quota hit (429); waiting {wait}s then retrying "
+                  f"({attempt + 1}/{len(RETRY_WAITS)})", file=sys.stderr, flush=True)
+            time.sleep(wait)
+            last = exc
+    raise last
 
 DEFAULT_MODELS = {
     "low": "gemini-3.1-flash-image",
@@ -125,14 +156,7 @@ def main() -> int:
 
     try:
         client = genai.Client(vertexai=True, project=project, location=location)
-        resp = client.models.generate_content(
-            model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(aspect_ratio=args.ar),
-            ),
-        )
+        resp = _generate_with_backoff(client, model, contents, args.ar)
     except Exception as exc:
         print(f"FATAL Vertex API error ({type(exc).__name__}): {exc}", file=sys.stderr)
         return 1

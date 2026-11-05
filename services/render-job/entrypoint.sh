@@ -9,7 +9,7 @@ if [[ "${RENDER_ONLY:-0}" == "1" ]]; then exec /app/render_only.sh; fi
 : "${STORY_TEXT:?ERROR: STORY_TEXT environment variable is required}"
 : "${TARGET_SECONDS:?ERROR: TARGET_SECONDS environment variable is required}"
 LANGUAGE="${LANGUAGE:-en}"
-OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-3.8-flash}"
+OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-4-argon}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
 DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
@@ -66,10 +66,22 @@ style_obj = {
         "chapters": 1,
     },
     "words": [
-        f"Make a picture book, one chapter, about {target_seconds} seconds long, from {title} in books/{slug}/story.md. Sets and puppets drawn in code (no painted sets).",
-        f"Host model note: OpenCode headless runs all steps in the single conversation model {model_id} without per-subagent model switching; recorded across all models keys per style.md.",
+        f"Make a picture book, one chapter, about {target_seconds} seconds long, from {title} in books/{slug}/story.md.",
+        "Painted sets and painted characters, made with the image model through paint_vertex.py; puppets are cut from those paintings and moved in code.",
+        "The bar is the shelf's own books: as many scenes as the story needs, each one a composed picture, nothing flat or placeholder.",
+        f"Host model note: OpenCode headless runs all steps in the single conversation model {model_id}.",
     ],
-    "look": f"Warm cut-paper collage picture book with sets and paper puppets drawn entirely in SVG/JS code, target length about {target_seconds} seconds in one chapter (ch01).",
+    "look": (
+        "A warm hand-made picture book. Paper-grain cream background (#f2ead7) with soft "
+        "ink-brown line work (#1e1a16); gouache-like painted sets with visible brush texture, "
+        "never flat vector fills. Characters are painted cut-outs with simple jointed limbs, "
+        "posed in profile or three-quarter view, moving with weight and a little stop-motion "
+        "jitter. Warm low sun, long soft shadows, a shallow depth with two or three parallax "
+        "layers per set. Every moment reads as one composed picture: one subject, clear "
+        "silhouette, text beside what it names. No gradients, no glow, no neon, no digital "
+        "sheen, no lens flare. "
+        f"About {target_seconds} seconds in one chapter (ch01)."
+    ),
     "voice": {
         "engine": "edge",
         "narrator": {
@@ -79,8 +91,11 @@ style_obj = {
         "cast": {},
     },
     "illustration": {
-        "sets": "drawn in code, not painted (no image model calls; paint.py must never be reached)",
-        "budget": 0,
+        "sets": "painted by the image model through /app/paint_vertex.py, then cut into layers; puppets are moved in code",
+        "painter": "/app/paint_vertex.py",
+        "style_reference": "Paint the first set, approve it, then pass it as a reference image to every later call so the palette, the brush texture and the light stay the same across the whole book.",
+        "budget": 60,
+        "budget_note": "About 60 pictures. Paid from the project's Google credit. The limit that bites is quota (~2 requests/minute), not cost.",
         "cast": [],
     },
     "engine": {
@@ -95,6 +110,7 @@ style_obj = {
         "sound": model_id,
         "director": model_id,
         "reviewers": model_id,
+        "painter": "gemini-3-pro-image",
     },
     "approved": [],
 }
@@ -117,10 +133,15 @@ Follow references/picture-books/stories.md from step 3 onward for the book slug 
 3. Author the complete animated scene script(s) and site/${BOOK_SLUG}/ch01/index.html wired to the generated audio and timings.js.
 4. Run lint.py and check.py against http://localhost:8765/${BOOK_SLUG}/ and fix every error until 0 errors remain.
 
-STRICT TIME & REVIEW BUDGET:
-- Keep it simple and fast: 2 scenes maximum, simple clean SVG sets and puppets, ONE review pass only (run lint.py and check.py once, fix any errors, run them once more to confirm 0 errors, then STOP IMMEDIATELY).
-- Do NOT do multiple visual polish rounds, do NOT re-bake or re-record audio once timings.js and audio exist and check.py passes with 0 errors.
-- Your entire authoring run MUST finish in under 15 minutes so Stage 4 (export.py) can run."
+SCOPE AND REVIEW BUDGET:
+- Author as many scenes as the story actually needs to run about ${TARGET_SECONDS} seconds. The reference books on the shelf are the bar: site/millions-of-cats/ch01 is 17 scenes and 390 s; site/tulip-mania/ch01 is 13 beats and 200 s. Two scenes is a failure, not a success.
+- Do a real art pass. Pictures are affordable. Use /app/paint_vertex.py, which has the same command line as paint_openai.py:
+    python3 /app/paint_vertex.py OUT.png \"prompt\" [ref.png ...] [--ar 16:9] [--q low|medium] [--bg transparent] --ledger books/${BOOK_SLUG}/art/costs.tsv
+  It paints with Google models on Vertex and logs every call to the shared ledger. Pass earlier pictures as reference images so the cast and the sets stay consistent.
+- The image model allows roughly 2 requests per minute. paint_vertex.py waits out a 429 and retries by itself, so do not add your own sleeps and do not treat a slow picture as an error. Plan the art pass as a steady sequence, not a burst.
+- REVIEW ROUNDS ARE CAPPED AT 3, and the cap is on rounds, not on time. One round = run lint.py, run check.py, fix every error, look at the frames. Stop after round 3 even if you would still like to polish. Do not start a fourth.
+- There is no wall-clock limit on authoring. Do not rush, do not simplify to finish early, and never reduce the number of scenes to save time.
+- Do NOT re-record audio once timings.js and the mp3 files exist and check.py passes with 0 errors."
 fi
 
 echo "================================================================"
