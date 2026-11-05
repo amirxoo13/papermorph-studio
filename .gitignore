@@ -11,3 +11,7 @@ node_modules/
 *.wav
 *.zip
 /tmp/
+
+# The vendored engine must stay byte-identical to upstream.
+# Root patterns above (*.mp4, *.wav, *.zip) must never apply inside it.
+!services/render-job/vendor/papermorph/**
