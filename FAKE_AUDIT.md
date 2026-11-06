@@ -1,3 +1,18 @@
+# FAKE AUDIT — HISTORICAL RECORD, NOT THE CURRENT SYSTEM
+
+This file lists fabricated code found in an earlier iteration of this repository
+and removed. It is kept so the clean-up is traceable and so the same mistakes are
+not repeated.
+
+It does NOT describe the current system. `CLAUDE.md` does.
+
+The headline item — a hand-written 225-line Pillow and sine-wave "engine" under
+`vendor/` — is gone: `services/render-job/vendor/papermorph` is now a verified
+byte-for-byte clone of upstream `342e272648e06a6163224a6177bccc83517d7fea`,
+7,259 files, with an empty full-tree hash manifest diff.
+
+---
+
 # FAKE AUDIT
 
 services/render-job/vendor/papermorph/engine.py:60-225 — hand-written 225-line Pillow rectangle drawer and sine-wave WAV synthesizer — must become a real git clone of https://github.com/amirxoo13/Papermorph under services/render-job/vendor/papermorph
