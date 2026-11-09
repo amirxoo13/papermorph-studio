@@ -45,7 +45,11 @@ steps:
           --image ${_REPO}/pm-api:$COMMIT_SHA \
           --region ${_REGION} \
           --allow-unauthenticated \
-          --set-env-vars "^:^GOOGLE_CLOUD_PROJECT=$PROJECT_ID:PM_REGION=${_REGION}:PM_TASKS_QUEUE=${_TASKS_QUEUE}:PM_SERVICE_BASE_URL=${_SERVICE_BASE_URL}:PM_TASKS_INVOKER_SERVICE_ACCOUNT=${_TASKS_INVOKER_SA}:PM_INTERNAL_CALLER_SERVICE_ACCOUNTS=${_TASKS_INVOKER_SA}:PM_ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}"
+        # The delimiter is ## and not : — gcloud reads ^X^ as 'X separates the
+        # entries', and a : delimiter splits https:// in the middle, which is
+        # exactly how build 9d8f7a14 failed on 2026-11-09 with
+        # "Bad syntax for dict arg: [//pm-api-...]".
+          --set-env-vars "^##^GOOGLE_CLOUD_PROJECT=$PROJECT_ID##PM_REGION=${_REGION}##PM_TASKS_QUEUE=${_TASKS_QUEUE}##PM_SERVICE_BASE_URL=${_SERVICE_BASE_URL}##PM_TASKS_INVOKER_SERVICE_ACCOUNT=${_TASKS_INVOKER_SA}##PM_INTERNAL_CALLER_SERVICE_ACCOUNTS=${_TASKS_INVOKER_SA}##PM_ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}"
 
 options:
   logging: CLOUD_LOGGING_ONLY
