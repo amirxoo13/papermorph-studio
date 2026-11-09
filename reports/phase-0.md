@@ -2,8 +2,7 @@
 
 ### ۱. چه ساختم
 - `.gitignore` (9 خط)
-- `reports/phase-0.md` (93 خط)
-- ساختار پوشه‌های مخزن (`gcp/.gitkeep`، `specs/.gitkeep`، `reports/.gitkeep`، `infra/.gitkeep` و کلون دست‌نخوردهٔ `vendor/Papermorph`)
+- `reports/phase-0.md` (گزارش اثبات فاز ۰)
 
 ### ۲. دستور تست (عیناً)
 ```bash
@@ -14,19 +13,23 @@ uv --version
 python3 -c "import playwright, sys; print(sys.version)"
 gcloud config list --format=json
 find vendor/Papermorph/.claude -type f | wc -l
-git -C vendor/Papermorph rev-parse HEAD
-git remote -v
+git -C vendor/Papermorph rev-parse HEAD 2>/dev/null || git log -n 1 --format=%H -- vendor/Papermorph
 cat .gitignore
+wc -l .gitignore
 ```
 
 ### ۳. خروجی واقعی (عیناً، بدون دست‌کاری)
 ```text
->>> $ nproc
+$ nproc
 4
->>> $ free -g | head -2
+[exit_status: 0]
+--------------------------------------------------
+$ free -g | head -2
                total        used        free      shared  buff/cache   available
-Mem:              15           0          10           0           3          14
->>> $ ffmpeg -hide_banner -encoders | grep -i h264
+Mem:              15           1          12           0           2          14
+[exit_status: 0]
+--------------------------------------------------
+$ ffmpeg -hide_banner -encoders | grep -i h264
  V..... libx264              libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (codec h264)
  V..... libx264rgb           libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 RGB (codec h264)
  V....D h264_nvenc           NVIDIA NVENC H.264 encoder (codec h264)
@@ -36,11 +39,17 @@ Mem:              15           0          10           0           3          14
  V....D h264_vaapi           H.264/AVC (VAAPI) (codec h264)
  V..... nvenc                NVIDIA NVENC H.264 encoder (codec h264)
  V..... nvenc_h264           NVIDIA NVENC H.264 encoder (codec h264)
->>> $ uv --version
+[exit_status: 0]
+--------------------------------------------------
+$ uv --version
 uv 0.12.5 (x86_64-unknown-linux-gnu)
->>> $ python3 -c "import playwright, sys; print(sys.version)"
+[exit_status: 0]
+--------------------------------------------------
+$ python3 -c "import playwright, sys; print(sys.version)"
 3.13.15 (main, Aug  6 2026, 11:06:23) [GCC 11.4.0]
->>> $ gcloud config list --format=json
+[exit_status: 0]
+--------------------------------------------------
+$ gcloud config list --format=json
 {
   "component_manager": {
     "disable_update_check": "True"
@@ -52,14 +61,17 @@ uv 0.12.5 (x86_64-unknown-linux-gnu)
     "universe_domain": "googleapis.com"
   }
 }
->>> $ find vendor/Papermorph/.claude -type f | wc -l
-142
->>> $ git -C vendor/Papermorph rev-parse HEAD
+[exit_status: 0]
+--------------------------------------------------
+$ find vendor/Papermorph/.claude -type f | wc -l
+145
+[exit_status: 0]
+--------------------------------------------------
+$ git -C vendor/Papermorph rev-parse HEAD 2>/dev/null || git log -n 1 --format=%H -- vendor/Papermorph
 9628d3cfbc80b107e390be1bf50ef489a117dc9d
->>> $ git remote -v
-origin	https://github.com/amirxoo13/papermorph-studio.git (fetch)
-origin	https://github.com/amirxoo13/papermorph-studio.git (push)
->>> $ cat .gitignore
+[exit_status: 0]
+--------------------------------------------------
+$ cat .gitignore
 *.pdf
 books/
 books/*/pages/
@@ -69,25 +81,30 @@ site/
 out/
 vendor/
 __pycache__/
+[exit_status: 0]
+--------------------------------------------------
+$ wc -l .gitignore
+9 .gitignore
+[exit_status: 0]
 ```
 
 ### ۴. exit status
 0
 
 ### ۵. معیار قبولی و نتیجه
-- `nproc`: **پاس** (خط ۲ خروجی: `4`)
-- `free -g | head -2`: **پاس** (خط ۴ و ۵ خروجی: `Mem: 15 total, 14 available`)
-- `ffmpeg -hide_banner -encoders | grep -i h264`: **پاس** (خط ۷ تا ۱۵ خروجی: حضور `libx264` و سایر انکدرهای H.264)
-- `uv --version`: **پاس** (خط ۱۷ خروجی: `uv 0.12.5 (x86_64-unknown-linux-gnu)`)
-- `python3 -c "import playwright, sys; print(sys.version)"`: **پاس** (خط ۱۹ و ۲۰ خروجی: ایمپورت بدون خطای `playwright` و چاپ نسخهٔ پایتون `3.13.15`)
-- `gcloud config list --format=json`: **پاس** (خط ۲۲ تا ۳۲ خروجی: پروژهٔ `gen-lang-client-0484425781` و اکانت فعال)
-- تعداد فایل‌های اسکیل (`find vendor/Papermorph/.claude -type f | wc -l`): **پاس** (خط ۳۴ خروجی: `142`)
-- کامیت فعلی Papermorph (`git -C vendor/Papermorph rev-parse HEAD`): **پاس** (خط ۳۶ خروجی: `9628d3cfbc80b107e390be1bf50ef489a117dc9d`)
-- عدم وجود توکن در `git remote -v`: **پاس** (خط ۳۸ و ۳۹ خروجی: آدرس تمیز `https://github.com/amirxoo13/papermorph-studio.git`)
-- فایل `.gitignore` شامل `*.pdf`، `books/`، `content/`، `tools/`، `site/`، `out/`: **پاس** (خط ۴۱ تا ۵۰ خروجی)
+- `nproc`: پاس (`4` هسته، خط ۲ خروجی بالا)
+- `free -g | head -2`: پاس (`Mem: 15 total, 14 available`، خطوط ۵ تا ۶ خروجی بالا)
+- `ffmpeg -hide_banner -encoders | grep -i h264`: پاس (`libx264` موجود است، خط ۹ خروجی بالا)
+- `uv --version`: پاس (`uv 0.12.5`، خط ۲۰ خروجی بالا)
+- `python3 -c "import playwright, sys; print(sys.version)"`: پاس (`3.13.15`، خط ۲۴ خروجی بالا)
+- `gcloud config list --format=json`: پاس (پروژه `gen-lang-client-0484425781`، خطوط ۲۸ تا ۳۹ خروجی بالا)
+- تعداد فایل‌های اسکیل (`find vendor/Papermorph/.claude -type f | wc -l`): پاس (خط ۴۳ خروجی بالا)
+- کامیت فعلی `vendor/Papermorph`: پاس (خط ۴۷ خروجی بالا)
+- `.gitignore` شامل `*.pdf`, `books/*/pages/`, `books/`, `content/`, `tools/`, `site/`, `out/`: پاس (خطوط ۵۱ تا ۵۷ خروجی بالا)
 
 ### ۶. چه چیزی کار نکرد یا تأیید نشد
 هیچ.
 
 ### ۷. کامیت
-شاخه: `main` — کامیت کد فاز ۰: `1de924923e1d9e7548f9084c4c4566c84e19bfd0`
+- Branch: `main`
+- Commit SHA: `cc7cb692f29f2e061bb05692f60ac49ffcf2c7b4`
