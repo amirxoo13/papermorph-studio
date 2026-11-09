@@ -86,6 +86,15 @@ def render_job_env(job: Dict[str, Any], source_text: str) -> Dict[str, str]:
         "PM_JOB_ID": str(job.get("jobId", "")),
         "COST_CAP_USD": str(job.get("costCapUsd", 5.0)),
     }
+    # Cloud Run rejects a container environment over 32 KiB. Catching it here
+    # names the manuscript as the cause; Cloud Run's own error does not.
+    story_bytes = len(source_text.encode("utf-8"))
+    if story_bytes > 20000:
+        raise DispatchNotConfigured(
+            f"STORY_TEXT is {story_bytes} bytes. Cloud Run caps a container's whole "
+            f"environment at 32 KiB, so the manuscript must be smaller."
+        )
+
     # entrypoint.sh exits 15 for any tier other than `picture` without a BRIEF.
     brief = job.get("brief") or ""
     if brief:

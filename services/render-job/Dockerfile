@@ -20,6 +20,7 @@ COPY src /app/src
 COPY entrypoint.sh /app/entrypoint.sh
 COPY render_only.sh /app/render_only.sh
 COPY paint_vertex.py /app/paint_vertex.py
+COPY report.py /app/report.py
 COPY bench_render.py /app/bench_render.py
 RUN chmod +x /app/entrypoint.sh /app/render_only.sh /app/paint_vertex.py /app/bench_render.py
 

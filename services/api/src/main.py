@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -92,6 +92,146 @@ def _read_source_text(source_uri: str, fallback: str) -> str:
     if not blob.exists():
         raise HTTPException(status_code=400, detail=f"sourceUri does not exist: {source_uri}")
     return blob.download_as_text()
+
+
+RAW_UPLOADS_BUCKET = os.environ.get("PM_RAW_UPLOADS_BUCKET", f"{PROJECT_ID}-pm-raw-uploads")
+# A manuscript reaches the render job as the STORY_TEXT environment variable,
+# and Cloud Run caps a container's whole environment at 32 KiB. The limit is
+# therefore in BYTES, not characters: Persian is two bytes per letter in UTF-8,
+# so 20 000 Persian characters is about 40 KiB and would be rejected by Cloud
+# Run after the job had already been created.
+MAX_MANUSCRIPT_BYTES = 16000
+
+
+class UploadTextRequest(BaseModel):
+    """The manuscript itself. There was no way to get text into the system."""
+
+    text: str = Field(..., min_length=20, max_length=MAX_MANUSCRIPT_BYTES)
+    filename: str = "manuscript.txt"
+
+
+@app.post("/v1/uploads")
+def upload_text(req: UploadTextRequest, uid: str = Depends(verify_caller)):
+    """Store a manuscript and return the gs:// URI that POST /v1/jobs expects.
+
+    Before this, sourceUri had to name an object that someone had already put
+    in the bucket by hand, so the API could not be used without gsutil.
+    """
+    size = len(req.text.encode("utf-8"))
+    if size > MAX_MANUSCRIPT_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Manuscript is {size} bytes; the limit is {MAX_MANUSCRIPT_BYTES} "
+                   f"because it travels to the render job as an environment variable.",
+        )
+    safe = "".join(c for c in req.filename if c.isalnum() or c in "._-")[:60] or "manuscript.txt"
+    blob_name = f"users/{uid}/{uuid.uuid4().hex}-{safe}"
+    client = storage.Client(project=PROJECT_ID, client_options=QUOTA_OPTS)
+    blob = client.bucket(RAW_UPLOADS_BUCKET).blob(blob_name)
+    blob.upload_from_string(req.text.encode("utf-8"), content_type="text/plain; charset=utf-8")
+    uri = f"gs://{RAW_UPLOADS_BUCKET}/{blob_name}"
+    return {"sourceUri": uri, "bytes": len(req.text.encode("utf-8"))}
+
+
+@app.get("/v1/jobs/{job_id}/playback")
+def job_playback(job_id: str, uid: str = Depends(verify_caller)):
+    """A time-limited URL for the finished film, so a browser can play it.
+
+    The published bucket is private and stays private: this signs one URL for
+    one object for one hour. It returns 409 rather than a placeholder while the
+    film does not exist yet.
+    """
+    db = _get_db()
+    job = _owned_job(db, job_id, uid)
+    video_uri = str((job.get("artifacts") or {}).get("video1080pUrl", ""))
+    if not video_uri.startswith("gs://"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"No film for this job yet (state={job.get('state')})",
+        )
+    bucket_name, _, blob_name = video_uri[5:].partition("/")
+    client = storage.Client(project=PROJECT_ID, client_options=QUOTA_OPTS)
+    blob = client.bucket(bucket_name).blob(blob_name)
+    if not blob.exists():
+        raise HTTPException(status_code=409, detail=f"Recorded film is not in the bucket: {video_uri}")
+
+    # Cloud Run has no service-account key file, so the signature is made by the
+    # IAM SignBlob API using the runtime service account's own identity. That
+    # needs roles/iam.serviceAccountTokenCreator on itself; without it this
+    # raises, and the caller gets the real reason rather than a broken link.
+    import google.auth
+    import google.auth.transport.requests
+
+    creds, _ = google.auth.default()
+    creds.refresh(google.auth.transport.requests.Request())
+    signer_email = getattr(creds, "service_account_email", None)
+    if not signer_email:
+        raise HTTPException(status_code=500, detail="No service account identity to sign with")
+    try:
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=1),
+            method="GET",
+            service_account_email=signer_email,
+            access_token=creds.token,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not sign a playback URL ({type(exc).__name__}: {exc}). "
+                   f"Grant roles/iam.serviceAccountTokenCreator on {signer_email} to itself.",
+        )
+    blob.reload()
+    return {
+        "url": url,
+        "expiresInSeconds": 3600,
+        "sizeBytes": blob.size,
+        "contentType": blob.content_type,
+        "durationMs": job.get("actualDurationMs"),
+    }
+
+
+@app.get("/v1/jobs/{job_id}/video")
+def job_video(job_id: str, uid: str = Depends(verify_caller)):
+    """Stream the finished film through the API.
+
+    The signed URL above is the better path: the browser fetches straight from
+    Cloud Storage and can seek. It needs roles/iam.serviceAccountTokenCreator on
+    the runtime service account, which is a separate grant, so this endpoint
+    exists as the route that works without it. A <video src> cannot send an
+    Authorization header, so a caller using this one fetches it with the token
+    and plays the result as a blob.
+    """
+    db = _get_db()
+    job = _owned_job(db, job_id, uid)
+    video_uri = str((job.get("artifacts") or {}).get("video1080pUrl", ""))
+    if not video_uri.startswith("gs://"):
+        raise HTTPException(
+            status_code=409, detail=f"No film for this job yet (state={job.get('state')})"
+        )
+    bucket_name, _, blob_name = video_uri[5:].partition("/")
+    client = storage.Client(project=PROJECT_ID, client_options=QUOTA_OPTS)
+    blob = client.bucket(bucket_name).blob(blob_name)
+    if not blob.exists():
+        raise HTTPException(status_code=409, detail=f"Recorded film is not in the bucket: {video_uri}")
+    blob.reload()
+
+    def _chunks():
+        with blob.open("rb") as fh:
+            while True:
+                chunk = fh.read(1024 * 1024)
+                if not chunk:
+                    return
+                yield chunk
+
+    return StreamingResponse(
+        _chunks(),
+        media_type=blob.content_type or "video/mp4",
+        headers={
+            "Content-Length": str(blob.size),
+            "Content-Disposition": f'inline; filename="{job_id}.mp4"',
+        },
+    )
 
 
 class CreateJobRequest(BaseModel):

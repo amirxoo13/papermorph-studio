@@ -13,7 +13,28 @@ TIER="${TIER:-picture}"   # picture | shorts | documentary | lesson
 OPENCODE_MODEL="${OPENCODE_MODEL:-google-vertex/gemini-4-argon}"
 
 PUBLISHED_BUCKET="${PUBLISHED_BUCKET:-gen-lang-client-0484425781-pm-published}"
-DEST_PREFIX="gs://${PUBLISHED_BUCKET}/test/${BOOK_SLUG}"
+
+# Where this run publishes. A job started through the API carries PM_JOB_ID and
+# publishes under its own id, so the API can find the result; a hand-run render
+# keeps the old test/<slug> path, so nothing that already works changes.
+if [[ -n "${PM_JOB_ID:-}" ]]; then
+  DEST_SUBPATH="books/${PM_JOB_ID}"
+else
+  DEST_SUBPATH="test/${BOOK_SLUG}"
+fi
+export DEST_SUBPATH
+DEST_PREFIX="gs://${PUBLISHED_BUCKET}/${DEST_SUBPATH}"
+
+# report.py writes progress and the result to Firestore, and does nothing at all
+# when PM_JOB_ID is unset. Any non-zero exit from here on marks the job failed
+# rather than leaving it queued for ever, which is what used to happen.
+report() { python3 /app/report.py "$@" || true; }
+on_error() {
+  local code=$?
+  report failed "entrypoint.sh exited ${code} at line ${BASH_LINENO[0]}"
+  exit "${code}"
+}
+trap on_error ERR
 
 export GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-gen-lang-client-0484425781}"
 export VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
@@ -151,6 +172,7 @@ SCOPE AND REVIEW BUDGET:
 - Do NOT re-record audio once timings.js and the mp3 files exist and check.py passes with 0 errors."
 fi
 
+report stage scripting "Serving the authored site"
 echo "================================================================"
 echo "=== [STAGE 1/5] STARTING PERSISTENT HTTP SERVER (serve.py 8765 site) ==="
 echo "================================================================"
@@ -173,6 +195,7 @@ if (( SERVER_READY == 0 )); then
   exit 13
 fi
 
+report stage illustrating "Authoring and painting the chapter"
 echo "================================================================"
 echo "=== [STAGE 2/5] STARTING HEADLESS OPENCODE (/papermorph) ==="
 echo "MODEL=${OPENCODE_MODEL} | BOOK_SLUG=${BOOK_SLUG} | TARGET_SECONDS=${TARGET_SECONDS}"
@@ -221,6 +244,7 @@ if (( OPENCODE_SUCCESS == 0 )); then
   exit 21
 fi
 
+report stage critiquing "Running the engine gates"
 echo "================================================================"
 echo "=== [STAGE 3/5] VERIFYING AUTHORED CHAPTER (4 GATES ONLY) ==="
 echo "================================================================"
@@ -255,6 +279,7 @@ if grep -Eiq '[1-9][0-9]*[[:space:]]+(page|console)[[:space:]]+error' /tmp/check
   exit 14
 fi
 
+report stage rendering "export.py rendering ch01"
 echo "================================================================"
 echo "=== [STAGE 4/5] RUNNING EXPORT.PY (ch01 --jobs 8) ==="
 echo "================================================================"
@@ -268,6 +293,7 @@ ls -lh /tmp/export/
 test -s /tmp/export/ch01.mp4
 test -s /tmp/export/ch01.srt
 
+report stage publishing "Uploading the film and the site"
 echo "================================================================"
 echo "=== [STAGE 5/5] UPLOADING SITE & EXPORT TO ${DEST_PREFIX}/ ==="
 echo "================================================================"
@@ -279,6 +305,7 @@ from google.cloud import storage
 project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "gen-lang-client-0484425781")
 bucket_name = os.environ.get("PUBLISHED_BUCKET", "gen-lang-client-0484425781-pm-published")
 book_slug = os.environ["BOOK_SLUG"]
+dest_subpath = os.environ["DEST_SUBPATH"].strip("/")
 
 client = storage.Client(project=project_id)
 bucket = client.bucket(bucket_name)
@@ -288,7 +315,7 @@ site_root = Path(f"/app/vendor/papermorph/site/{book_slug}")
 for p in sorted(site_root.rglob("*")):
     if p.is_file():
         rel = p.relative_to(site_root).as_posix()
-        blob_path = f"test/{book_slug}/site/{rel}"
+        blob_path = f"{dest_subpath}/site/{rel}"
         bucket.blob(blob_path).upload_from_filename(str(p))
         uploaded += 1
 
@@ -296,12 +323,16 @@ export_root = Path("/tmp/export")
 for p in sorted(export_root.rglob("*")):
     if p.is_file():
         rel = p.relative_to(export_root).as_posix()
-        blob_path = f"test/{book_slug}/export/{rel}"
+        blob_path = f"{dest_subpath}/export/{rel}"
         bucket.blob(blob_path).upload_from_filename(str(p))
         uploaded += 1
 
-print(f"Uploaded {uploaded} files to gs://{bucket_name}/test/{book_slug}/{{site,export}}/")
+print(f"Uploaded {uploaded} files to gs://{bucket_name}/{dest_subpath}/{{site,export}}/")
 PYUPLOAD
+
+# Only now, with the film uploaded and ffprobe able to measure it, is the job
+# marked done and its book document written.
+report done /tmp/export
 
 echo "================================================================"
 echo "=== [DONE] STEP 7o PIPELINE COMPLETED SUCCESSFULLY ==="

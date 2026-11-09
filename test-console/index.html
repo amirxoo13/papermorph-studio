@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Papermorph Engine Test</title>
+<!--
+  A console for exercising the live backend end to end: manuscript in, film out,
+  one page, no registration.
+
+  It signs in anonymously, which is a real Identity Platform user with a real ID
+  token, so every call below goes through the same verify_caller the production
+  API uses. Nothing here bypasses authentication and nothing here is simulated:
+  every number on the page comes from a response, and a request that fails shows
+  its status and body instead of a placeholder.
+
+  The apiKey below is a Firebase Web API key. Google documents these as public
+  client identifiers that belong in browser code; it is not a secret.
+-->
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#1b1a18; --muted:#6c6760; --line:#e4e0d9;
+    --accent:#1f5f4e; --accent-ink:#fff; --warn:#8a4b12; --bad:#9b2c2c; --ok:#1f5f4e;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --bg:#14151a; --panel:#1c1e24; --ink:#edebe7; --muted:#98928c; --line:#2d3037;
+    --accent:#4fb496; --accent-ink:#0d1714; --warn:#d9a05b; --bad:#e07a7a; --ok:#4fb496;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#14151a; --panel:#1c1e24; --ink:#edebe7; --muted:#98928c; --line:#2d3037;
+    --accent:#4fb496; --accent-ink:#0d1714; --warn:#d9a05b; --bad:#e07a7a; --ok:#4fb496;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 ui-sans-serif,system-ui,"Segoe UI",Tahoma,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 80px}
+  h1{font-size:1.5rem;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:.9rem;margin:0 0 20px}
+  .fa{direction:rtl;font-family:Tahoma,sans-serif}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px;margin-bottom:16px}
+  label{display:block;font-weight:600;margin:14px 0 6px;font-size:.92rem}
+  label .fa{font-weight:400;color:var(--muted);font-size:.85rem;margin-inline-start:6px}
+  input[type=text],textarea,select{width:100%;padding:10px 12px;border-radius:8px;
+    border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+  textarea{min-height:150px;resize:vertical}
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:6px}
+  .tier{border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;background:var(--bg)}
+  .tier.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .tier b{display:block;font-size:.95rem}
+  .tier span{color:var(--muted);font-size:.8rem}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>div{flex:1 1 180px}
+  button{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;
+    padding:11px 20px;font:600 15px/1 inherit;cursor:pointer}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .msg{padding:10px 12px;border-radius:8px;font-size:.88rem;margin-top:12px;
+    font-family:var(--mono);white-space:pre-wrap;word-break:break-word}
+  .msg.bad{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
+  .msg.ok{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok)}
+  .msg.warn{background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn)}
+  .stages{list-style:none;padding:0;margin:10px 0 0}
+  .stages li{display:flex;gap:10px;align-items:center;padding:5px 0;color:var(--muted);font-size:.9rem}
+  .stages li.on{color:var(--ink);font-weight:600}
+  .stages li.past{color:var(--ok)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+  .stages li.on .dot{background:var(--accent)} .stages li.past .dot{background:var(--ok)}
+  .kv{font-family:var(--mono);font-size:.82rem;color:var(--muted);
+    white-space:pre-wrap;word-break:break-all;margin-top:10px}
+  video{width:100%;border-radius:10px;background:#000;margin-top:12px}
+  .count{float:right;font-weight:400;color:var(--muted);font-size:.82rem}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Papermorph Engine Test</h1>
+  <p class="sub">Manuscript in, film out. <span class="fa">متن را بده، فیلم را همین‌جا ببین.</span></p>
+
+  <div id="auth" class="msg warn">Signing in…</div>
+
+  <div class="card" id="form" style="display:none">
+    <label>Title <span class="fa">عنوان</span></label>
+    <input type="text" id="title" placeholder="The Tortoise and the Hare">
+
+    <label>Story text <span class="fa">متن داستان</span>
+      <span class="count"><span id="bytes">0</span> / 16000 bytes</span></label>
+    <textarea id="story" placeholder="Paste the story, the lesson, the article — anything the film should be made from."></textarea>
+
+    <label>Engine tier <span class="fa">کدام موتور</span></label>
+    <div class="tiers" id="tiers"></div>
+
+    <div class="row">
+      <div>
+        <label>Language <span class="fa">زبان</span></label>
+        <select id="lang"><option value="en">English</option><option value="fa">فارسی</option></select>
+      </div>
+      <div>
+        <label>Target length <span class="fa">طول هدف</span></label>
+        <select id="dur">
+          <option value="60000">60 s</option>
+          <option value="120000" selected>120 s</option>
+          <option value="300000">300 s (5 min)</option>
+          <option value="600000">600 s (10 min)</option>
+        </select>
+      </div>
+      <div>
+        <label>Cost cap (USD) <span class="fa">سقف هزینه</span></label>
+        <select id="cap"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select>
+      </div>
+    </div>
+
+    <label id="brieflabel">Brief <span class="fa">دستور کار</span></label>
+    <textarea id="brief" style="min-height:90px" placeholder="What the film should look like and cover. Required for every tier except Picture book — the engine exits without it."></textarea>
+
+    <p style="margin:16px 0 0"><button id="go">Start the run <span class="fa">شروع</span></button>
+    <button id="resume" class="ghost" style="display:none">Resume last run <span class="fa">ادامهٔ قبلی</span></button></p>
+    <div id="formmsg"></div>
+  </div>
+
+  <div class="card" id="run" style="display:none">
+    <strong id="runtitle"></strong>
+    <ul class="stages" id="stages"></ul>
+    <div id="runmsg"></div>
+    <div class="kv" id="kv"></div>
+    <div id="player"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+const API = "https://pm-api-149479920662.us-central1.run.app";
+const app = initializeApp({
+  apiKey: "AIzaSyC1v1LPXtb84rhmaZiYZPG8A1Gr_8bL6sQ",
+  authDomain: "gen-lang-client-0484425781.firebaseapp.com",
+  projectId: "gen-lang-client-0484425781",
+});
+const auth = getAuth(app);
+
+const TIERS = [
+  {v:"picture_book",   n:"Picture book", f:"کتاب مصور",   d:"engine tier: picture — the only tier with a built-in brief"},
+  {v:"textbook_lesson",n:"Lesson",       f:"درس",         d:"engine tier: lesson — needs a brief"},
+  {v:"documentary",    n:"Documentary",  f:"مستند",       d:"engine tier: documentary — needs a brief"},
+  {v:"short",          n:"Short 9:16",   f:"شورت عمودی",  d:"engine tier: shorts, 900×1600 — needs a brief"},
+];
+const STAGES = ["queued","ingesting","scripting","illustrating","critiquing","rendering","publishing","done"];
+const LIVE = new Set(["queued","ingesting","planning","scripting","synthesizing_voice",
+                      "illustrating","critiquing","rendering","publishing","awaiting_approval"]);
+
+const $ = id => document.getElementById(id);
+let tier = "picture_book", user = null, timer = null;
+
+// ---- tier picker
+$("tiers").innerHTML = TIERS.map(t =>
+  `<div class="tier${t.v===tier?" sel":""}" data-v="${t.v}">
+     <b>${t.n} <span class="fa">${t.f}</span></b><span>${t.d}</span></div>`).join("");
+$("tiers").addEventListener("click", e => {
+  const el = e.target.closest(".tier"); if(!el) return;
+  tier = el.dataset.v;
+  [...$("tiers").children].forEach(c => c.classList.toggle("sel", c.dataset.v === tier));
+  $("brieflabel").innerHTML = tier === "picture_book"
+    ? 'Brief <span class="fa">دستور کار</span> — optional for this tier'
+    : 'Brief <span class="fa">دستور کار</span> — <b>required</b>, the engine exits 15 without it';
+});
+
+$("story").addEventListener("input", () => {
+  $("bytes").textContent = new TextEncoder().encode($("story").value).length;
+});
+
+function show(el, cls, text){ el.innerHTML = `<div class="msg ${cls}">${text}</div>`; }
+
+async function api(path, opts = {}) {
+  const token = await user.getIdToken();
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { ...(opts.headers||{}), "Authorization": "Bearer " + token,
+               "Content-Type": "application/json" },
+  });
+  const body = await res.text();
+  let parsed = null; try { parsed = JSON.parse(body); } catch {}
+  if (!res.ok) {
+    const e = new Error((parsed && parsed.detail) || body || ("HTTP " + res.status));
+    e.status = res.status; throw e;
+  }
+  return parsed;
+}
+
+// ---- sign in
+onAuthStateChanged(auth, u => {
+  if (!u) { signInAnonymously(auth).catch(err =>
+      show($("auth"), "bad",
+        "Anonymous sign-in failed: " + err.code + "\n" + err.message +
+        "\n\nIf this says operation-not-allowed, anonymous sign-in is still off in Identity Platform."));
+    return; }
+  user = u;
+  $("auth").className = "msg ok";
+  $("auth").textContent = "Signed in anonymously as " + u.uid;
+  $("form").style.display = "";
+  const last = localStorage.getItem("pm.lastJob");
+  if (last) { $("resume").style.display = ""; $("resume").onclick = () => watch(last); }
+});
+
+// ---- start a run
+$("go").onclick = async () => {
+  const title = $("title").value.trim();
+  const story = $("story").value.trim();
+  const brief = $("brief").value.trim();
+  if (title.length < 2) return show($("formmsg"), "bad", "A title of at least 2 characters is required.");
+  if (story.length < 20) return show($("formmsg"), "bad", "The story must be at least 20 characters.");
+  if (tier !== "picture_book" && !brief)
+    return show($("formmsg"), "bad", "This tier needs a brief: entrypoint.sh exits 15 without one.");
+
+  $("go").disabled = true;
+  show($("formmsg"), "warn", "Uploading the manuscript…");
+  try {
+    const up = await api("/v1/uploads", { method:"POST",
+      body: JSON.stringify({ text: story, filename: "manuscript.txt" }) });
+
+    show($("formmsg"), "warn", "Creating the job…\nsourceUri = " + up.sourceUri);
+    const created = await api("/v1/jobs", {
+      method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({
+        title, format: tier, language: $("lang").value,
+        sourceUri: up.sourceUri, manuscriptPreviewText: story.slice(0, 400),
+        brief, requireApproval: false,
+        targetDurationMs: Number($("dur").value),
+        costCapUsd: Number($("cap").value),
+      }),
+    });
+    const id = created.job.jobId;
+    localStorage.setItem("pm.lastJob", id);
+    show($("formmsg"), "ok", "Job " + id + " created and queued.");
+    watch(id);
+  } catch (e) {
+    show($("formmsg"), "bad", "Failed (" + (e.status||"network") + "): " + e.message);
+  } finally { $("go").disabled = false; }
+};
+
+// ---- follow a run
+function watch(id) {
+  $("run").style.display = "";
+  $("runtitle").textContent = "Job " + id;
+  $("run").scrollIntoView({ behavior:"smooth" });
+  if (timer) clearInterval(timer);
+  const tick = async () => {
+    let r;
+    try { r = await api("/v1/jobs/" + encodeURIComponent(id)); }
+    catch (e) { show($("runmsg"), "bad", "Polling failed (" + (e.status||"network") + "): " + e.message); return; }
+    const job = r.job, st = job.state;
+    const at = STAGES.indexOf(st);
+    $("stages").innerHTML = STAGES.map((s,i) =>
+      `<li class="${s===st?"on":(at>=0&&i<at?"past":"")}"><span class="dot"></span>${s}</li>`).join("");
+    $("kv").textContent =
+      "state            " + st +
+      "\nexecution        " + (job.executionName || "—") +
+      "\ntask             " + (job.taskName || "—") +
+      "\ncostUsd          " + job.costUsd +
+      "\nactualDurationMs " + (job.actualDurationMs ?? "—") +
+      "\nvideo            " + ((job.artifacts||{}).video1080pUrl || "—") +
+      (job.errorMessage ? "\nerror            " + job.errorMessage : "");
+
+    if (st === "failed")      { clearInterval(timer); show($("runmsg"),"bad","The run failed. The error above is the engine's own."); return; }
+    if (st === "cancelled")   { clearInterval(timer); show($("runmsg"),"warn","Cancelled."); return; }
+    if (!LIVE.has(st))        { clearInterval(timer); }
+    if (st === "done")        { show($("runmsg"),"ok","Done. Loading the film…"); play(id); return; }
+    show($("runmsg"), "warn", "Working… this page polls every 5 s. A real render takes minutes.");
+  };
+  tick(); timer = setInterval(tick, 5000);
+}
+
+// ---- play it
+async function play(id) {
+  const box = $("player");
+  try {
+    const p = await api("/v1/jobs/" + encodeURIComponent(id) + "/playback");
+    box.innerHTML = `<video controls preload="metadata" src="${p.url}"></video>
+      <div class="kv">signed URL · ${(p.sizeBytes/1048576).toFixed(1)} MB · ${p.durationMs ?? "?"} ms</div>`;
+    return;
+  } catch (e) {
+    box.innerHTML = `<div class="msg warn">Signed URL unavailable (${e.status}): ${e.message}
+Falling back to streaming the file through the API.</div>`;
+  }
+  try {
+    const token = await user.getIdToken();
+    const res = await fetch(API + "/v1/jobs/" + encodeURIComponent(id) + "/video",
+                            { headers:{ Authorization:"Bearer " + token } });
+    if (!res.ok) throw new Error("HTTP " + res.status + " " + (await res.text()));
+    const blob = await res.blob();
+    box.innerHTML += `<video controls src="${URL.createObjectURL(blob)}"></video>
+      <div class="kv">streamed through the API · ${(blob.size/1048576).toFixed(1)} MB</div>`;
+  } catch (e) {
+    box.innerHTML += `<div class="msg bad">Could not load the film: ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
