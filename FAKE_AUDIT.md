@@ -53,11 +53,15 @@ The whole fake surface is deleted, not patched. Commit: see
 Kept from `services/agents`, because they are real and useful:
 `budget.py` and `duration.py`, moved to `services/common/`.
 
-## Fixed in the code — none of it is deployed
+## Fixed
 
-Verified live on 2026-11-09: the running `pm-api` revision is `pm-api-00007-fr4`,
-built from `374743f`, so every item in this section is true of `main` and false
-of the service the internet can reach. See `reports/LIVE_VERIFICATION.md`.
+`pm-api` now runs revision `pm-api-00008-jkd`, image tag
+`618c7913bad7239a1a2d775876f197ca3384c0b1`, deployed by Cloud Build
+`f3a5094c-e19a-4ee4-a778-fa22ecf401ec`, which refused to build unless the clone's
+`git rev-parse HEAD` equalled that commit. So the authentication, CORS and
+internal-endpoint items below are live. The rest of this section is still code
+only: nothing has exercised the dispatch path, the cost table or the web app
+against the real project yet. See `reports/LIVE_VERIFICATION.md`.
 
 - **Authentication.** `verify_caller` trusted an `X-Firebase-Uid` header
   verbatim, and for bearer tokens hashed whatever string it was given into a
@@ -125,16 +129,12 @@ of the service the internet can reach. See `reports/LIVE_VERIFICATION.md`.
    Real engine output, and the first Persian one, but not a full-length 1080p30
    render. Three of the five `pm-render-job` executions failed. The 1.12x /
    1.66x ratios in CLAUDE.md §4 did not come from any of these runs.
-5. **Everything in "Fixed" above is unverified against the live project**, and
-   as of 2026-11-09 it is known to be undeployed. `reports/VERIFY.md` lists the
-   commands; `reports/LIVE_VERIFICATION.md` holds the first run of them.
-6. **The live API accepts any identity, from anyone.** `pm-api` carries
-   `allUsers` → `roles/run.invoker`, and the deployed `verify_caller` hashes an
-   unverified bearer token into a uid. Proven on 2026-11-09 by a `POST /v1/jobs`
-   with `X-Firebase-Uid: attacker-i-am-not-a-user`, which returned `200` and a
-   job owned by that string. This is the most urgent item in the repository: it
-   closes the moment `pm-api` is redeployed from `main`.
-7. **The four fake "books" are still live.** `books/job-*/final_1080p.mp4` in
+5. **Most of "Fixed" above is still unverified against the live project.**
+   Authentication, CORS and the internal endpoints were proven on 2026-11-09
+   (section 5 of `reports/LIVE_VERIFICATION.md`). The dispatch path, the cost
+   table and the web app were not: no job has been created, enqueued or
+   rendered through the deployed API. `reports/VERIFY.md` lists the commands.
+6. **The four fake "books" are still live.** `books/job-*/final_1080p.mp4` in
    the published bucket are 303-307 KB each; `ffprobe` on one reports
    `duration=4.042667` against a Firestore document that says
    `targetDurationMs: 300000`, `state: done`, `costUsd: 0.001168`, all ten

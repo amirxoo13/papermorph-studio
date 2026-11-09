@@ -145,10 +145,62 @@ waiting on. Of the five `pm-render-job` executions, two succeeded
 
 ---
 
+## 5. The hole is closed — deployed and re-probed
+
+`pm-api` was redeployed the same evening. Cloud Build
+`f3a5094c-e19a-4ee4-a778-fa22ecf401ec` cloned the public repo, **refused to
+continue unless `git rev-parse HEAD` equalled
+`618c7913bad7239a1a2d775876f197ca3384c0b1`**, ran the 13 unit tests, built from
+`services/api/Dockerfile`, and deployed. `gcloud run services describe pm-api`:
+
+```
+pm-api-00008-jkd   .../papermorph/pm-api:618c7913bad7239a1a2d775876f197ca3384c0b1
+```
+
+The same probes from section 2, re-run against the same URL:
+
+| Request | Before | After |
+|---|---|---|
+| no credentials | `401` | `401 Missing bearer token: send 'Authorization: Bearer <Identity Platform ID token>'` |
+| `X-Firebase-Uid: attacker-i-am-not-a-user` | `404` — accepted | `401` — header no longer carries identity |
+| `Authorization: Bearer this-is-not-a-real-token-at-all` | `404` — accepted | `401 Invalid ID token: InvalidIdTokenError` |
+| `POST /v1/jobs` with a made-up uid | `200`, job created | `401` |
+| `POST /internal/jobs/whatever/start` | — | `403 Missing internal OIDC token` |
+| same, with a junk bearer | — | `403 Invalid internal OIDC token: MalformedError` |
+| `POST /internal/stage-callback` | accepted and discarded | `403 Missing internal OIDC token` |
+
+`InvalidIdTokenError` is `firebase_admin` rejecting a signature, so the token is
+being verified and not hashed.
+
+Cloud Run IAM still carries `allUsers` → `roles/run.invoker`, deliberately: a
+browser cannot mint a Google-signed OIDC token for a Cloud Run service, so
+closing that layer would lock the web app out of its own API. The gate is
+`verify_caller`, and `/internal/*` has its own, as the table shows.
+
+### Three bugs this deploy found, none of which reading the code would have
+
+1. `PM_TASKS_QUEUE` defaulted to `pm-job-queue`. The queue in the project is
+   `papermorph-job-queue`, so every enqueue would have failed.
+2. `cloudbuild.yaml` deployed with `--no-allow-unauthenticated`, which would
+   have made the API unreachable from any browser.
+3. Both build files passed `--set-env-vars "^:^..."`, and `:` splits
+   `https://` in half. Build `9d8f7a14-63c3-4a6e-aca3-4b8ac76b9d44` failed with
+   `Bad syntax for dict arg: [//pm-api-149479920662.us-central1.run.app]`. The
+   delimiter is now `##`.
+
+Fixed in `8212202` and `618c791`.
+
+---
+
 ## What this run did not verify
 
-Everything merged in `87a6827` — real `verify_id_token`, the Cloud Tasks
-dispatch, the owner checks, `UnknownModelPricing` — is still unverified
-live, because the running revision predates it. `reports/VERIFY.md` stays open
-until `pm-api` is redeployed from `main` and §2 above returns 401 for all three
-requests instead of one.
+Authentication, CORS and the internal endpoints are now proven live (section 5).
+Nothing else is. No job has been created with a real Identity Platform token, so
+the Cloud Tasks enqueue, `/internal/jobs/{id}/start`, the `pm-render-job`
+execution it triggers, `UnknownModelPricing` and the web app have never run
+against this project. That is one end-to-end job away, and it needs a signed-in
+user; `reports/VERIFY.md` holds the commands.
+
+The two cleanups this run identified are also still owed, and were deliberately
+not done: the four 4-second `books/` artifacts with their Firestore documents,
+and `jobs/job-836254a42bd5`, the document the security probe left behind.
