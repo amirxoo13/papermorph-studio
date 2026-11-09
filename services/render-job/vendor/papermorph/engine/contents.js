@@ -72,11 +72,26 @@ const Contents = (() => {
         many: '{n} عملاً مستشهداً به في الدروس', other: '{n} عمل مستشهد به في الدروس' },
       refsAllLinked: '، وكلها مرتبطة بمصادرها', refsSomeLinked: '، منها {n} مرتبطة بمصادرها',
     },
+    fa: {
+      open: 'باز کردن کتاب', toCover: 'بازگشت به جلد', resume: 'ادامه · فصل {n}', unit: 'بخش {n}',
+      minutes: '{n} دقیقه',
+      meta: '{chapters}{samples}، {units}، همراه با صدا',
+      metaChapters: '{n} فصل',
+      metaUnits: '{n} بخش',
+      metaSamples: ' + {n} فصل نمونه',
+      samples: 'فصل‌های نمونه با سبکی دیگر',
+      chapterCount: '{n} فصل', finished: '{done} از {n} کامل شده',
+      doneMark: '✓ کامل شد · ', lastMark: ' · آخرین بازدید',
+      references: 'منابع', viewAll: 'مشاهدهٔ همه ←', backToContents: '→ فهرست مطالب',
+      refsLead: 'همهٔ آثار یادشده در درس‌ها. هر پیوند شناسهٔ DOI یا رکورد کتابخانه‌ای اثر را در زبانه‌ای تازه باز می‌کند؛ آثاری که رکورد برخط معتبری ندارند بدون پیوند فهرست شده‌اند.',
+      refsCount: '{n} اثر یادشده در درس‌ها',
+      refsAllLinked: '، همه دارای پیوند به منبع', refsSomeLinked: '، که {n} مورد دارای پیوند به منبع هستند',
+    },
   };
   // the same lookup as translate() in engine.js (the two pages never load each other's file): keep them in step
   const LANGUAGE = (document.documentElement.lang || 'en').toLowerCase().split('-')[0];
   // right-to-left interface languages, as RTL_LANGUAGES in engine.js: keep them in step
-  if (!document.documentElement.dir && ['ar'].includes(LANGUAGE)) document.documentElement.dir = 'rtl';
+  if (!document.documentElement.dir && ['ar', 'fa'].includes(LANGUAGE)) document.documentElement.dir = 'rtl';
   function translate(key, vars = {}) {
     const language = TRANSLATIONS[LANGUAGE]?.[key] !== undefined ? LANGUAGE : 'en';
     let text = TRANSLATIONS[language][key] ?? key;

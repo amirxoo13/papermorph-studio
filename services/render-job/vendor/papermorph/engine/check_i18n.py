@@ -28,7 +28,7 @@ TIMING = {"dur": 30, "marks": {"sub": 1, "note": 2, "w1": 3, "w2": 4}, "cues": [
 TIMINGS = "const TIMINGS = " + json.dumps({beat: TIMING for beat in ("intro", "idea", "q1", "wrap", "final1", "finish")})
 # Page variants: (html lang, engine and book template from BASE_REF instead of the working tree).
 VARIANTS = {"base": ("en", True), "en": ("en", False), "ru": ("ru", False), "zh": ("zh", False), "ja": ("ja", False), "de": ("de", False),
-            "ar": ("ar", False)}
+            "ar": ("ar", False), "fa": ("fa", False)}
 
 
 def at_base_ref(path):
@@ -189,7 +189,7 @@ async def check_russian_lesson(browser, errors):
     assert await text("#bSpeed") == "1.25×", "Ю (the > key) plays faster"
     await press(page, "б", "Comma")
     assert await text("#bSpeed") == "1×", "Б (the < key) plays slower"
-    assert await page.get_attribute("#bSpeed", "aria-label") == "Скорость воспроизведения (< и >)"
+    assert await page.get_attribute("#bSpeed", "aria-label") == "Скорость воспроизведения (< и >) 1×"   # the speed is in the label
 
     # The template's quick check: labels, hint, wrong answer, Show answer by Ы.
     await page.evaluate("seek(2, false)")
@@ -361,6 +361,67 @@ async def check_arabic_book(browser, errors):
     print("PASS Arabic cover and contents: right to left, plurals, progress")
     await page.close()
 
+async def check_persian_lesson(browser, errors):
+    page = await open_lesson(browser, "fa", errors)
+    text = lambda selector: page.locator(selector).first.text_content()
+    style = lambda selector, prop: page.locator(selector).first.evaluate(f"e => getComputedStyle(e).{prop}")
+    assert await page.evaluate("document.documentElement.dir") == "rtl"
+    assert await style("#stage", "direction") == "ltr"
+    assert await style("#bar", "direction") == "ltr"
+    assert await text("#coverK") == "فصل 1"
+    assert await style("#coverK", "letterSpacing") == "normal"
+    assert "شروع درس" in await text("#cover .go")
+    assert await text("#coverMeta") == "حدود 8 دقیقه، همراه با صدا و پرسش‌های کوتاه."
+    assert await page.locator("#help h2").text_content() == "میانبرهای صفحه‌کلید"
+    assert await page.evaluate("num(2.5) === '2.5' && num(-3) === '−3'"), "Persian lessons write math digits as 0-9 with a point"
+    assert await page.get_by_role("button", name="زیرنویس (C)", exact=True).count() == 1
+
+    # C on a standard Persian layout types ز (physical KeyC).
+    await page.locator("#cover").click()
+    await page.wait_for_function("P.started && P.audio.currentTime > .1")
+    before = await page.get_attribute("#bCC", "aria-pressed")
+    await press(page, "ز", "KeyC")
+    assert await page.get_attribute("#bCC", "aria-pressed") != before, "ز toggles captions via KeyC"
+
+    await page.evaluate("seek(2, false)")
+    await page.wait_for_timeout(200)
+    assert await text(".card .kicker") == "پرسش کوتاه"
+    assert await style(".card", "direction") == "rtl"
+    assert await style(".card", "borderRightWidth") == "7px" and await style(".card", "borderLeftWidth") != "7px"
+    assert await page.evaluate("(() => { const m = document.querySelector('.card .bline svg.m').getBoundingClientRect(), b = document.querySelector('.card .bline .box').getBoundingClientRect(); return b.left >= m.right - 1; })()"), "equation flipped"
+    assert await style(".card svg.m", "direction") == "ltr"
+    assert await style("#stepName", "direction") == "ltr"
+    await page.locator(".box").fill("6")
+    await page.locator(".box").press("Enter")
+    assert (await text(".card .fb")).startswith("نه کاملاً.")
+
+    await page.evaluate("seek(BEATS.length - 1, false)")
+    await page.wait_for_timeout(200)
+    card = await text(".card")
+    for line in ("فصل 1 کامل شد", "تماشای دوباره", "همهٔ فصل‌ها"):
+        assert line in card, f"finish card lacks {line!r}"
+    print("PASS Persian lesson: right-to-left text over a left-to-right stage, keys on a Persian layout, questions")
+    await page.close()
+
+
+async def check_persian_book(browser, errors):
+    page = await open_page(browser, "fa/", errors)
+    text = lambda selector: page.locator(selector).first.text_content()
+    assert await page.evaluate("document.documentElement.dir") == "rtl"
+    assert (await text("#cover .btn.go")).startswith("باز کردن کتاب")
+    assert await page.locator("#cover .btn.go svg").evaluate("e => getComputedStyle(e).transform") == "matrix(-1, 0, 0, 1, 0, 0)"
+    assert await text("#meta") == "1 فصل، 1 بخش، همراه با صدا", await text("#meta")
+    assert await text("#prog") == "1 فصل"
+    assert await text(".unit h2 span") == "بخش 1"
+    assert await text(".ch small") == "8 دقیقه"
+    await page.evaluate("localStorage.setItem('animebook:progress:/__i18n__/fa/', JSON.stringify({ done: [1], last: 1 }))")
+    await page.reload()
+    assert await text("#prog") == "1 از 1 کامل شده"
+    assert await text("#resume") == "ادامه · فصل 1"
+    print("PASS Persian cover and contents: right to left, progress")
+    await page.close()
+
+
 
 async def main():
     errors = []
@@ -373,6 +434,8 @@ async def main():
         await check_cjk(browser, errors)
         await check_arabic_lesson(browser, errors)
         await check_arabic_book(browser, errors)
+        await check_persian_lesson(browser, errors)
+        await check_persian_book(browser, errors)
         await browser.close()
     assert not errors, errors
     print("PASS no page errors, console errors or failed requests")

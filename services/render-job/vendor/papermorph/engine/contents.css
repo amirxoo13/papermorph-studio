@@ -138,9 +138,9 @@ main#contents { padding-bottom: 80px; }
 /* Arabic (contents.js sets <html dir="rtl">): the layout follows through logical properties (border-inline-start, …).
    Letters join, so no letter spacing; the faces are each system's own, no font file is loaded. A book's own :root
    theme, after this file, still sets its faces (this rule has the same specificity as :root). */
-:root:where(:lang(ar)) {
-  --ui: "Segoe UI", "SF Arabic", "Geeza Pro", "Noto Sans Arabic", Tahoma, sans-serif;
-  --book: "Noto Naskh Arabic", "Traditional Arabic", "Times New Roman", serif;
+:root:where(:lang(ar), :lang(fa)) {
+  --ui: "Vazirmatn", "Segoe UI", "SF Arabic", "Geeza Pro", "Noto Sans Arabic", Tahoma, sans-serif;
+  --book: "Vazirmatn", "Noto Naskh Arabic", "Traditional Arabic", "Times New Roman", serif;
 }
-:root:lang(ar) :is(.kicker, .meta, h1, .unit h2 .label) { letter-spacing: 0; }
+:root:is(:lang(ar), :lang(fa)) :is(.kicker, .meta, h1, .unit h2 .label) { letter-spacing: 0; }
 [dir="rtl"] .btn.go svg { transform: scaleX(-1); }   /* "open" points the way the page reads */

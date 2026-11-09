@@ -7,3 +7,5 @@ site/
 out/
 vendor/
 __pycache__/
+web/.next/
+web/node_modules/
