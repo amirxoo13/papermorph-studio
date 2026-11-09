@@ -53,7 +53,11 @@ The whole fake surface is deleted, not patched. Commit: see
 Kept from `services/agents`, because they are real and useful:
 `budget.py` and `duration.py`, moved to `services/common/`.
 
-## Fixed
+## Fixed in the code — none of it is deployed
+
+Verified live on 2026-11-09: the running `pm-api` revision is `pm-api-00007-fr4`,
+built from `374743f`, so every item in this section is true of `main` and false
+of the service the internet can reach. See `reports/LIVE_VERIFICATION.md`.
 
 - **Authentication.** `verify_caller` trusted an `X-Firebase-Uid` header
   verbatim, and for bearer tokens hashed whatever string it was given into a
@@ -115,12 +119,26 @@ Kept from `services/agents`, because they are real and useful:
    to be this repo's own phase commits, are unreachable — probably orphaned by
    the amend-then-"record SHA" pattern in the history. So section 7 of every
    report is unverifiable, against CLAUDE.md §6.
-4. **The Cloud Run render proof is partial.** The phase-6 execution
-   (`pm-render-job-q2dnw`) ran with
-   `EXPORT_EXTRA=--to mardas --height 540 --fps 20` — two beats at 540p/20fps.
-   A full-length 1080p30 render has not been executed on Cloud Run, and the
-   1.12x / 1.66x ratios in CLAUDE.md §4 did not come from that run.
-5. **Everything in "Fixed" above is unverified against the live project.** It
-   was written without Google Cloud credentials, so it compiles and its unit
-   tests pass, and nothing more. `reports/VERIFY.md` lists the exact commands
-   that would prove or disprove each item.
+4. **The Cloud Run render proof is partial.** Measured 2026-11-09 with
+   `ffprobe` on `gs://...-pm-published/renders/zahhak/ch01/ch01.mp4`, written by
+   execution `pm-render-job-q2dnw`: `960x540`, `20/1` fps, `duration=72.051`.
+   Real engine output, and the first Persian one, but not a full-length 1080p30
+   render. Three of the five `pm-render-job` executions failed. The 1.12x /
+   1.66x ratios in CLAUDE.md §4 did not come from any of these runs.
+5. **Everything in "Fixed" above is unverified against the live project**, and
+   as of 2026-11-09 it is known to be undeployed. `reports/VERIFY.md` lists the
+   commands; `reports/LIVE_VERIFICATION.md` holds the first run of them.
+6. **The live API accepts any identity, from anyone.** `pm-api` carries
+   `allUsers` → `roles/run.invoker`, and the deployed `verify_caller` hashes an
+   unverified bearer token into a uid. Proven on 2026-11-09 by a `POST /v1/jobs`
+   with `X-Firebase-Uid: attacker-i-am-not-a-user`, which returned `200` and a
+   job owned by that string. This is the most urgent item in the repository: it
+   closes the moment `pm-api` is redeployed from `main`.
+7. **The four fake "books" are still live.** `books/job-*/final_1080p.mp4` in
+   the published bucket are 303-307 KB each; `ffprobe` on one reports
+   `duration=4.042667` against a Firestore document that says
+   `targetDurationMs: 300000`, `state: done`, `costUsd: 0.001168`, all ten
+   stages run, and a licence crediting the retired `Imagen 3`. Their producer
+   (`scripts/run_e2e_smoke.py`) is deleted on `main`, but the artifacts and
+   their Firestore documents are not. They must be deleted, along with
+   `jobs/job-836254a42bd5`, the document left by the security probe above.
