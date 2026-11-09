@@ -204,3 +204,46 @@ user; `reports/VERIFY.md` holds the commands.
 The two cleanups this run identified are also still owed, and were deliberately
 not done: the four 4-second `books/` artifacts with their Firestore documents,
 and `jobs/job-836254a42bd5`, the document the security probe left behind.
+
+---
+
+## 6. The test console, and what it is waiting on (2026-11-10)
+
+Build `c303257a-3ddc-4b4d-bda2-007a92ce4ec6` deployed commit
+`2914f4f5d07036ddadd8a33a481f96e291823c1b` to both compute surfaces, again
+refusing to build unless the clone's `HEAD` matched:
+
+```
+pm-api        pm-api-00009-tmx    .../pm-api:2914f4f5d07036ddadd8a33a481f96e291823c1b
+pm-render-job                     .../pm-render-job:2914f4f5d07036ddadd8a33a481f96e291823c1b
+```
+
+`openapi.json` on the live service lists `/v1/uploads`,
+`/v1/jobs/{job_id}/playback` and `/v1/jobs/{job_id}/video`, and the three
+unauthenticated probes still return 401.
+
+`test-console/index.html` is released to Firebase Hosting as
+`sites/gen-lang-client-0484425781/releases/1794257615524000`;
+`https://gen-lang-client-0484425781.web.app` returns 200 and 14536 bytes.
+
+**Two changes were refused to this session and are owed by the project owner.**
+Both are security-relevant, so refusing them was right; neither can be worked
+around, and the end-to-end run cannot happen until the first is made.
+
+1. **Anonymous sign-in is off in Identity Platform.** The console signs in
+   anonymously — a real user with a real ID token, which `verify_caller`
+   verifies like any other. With the provider off, the page cannot sign in and
+   no job can be created.
+   `PATCH /admin/v2/projects/{p}/config?updateMask=signIn.anonymous.enabled`
+   with `{"signIn":{"anonymous":{"enabled":true}}}`, or the Firebase console.
+2. **The runtime service account cannot sign GCS URLs.**
+   `roles/iam.serviceAccountTokenCreator` on
+   `149479920662-compute@developer.gserviceaccount.com`, granted to itself.
+   Without it `/playback` returns 500 with that reason and the console falls
+   back to `/video`, which streams the film through the API: it works, but it
+   is slower and cannot seek.
+
+Nothing has yet exercised `POST /v1/uploads` → `POST /v1/jobs` → Cloud Tasks →
+`/internal/jobs/{id}/start` → `pm-render-job` → `report.py` → `done`. That one
+run is the only thing that can show whether the chain holds, and it is the next
+thing to do.
