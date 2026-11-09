@@ -1,38 +1,118 @@
-# FAKE AUDIT — HISTORICAL RECORD, NOT THE CURRENT SYSTEM
+# Fake-code audit — open items, not a clean bill of health
 
-This file lists fabricated code found in an earlier iteration of this repository
-and removed. It is kept so the clean-up is traceable and so the same mistakes are
-not repeated.
+This file previously opened with "HISTORICAL RECORD, NOT THE CURRENT SYSTEM"
+and "It does NOT describe the current system", while at least eight of the
+items it listed were still in the code exactly as written. A reader — human or
+agent — would have believed the work was done. That framing was the single most
+misleading thing in the repository, so this file now states only what is true
+at the commit that touched it, and anything unfixed stays listed.
 
-It does NOT describe the current system. `CLAUDE.md` does.
-
-The headline item — a hand-written 225-line Pillow and sine-wave "engine" under
-`vendor/` — is gone: `services/render-job/vendor/papermorph` is now a verified
-byte-for-byte clone of upstream `342e272648e06a6163224a6177bccc83517d7fea`,
-7,259 files, with an empty full-tree hash manifest diff.
+**Rule for this file: an item is deleted only when the code it names is gone or
+real, and the commit that did it is named here.** Never mark an item fixed
+because an intention to fix it exists.
 
 ---
 
-# FAKE AUDIT
+## Removed
 
-services/render-job/vendor/papermorph/engine.py:60-225 — hand-written 225-line Pillow rectangle drawer and sine-wave WAV synthesizer — must become a real git clone of https://github.com/amirxoo13/Papermorph under services/render-job/vendor/papermorph
-services/render-job/src/render_shard.py:14-83 — wrapper calling the hand-written Pillow/sine-wave PapermorphEngine class — must invoke the real Papermorph skill and `.claude/skills/papermorph/scripts/export.py`
-services/workflows/papermorph_pipeline.yaml:1-34 — 34-line YAML stub that only assigns a `stages_visited` list and returns static JSON — must make real HTTP/Cloud Run Job calls for each pipeline stage
-services/agents/papermorph_agents/agent.py:66-84 — defines `LlmAgent` objects in memory with no HTTP server and no Dockerfile — must be deployed or invoked headlessly via the real Papermorph skill
-services/agents/papermorph_agents/agent.py:86-107 — `_grounded_extractive_storyboard` deterministic sentence-splitting fallback when Gemini fails — must be removed so model failures fail loudly without fake fallback
-services/agents/papermorph_agents/agent.py:124-135 — `try ... except Exception:` catching Vertex AI errors and substituting `_grounded_extractive_storyboard` — must let exceptions raise and fail the stage loudly
-services/mcp-tools/src/main.py:59-66 — `signed_url_create` returns a fabricated string `https://storage.mtls.cloud.google.com/...` — must call `blob.generate_signed_url(version='v4', ...)` with real credentials
-services/mcp-tools/src/main.py:69-75 — `docai_extract` downloads plain text and runs `.split('\n\n')` instead of calling Document AI — must call Google Cloud Document AI `DocumentProcessorServiceClient` or real document parser
-services/mcp-tools/src/main.py:78-96 — `vertex_search_index` and `vertex_search_query` store chunks in Firestore and score by Python `set.intersection` — must use real Vertex AI Search (`discoveryengine.googleapis.com`) or real vector embeddings
-services/mcp-tools/src/main.py:127-132 — `tts_synthesize` catches TTS exceptions and silently falls back to `en-US-Neural2-D` — must fail loudly if the requested voice/language call fails
-services/mcp-tools/src/main.py:165-190 — `stt_word_timings` catches all Speech-to-Text exceptions (`except Exception: pass`) and fabricates uniform word timings by dividing duration by word count — must fail loudly without fabricated timings
-services/mcp-tools/src/main.py:204-217 — `image_generate` draws a beige 1920x1080 rectangle and text with `PIL.ImageDraw` instead of calling Imagen 3 — must call Vertex AI `imagen-3.0-generate-002` and fail loudly on error
-services/mcp-tools/src/main.py:220-229 — `video_clip_generate` and `music_generate` return static dicts without calling Veo or Lyria — must either call the real model or be explicitly disabled rather than returning fake metadata
-services/mcp-tools/src/main.py:232-243 — `render_shard_submit` returns a computed list of dict paths in memory without launching any Cloud Run Job — must trigger a real Cloud Run Job execution
-services/mcp-tools/src/main.py:253-260 — `contact_sheet_build` saves a blank white `Image.new('RGB', (1920, 1080), color=(255, 255, 255))` PNG — must composite real rendered frames from the output video/book
-services/api/src/dlp_gate.py:50-51 — `inspect_and_redact_text` catches Cloud DLP exceptions and silently falls back to local regex — must fail loudly if Cloud DLP API call fails
-services/api/src/main.py:175-229 — `POST /v1/jobs` (`create_job`) writes a `queued` document to Firestore and returns without enqueuing a Cloud Task or starting a Workflow — must enqueue a real Cloud Task that drives the pipeline
-services/api/src/main.py:300-490 — embedded HTML UI (`STUDIO_HTML`) uses a client-side `setTimeout` demo button or polls a `queued` job that never advances — must reflect real backend execution and embed the real Papermorph HTML5 player
-web/src/app/jobs/[jobId]/page.tsx:5-25 — hardcodes `placeholderJob` with `costUsd: 0.142` instead of fetching `/v1/jobs/{jobId}` — must fetch live job state from the API
-web/src/app/books/[bookId]/page.tsx:5-20 — hardcodes `/demo/final_1080p.mp4` and empty `scenes={[]}` — must fetch the real published book and embed the real Papermorph player
-scripts/run_e2e_smoke.py:92-122 — synthesizes a 4-second 2-shard Pillow video while writing `durationMs=300000` into `BookDoc` and BigQuery — must run the real Papermorph engine and record the true `ffprobe` duration and real API cost
+The whole fake surface is deleted, not patched. Commit: see
+`git log --follow FAKE_AUDIT.md`.
+
+- `services/mcp-tools/` — deleted. It was a deployed Cloud Run service in which
+  almost every tool fabricated its result:
+  - `image_generate` drew a beige 1920x1080 rectangle with `PIL.ImageDraw` and
+    uploaded it as the scene illustration. No image model was ever called.
+  - `contact_sheet_build` uploaded a blank white PNG, so the visual critic
+    reviewed an empty image.
+  - `stt_word_timings` did `except Exception: pass` and then invented uniform
+    word timings by dividing duration by word count, labelled
+    `"confidence": 0.99`.
+  - `signed_url_create` returned a fabricated `storage.mtls.cloud.google.com`
+    URL that cannot work. It never called `generate_signed_url`.
+  - `docai_extract` was `text.split("\n\n")`, not Document AI.
+  - `vertex_search_index` / `vertex_search_query` stored chunks in Firestore and
+    ranked by Python `set.intersection`, not embeddings or Vertex Search.
+  - `video_clip_generate` / `music_generate` returned static dicts without
+    calling Veo or Lyria.
+  - `render_shard_submit` computed shard paths in memory and launched nothing.
+  - `tts_synthesize` silently fell back from the requested language to
+    `en-US-Neural2-D`, so a Persian film could come out in English.
+- `services/agents/papermorph_agents/agent.py` and its 21 `sub_agents/` —
+  deleted. `agent.py` swallowed every Vertex failure with a bare
+  `except Exception` and substituted `_grounded_extractive_storyboard`, a
+  deterministic sentence splitter, so a total model outage still produced a
+  "storyboard". It also did
+  `t_in = int(getattr(usage, "prompt_token_count", 0) or 120)` and the same with
+  `350`, so when the real token counts were missing or zero it fed the literals
+  120 and 350 into the cost tracker — a fabricated cost.
+- `scripts/run_e2e_smoke.py` — deleted. It synthesized a 4-second Pillow video
+  while writing `durationMs=300000` into the book document and into BigQuery.
+- `services/api/src/main.py` embedded `STUDIO_HTML` demo UI — already gone
+  before this pass.
+
+Kept from `services/agents`, because they are real and useful:
+`budget.py` and `duration.py`, moved to `services/common/`.
+
+## Fixed
+
+- **Authentication.** `verify_caller` trusted an `X-Firebase-Uid` header
+  verbatim, and for bearer tokens hashed whatever string it was given into a
+  uid — so `Authorization: Bearer hello` was a valid, stable identity, and
+  `firebase_admin` appeared nowhere in the repo. It now verifies an Identity
+  Platform ID token (`services/api/src/auth.py`).
+- **Nothing started a job.** `POST /v1/jobs` wrote a `queued` document and
+  returned; no Cloud Task, no Workflow, no render job. It now enqueues a Cloud
+  Task which calls `/internal/jobs/{id}/start`, which executes
+  `pm-render-job` (`services/api/src/dispatch.py`).
+- **`GET /v1/books/{id}` had no caller check at all.** It now requires a
+  verified caller and allows owner-or-public, matching `firestore.rules`.
+- **`/internal/stage-callback` accepted the call and discarded it.** It now
+  records the transition.
+- **The internal HMAC secret had a hardcoded default**
+  (`"papermorph-dev-hmac-secret"`), so the internal endpoint was open if the env
+  var was unset. Internal endpoints now verify a Cloud Tasks OIDC token and
+  fail closed with 503 when unconfigured.
+- **Idempotency and rate limiting were in-process dicts**, useless across Cloud
+  Run instances and lost on every cold start. Both now live in Firestore.
+- **CORS was `allow_origins=["*"]` with `allow_credentials=True`**, which is not
+  a valid configuration. Origins are now explicit, from `PM_ALLOWED_ORIGINS`.
+- **The cost table priced every unknown model as a retired cheap Flash model
+  and priced unknown media at zero** — the mechanism behind the $0.00044
+  "five-minute film" in CLAUDE.md §8. Unknown and not-yet-verified models now
+  raise `UnknownModelPricing`.
+- **CI built and pushed images but never deployed**, and tagged everything
+  `v1.0.0` so no build was identifiable. `cloudbuild.yaml` now tags with
+  `$COMMIT_SHA` and deploys.
+
+## Still open — nobody has fixed these
+
+1. **`web/` is a static placeholder.** There is not one `fetch`, `useEffect` or
+   API call in `web/src`. `app/jobs/[jobId]/page.tsx` hardcodes
+   `placeholderJob` with `costUsd: 0.142`; `app/books/[bookId]/page.tsx`
+   hardcodes `/demo/final_1080p.mp4` and `scenes={[]}`.
+2. **The engine was hand-edited inside `vendor/`.** The Persian `fa`
+   translations, `RTL_LANGUAGES = ['ar', 'fa']` and the `check_persian_lesson`
+   addition to `engine/check_i18n.py` exist only in this repo's vendored copy.
+   Neither upstream `DozenTwelve/Papermorph` (`9628d3c`) nor the fork
+   `amirxoo13/Papermorph` (`342e272`) has them. This breaks the one check in
+   CLAUDE.md §6 that was passing, and the next re-clone of the vendor deletes
+   the Persian work. It must be pushed to the fork and tagged, and §6's
+   baseline changed from upstream to that tag.
+3. **`infra/` defines no Cloud Run service or job.** `infra/cloud_run.tf` is
+   image digests and outputs only, so the compute was created by hand and is not
+   reproducible from Terraform.
+4. **Report commit SHAs cannot be resolved.** Of the ten 40-character SHAs in
+   `reports/`, only `9628d3cf` (an upstream Papermorph commit, in phase-0)
+   exists in any of the three repositories. The other nine, which are supposed
+   to be this repo's own phase commits, are unreachable — probably orphaned by
+   the amend-then-"record SHA" pattern in the history. So section 7 of every
+   report is unverifiable, against CLAUDE.md §6.
+5. **The Cloud Run render proof is partial.** The phase-6 execution
+   (`pm-render-job-q2dnw`) ran with
+   `EXPORT_EXTRA=--to mardas --height 540 --fps 20` — two beats at 540p/20fps.
+   A full-length 1080p30 render has not been executed on Cloud Run, and the
+   1.12x / 1.66x ratios in CLAUDE.md §4 did not come from that run.
+6. **Everything in "Fixed" above is unverified against the live project.** It
+   was written without Google Cloud credentials, so it compiles and its unit
+   tests pass, and nothing more. `reports/VERIFY.md` lists the exact commands
+   that would prove or disprove each item.

@@ -1,8 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Optional
-from google.cloud import firestore
+from typing import TYPE_CHECKING, Dict, Optional
+
+if TYPE_CHECKING:  # the SDK is only needed by CostTracker, not by compute_*
+    from google.cloud import firestore
 
 class BudgetExceeded(RuntimeError):
     """Raised when a job's cumulative costUsd exceeds its costCapUsd."""
@@ -15,40 +17,88 @@ class BudgetExceeded(RuntimeError):
             f"BudgetExceeded for job {job_id}: current=${current_cost:.4f} + delta=${attempted_delta:.4f} > cap=${cap_cost:.4f}"
         )
 
-# Pinned unit pricing table (USD)
+class UnknownModelPricing(RuntimeError):
+    """Raised when a cost is requested for a model with no verified price.
+
+    Returning a guess, or falling back to another model's price, is how a run
+    reports a plausible cost for work it did not do. The earlier table priced
+    every unknown model as a retired cheap Flash model and priced unknown media
+    at zero, so a job could report a few hundredths of a dollar for a film that
+    never rendered. An unknown model must stop the run instead.
+    """
+
+    def __init__(self, model: str):
+        self.model = model
+        super().__init__(
+            f"No verified price for model '{model}'. Read the real figure from Cloud Billing "
+            f"and add it to MODEL_PRICING_USD with its source, or record this usage with "
+            f"media_units/tokens of 0 and track the cost from Billing only."
+        )
+
+
+# Unit pricing (USD). Only prices taken from a primary source belong here, and
+# each one names that source. The models in use are listed in CLAUDE.md §3;
+# the retired ones that used to fill this table (gemini-2.5-*, imagen-*) are
+# gone, and nothing falls back to them.
+#
+# CLAUDE.md §3: "Billing is the only authority here; never reason from SKU names
+# or pricing pages." So this table is a convenience for in-run cap enforcement,
+# never the authority for what a run cost. Reconcile against Cloud Billing.
 MODEL_PRICING_USD = {
-    "gemini-3.5-pro": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
-    "gemini-3-pro-preview": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
-    "gemini-3.5-flash": {"input_per_1k": 0.00015, "output_per_1k": 0.00060},
-    "gemini-2.5-pro": {"input_per_1k": 0.00125, "output_per_1k": 0.0100},
-    "gemini-2.5-flash": {"input_per_1k": 0.00015, "output_per_1k": 0.00060},
-    "imagen-3.0-generate-002": {"per_image": 0.0400},
-    "en-US-Chirp3-HD-Achernar": {"per_1k_chars": 0.0300},
-    "fa-IR-Standard-A": {"per_1k_chars": 0.0040},
-    "chirp_2": {"per_minute_audio": 0.0160},
+    # Google's own announcement of Gemini 3.8 Flash: $0.75 per 1M input tokens
+    # and $3.75 per 1M output tokens as an introductory price, expiring
+    # 2026-12-31, after which $1.50 / $7.50 apply.
+    # https://blog.google/innovation-and-ai/models-and-research/gemini-models/3-8-flash-and-3-8-flash-cyber/
+    "gemini-3.8-flash": {"input_per_1k": 0.00075, "output_per_1k": 0.00375},
 }
 
+# Models known to be in use whose price has not been read from Billing yet.
+# Listed so the error says "not verified" rather than "unknown model", and so
+# nobody re-adds a guessed number for them.
+PRICE_NOT_YET_VERIFIED = (
+    "gemini-4-argon",
+    "gemini-nano-banana-2.1",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-image",
+    "gemini-3.8-flash-tts",
+    "veo-3.1-generate-001",
+    "veo-3.1-fast-generate-001",
+)
+
 def compute_llm_cost(model: str, tokens_in: int, tokens_out: int) -> float:
-    pricing = MODEL_PRICING_USD.get(model, MODEL_PRICING_USD["gemini-2.5-flash"])
-    cost = (tokens_in / 1000.0) * pricing.get("input_per_1k", 0.00015) + (
-        tokens_out / 1000.0
-    ) * pricing.get("output_per_1k", 0.00060)
+    """Token cost for a model with a verified price. Raises for anything else."""
+    if tokens_in == 0 and tokens_out == 0:
+        return 0.0
+    pricing = MODEL_PRICING_USD.get(model)
+    if pricing is None or "input_per_1k" not in pricing:
+        raise UnknownModelPricing(model)
+    cost = (tokens_in / 1000.0) * pricing["input_per_1k"] + (tokens_out / 1000.0) * pricing[
+        "output_per_1k"
+    ]
     return round(cost, 6)
 
+
 def compute_media_cost(model: str, units: float) -> float:
-    pricing = MODEL_PRICING_USD.get(model, {})
+    """Per-image, per-character or per-minute cost. Raises for anything else."""
+    if units == 0:
+        return 0.0
+    pricing = MODEL_PRICING_USD.get(model)
+    if pricing is None:
+        raise UnknownModelPricing(model)
     if "per_image" in pricing:
         return round(units * pricing["per_image"], 6)
     if "per_1k_chars" in pricing:
         return round((units / 1000.0) * pricing["per_1k_chars"], 6)
     if "per_minute_audio" in pricing:
         return round(units * pricing["per_minute_audio"], 6)
-    return 0.0
+    raise UnknownModelPricing(model)
 
 class CostTracker:
-    def __init__(self, project_id: str = "gen-lang-client-0484425781", db: Optional[firestore.Client] = None):
+    def __init__(self, project_id: str = "gen-lang-client-0484425781", db: Optional["firestore.Client"] = None):
+        from google.cloud import firestore as _firestore
+
         self.project_id = project_id
-        self.db = db or firestore.Client(project=project_id)
+        self.db = db or _firestore.Client(project=project_id)
 
     def record_usage(
         self,

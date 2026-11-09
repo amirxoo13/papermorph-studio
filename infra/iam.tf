@@ -2,8 +2,6 @@ locals {
   service_accounts = {
     "api"          = "Public FastAPI Cloud Run SA"
     "orchestrator" = "Cloud Workflows & Tasks Orchestrator SA"
-    "agents"       = "ADK 23-Agent Runtime SA"
-    "mcp-tools"    = "FastMCP Tool Server SA"
     "sandbox"      = "Network-Isolated Python Sandbox SA"
     "render-job"   = "Papermorph Sharded Cloud Run Job SA"
     "voice"        = "Least-Privilege Voice TTS/STT Agent SA"

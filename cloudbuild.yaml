@@ -1,32 +1,82 @@
+# Build, test and DEPLOY. The previous version built and pushed images and
+# stopped there: it had no deploy step, so a green build delivered nothing and
+# the running services kept whatever image had last been pushed by hand.
+#
+# Images are tagged with $COMMIT_SHA, not a fixed v1.0.0, so the proof contract
+# in CLAUDE.md §6 ("the code is the right version") can actually be checked:
+# `gcloud run services describe pm-api` names the digest that is live.
+
+substitutions:
+  _REGION: us-central1
+  _REPO: us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph
+  # Browser origins allowed to call the API, and the API's own base URL, which
+  # is also the audience of the Cloud Tasks OIDC token.
+  _ALLOWED_ORIGINS: ''
+  _SERVICE_BASE_URL: ''
+  _TASKS_INVOKER_SA: ''
+
 steps:
+  # Credential-free unit tests. The live checks (a real ID token, a real job
+  # execution) are commands in reports/VERIFY.md, not CI steps: they need
+  # Identity Platform and they cost money.
   - name: 'python:3.12-slim'
-    id: 'unit-and-integration-tests'
+    id: 'unit-tests'
     entrypoint: 'bash'
     args:
       - '-c'
-      - 'pip install -q pytest pydantic google-cloud-dlp google-cloud-firestore google-cloud-bigquery && pytest services/api/tests/'
-
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-pm-sandbox'
-    args: ['build', '-f', 'services/sandbox/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-sandbox:v1.0.0', '.']
-
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-pm-mcp-tools'
-    args: ['build', '-f', 'services/mcp-tools/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-mcp-tools:v1.0.0', '.']
+      - 'pip install -q pytest pydantic && PYTHONPATH=/workspace pytest -q services/api/tests/test_api_units.py'
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-pm-api'
-    args: ['build', '-f', 'services/api/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-api:v1.0.0', '.']
+    args: ['build', '-f', 'services/api/Dockerfile', '-t', '${_REPO}/pm-api:$COMMIT_SHA', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-render-job-image'
-    args: ['build', '-f', 'services/render-job/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:v1.0.0', '.']
+    id: 'build-pm-render-job'
+    args: ['build', '-f', 'services/render-job/Dockerfile', '-t', '${_REPO}/pm-render-job:$COMMIT_SHA', '.']
 
-images:
-  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-sandbox:v1.0.0'
-  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-mcp-tools:v1.0.0'
-  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-api:v1.0.0'
-  - 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:v1.0.0'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-pm-sandbox'
+    args: ['build', '-f', 'services/sandbox/Dockerfile', '-t', '${_REPO}/pm-sandbox:$COMMIT_SHA', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-images'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker push ${_REPO}/pm-api:$COMMIT_SHA
+        docker push ${_REPO}/pm-render-job:$COMMIT_SHA
+        docker push ${_REPO}/pm-sandbox:$COMMIT_SHA
+
+  # Deploy. Fails loudly if the three settings the API needs are not supplied,
+  # because without them /internal/* fails closed and nothing can start a job.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: 'deploy-pm-api'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        test -n "${_SERVICE_BASE_URL}" || { echo "FATAL: _SERVICE_BASE_URL is required"; exit 1; }
+        test -n "${_TASKS_INVOKER_SA}" || { echo "FATAL: _TASKS_INVOKER_SA is required"; exit 1; }
+        test -n "${_ALLOWED_ORIGINS}"  || { echo "FATAL: _ALLOWED_ORIGINS is required"; exit 1; }
+        gcloud run deploy pm-api \
+          --image ${_REPO}/pm-api:$COMMIT_SHA \
+          --region ${_REGION} \
+          --no-allow-unauthenticated \
+          --set-env-vars "^:^GOOGLE_CLOUD_PROJECT=$PROJECT_ID:PM_REGION=${_REGION}:PM_SERVICE_BASE_URL=${_SERVICE_BASE_URL}:PM_TASKS_INVOKER_SERVICE_ACCOUNT=${_TASKS_INVOKER_SA}:PM_INTERNAL_CALLER_SERVICE_ACCOUNTS=${_TASKS_INVOKER_SA}:PM_ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}"
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: 'deploy-pm-render-job'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        gcloud run jobs update pm-render-job \
+          --image ${_REPO}/pm-render-job:$COMMIT_SHA \
+          --region ${_REGION} \
+          --cpu 8 --memory 32Gi --task-timeout 21600s --max-retries 0
 
 options:
   logging: CLOUD_LOGGING_ONLY

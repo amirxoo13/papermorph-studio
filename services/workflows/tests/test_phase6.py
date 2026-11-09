@@ -3,8 +3,8 @@ from datetime import datetime, timezone, timedelta
 from google.api_core.client_options import ClientOptions
 from google.cloud import firestore
 from schemas.models import JobDoc, JobState, ContentFormat, LanguageCode
-from papermorph_agents.budget import CostTracker, BudgetExceeded
-from papermorph_agents.duration import evaluate_and_adjust_durations
+from services.common.budget import CostTracker, BudgetExceeded
+from services.common.duration import evaluate_and_adjust_durations
 from services.workflows.orchestrator import OrchestratorEngine
 from services.reaper.src.main import reap_stuck_jobs
 from services.dlq_drainer_shim import process_dlq_message

@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Optional, Callable
 from google.api_core.client_options import ClientOptions
 from google.cloud import firestore
 from schemas.models import JobState, validate_transition
-from papermorph_agents.budget import BudgetExceeded
+from services.common.budget import BudgetExceeded
 
 PROJECT_ID = "gen-lang-client-0484425781"
 QUOTA_OPTS = ClientOptions(quota_project_id=PROJECT_ID)
