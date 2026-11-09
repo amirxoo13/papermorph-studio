@@ -1,4 +1,11 @@
 steps:
+  - name: 'python:3.12-slim'
+    id: 'unit-and-integration-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'pip install -q pytest pydantic google-cloud-dlp google-cloud-firestore google-cloud-bigquery && pytest services/api/tests/'
+
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-pm-sandbox'
     args: ['build', '-f', 'services/sandbox/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-sandbox:v1.0.0', '.']
@@ -12,7 +19,7 @@ steps:
     args: ['build', '-f', 'services/api/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-api:v1.0.0', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-pm-render-job'
+    id: 'build-render-job-image'
     args: ['build', '-f', 'services/render-job/Dockerfile', '-t', 'us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph/pm-render-job:v1.0.0', '.']
 
 images:
