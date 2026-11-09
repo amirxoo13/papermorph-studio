@@ -50,6 +50,14 @@ steps:
 
   # Deploy. Fails loudly if the three settings the API needs are not supplied,
   # because without them /internal/* fails closed and nothing can start a job.
+  #
+  # --allow-unauthenticated is deliberate and is NOT a hole. A browser cannot
+  # mint a Google-signed OIDC token for a Cloud Run service, so gating at the
+  # Cloud Run IAM layer would lock the web app out completely. The gate is in
+  # the application: verify_caller checks an Identity Platform ID token, and
+  # /internal/* checks a Cloud Tasks OIDC token and fails closed with 503 when
+  # PM_INTERNAL_CALLER_SERVICE_ACCOUNTS is unset. An earlier version of this
+  # file passed --no-allow-unauthenticated, which would have broken the app.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     id: 'deploy-pm-api'
     entrypoint: 'bash'
@@ -63,7 +71,7 @@ steps:
         gcloud run deploy pm-api \
           --image ${_REPO}/pm-api:$COMMIT_SHA \
           --region ${_REGION} \
-          --no-allow-unauthenticated \
+          --allow-unauthenticated \
           --set-env-vars "^:^GOOGLE_CLOUD_PROJECT=$PROJECT_ID:PM_REGION=${_REGION}:PM_SERVICE_BASE_URL=${_SERVICE_BASE_URL}:PM_TASKS_INVOKER_SERVICE_ACCOUNT=${_TASKS_INVOKER_SA}:PM_INTERNAL_CALLER_SERVICE_ACCOUNTS=${_TASKS_INVOKER_SA}:PM_ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}"
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'

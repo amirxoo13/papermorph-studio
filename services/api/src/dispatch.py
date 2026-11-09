@@ -33,7 +33,10 @@ from typing import Any, Dict, Optional
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "gen-lang-client-0484425781")
 REGION = os.environ.get("PM_REGION", "us-central1")
-TASKS_QUEUE = os.environ.get("PM_TASKS_QUEUE", "pm-job-queue")
+# Verified live on 2026-11-09 with `gcloud tasks queues list --location=us-central1`:
+# the queue that exists in the project is papermorph-job-queue. The previous
+# default, "pm-job-queue", was a guess and every enqueue would have failed.
+TASKS_QUEUE = os.environ.get("PM_TASKS_QUEUE", "papermorph-job-queue")
 RENDER_JOB = os.environ.get("PM_RENDER_JOB", "pm-render-job")
 PUBLISHED_BUCKET = os.environ.get("PM_PUBLISHED_BUCKET", f"{PROJECT_ID}-pm-published")
 

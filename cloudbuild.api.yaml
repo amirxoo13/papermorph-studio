@@ -1,0 +1,52 @@
+# Build and deploy ONLY pm-api.
+#
+# cloudbuild.yaml also rebuilds pm-render-job, whose image carries the whole
+# vendored engine and its model stack — the papermorph Artifact Registry
+# repository is already over 20 GB. A security fix to the API must not have to
+# wait on that, and must not push another copy of it, so this file exists for
+# the API alone. It is the same build and the same deploy flags as the
+# deploy-pm-api step in cloudbuild.yaml; keep the two in step.
+
+substitutions:
+  _REGION: us-central1
+  _REPO: us-central1-docker.pkg.dev/gen-lang-client-0484425781/papermorph
+  _ALLOWED_ORIGINS: ''
+  _SERVICE_BASE_URL: ''
+  _TASKS_INVOKER_SA: ''
+  _TASKS_QUEUE: papermorph-job-queue
+
+steps:
+  - name: 'python:3.12-slim'
+    id: 'unit-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'pip install -q pytest pydantic && PYTHONPATH=/workspace pytest -q services/api/tests/test_api_units.py'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-pm-api'
+    args: ['build', '-f', 'services/api/Dockerfile', '-t', '${_REPO}/pm-api:$COMMIT_SHA', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-pm-api'
+    args: ['push', '${_REPO}/pm-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: 'deploy-pm-api'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        test -n "${_SERVICE_BASE_URL}" || { echo "FATAL: _SERVICE_BASE_URL is required"; exit 1; }
+        test -n "${_TASKS_INVOKER_SA}" || { echo "FATAL: _TASKS_INVOKER_SA is required"; exit 1; }
+        test -n "${_ALLOWED_ORIGINS}"  || { echo "FATAL: _ALLOWED_ORIGINS is required"; exit 1; }
+        gcloud run deploy pm-api \
+          --image ${_REPO}/pm-api:$COMMIT_SHA \
+          --region ${_REGION} \
+          --allow-unauthenticated \
+          --set-env-vars "^:^GOOGLE_CLOUD_PROJECT=$PROJECT_ID:PM_REGION=${_REGION}:PM_TASKS_QUEUE=${_TASKS_QUEUE}:PM_SERVICE_BASE_URL=${_SERVICE_BASE_URL}:PM_TASKS_INVOKER_SERVICE_ACCOUNT=${_TASKS_INVOKER_SA}:PM_INTERNAL_CALLER_SERVICE_ACCOUNTS=${_TASKS_INVOKER_SA}:PM_ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
