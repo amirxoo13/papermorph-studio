@@ -3,10 +3,12 @@
 The code in this commit was written **without Google Cloud credentials**. What
 is proven and what is not:
 
-**Proven here.** `services/api/tests/test_api_units.py` — 10 tests, run with
+**Proven here.** `services/api/tests/test_api_units.py` — 13 tests, run with
 `PYTHONPATH=. python3 -m pytest -q services/api/tests/test_api_units.py`,
-`10 passed`. They need no credentials. Every own-code Python file compiles
-(`python3 -m py_compile`). `cloudbuild.yaml` parses as YAML.
+`13 passed`. They need no credentials. Every own-code Python file compiles
+(`python3 -m py_compile`). `cloudbuild.yaml` parses as YAML. The web app
+typechecks (`npx tsc --noEmit`, exit 0) and builds
+(`npm run build`, exit 0, 4 routes).
 
 **Not proven.** Everything that touches the live project: token verification,
 the Cloud Task, the job execution, the deploy. No `gcloud` call was made from
@@ -130,11 +132,31 @@ cost must be tracked from Billing only.
 
 ## 6. The still-open items
 
-`FAKE_AUDIT.md` lists six. Two need no cloud and are the next work:
+`FAKE_AUDIT.md` lists five. The urgent one needs no cloud:
 
-- the engine fork (item 2) — urgent: the next vendor re-clone deletes the
-  Persian work.
-- the frontend (item 1) — it still shows `costUsd: 0.142` from a hardcoded
-  object.
+**The engine fork (item 1).** The Persian `fa` block, `RTL_LANGUAGES` and the
+`check_persian_lesson` addition live only in this repo's `vendor/` copy.
+Neither upstream (`9628d3c`) nor the fork (`342e272`) has them, so the next
+vendor re-clone deletes the Persian work, and CLAUDE.md §6's empty-manifest
+check cannot pass. Push them to `amirxoo13/Papermorph`, tag it, re-vendor from
+the tag, point `style.json` at it, and change §6's baseline from upstream to
+that tag.
 
-Neither is touched by this commit.
+## 7. The web app
+
+```bash
+cd web && npm ci && npm run build        # expect exit 0
+```
+
+Then, with `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_FIREBASE_API_KEY` and
+`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` set in `apphosting.yaml`, deploy and check
+in a browser:
+
+1. Signed out, `/jobs/<id>` says "Sign in to see this job" — it does not render
+   a job.
+2. Signed in as the owner, the page shows the job's **real** `costUsd`. If you
+   ever see `0.142` again, a placeholder has come back.
+3. Signed in as another account, the page says the job belongs to another
+   account (the API returned 403).
+4. While the job is in a working state the page polls every 5 s and stops
+   polling once it reaches `done` or `failed`. Watch the network tab.

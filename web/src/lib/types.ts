@@ -14,7 +14,14 @@ export type JobState =
   | "paused_budget"
   | "cancelled";
 
-export type ContentFormat = "textbook_lesson" | "picture_book" | "documentary_shorts";
+// One value per engine tier, matching schemas/models.py ContentFormat.
+// "documentary_shorts" is the legacy value that collapsed the last two.
+export type ContentFormat =
+  | "textbook_lesson"
+  | "picture_book"
+  | "documentary"
+  | "short"
+  | "documentary_shorts";
 export type LanguageCode = "en" | "fa";
 
 export interface WordTiming {

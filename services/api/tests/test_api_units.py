@@ -100,3 +100,27 @@ def test_duration_adjustment_hits_the_target():
     res = evaluate_and_adjust_durations([50_000] * 6, target_total_ms=300_000)
     assert res.withinWindow
     assert sum(res.adjustedSceneDurationsMs) == pytest.approx(300_000, rel=0.08)
+
+
+def test_unknown_format_is_refused_not_defaulted():
+    # It used to fall back to "documentary" for any unrecognised format, so a
+    # typo silently produced the wrong tier.
+    job = {"jobId": "job-1", "title": "T", "format": "nonsense", "targetDurationMs": 300_000}
+    with pytest.raises(DispatchNotConfigured):
+        render_job_env(job, "text")
+
+
+def test_legacy_documentary_shorts_still_maps():
+    job = {
+        "jobId": "job-1", "title": "T", "format": "documentary_shorts",
+        "targetDurationMs": 300_000, "brief": "b",
+    }
+    assert render_job_env(job, "text")["TIER"] == "documentary"
+
+
+def test_shorts_tier_is_reachable():
+    job = {
+        "jobId": "job-1", "title": "T", "format": "short",
+        "targetDurationMs": 150_000, "brief": "b",
+    }
+    assert render_job_env(job, "text")["TIER"] == "shorts"

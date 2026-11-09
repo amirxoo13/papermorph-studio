@@ -9,3 +9,4 @@ vendor/
 __pycache__/
 web/.next/
 web/node_modules/
+web/tsconfig.tsbuildinfo

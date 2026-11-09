@@ -47,6 +47,8 @@ FORMAT_TO_TIER = {
     "picture_book": "picture",
     "documentary": "documentary",
     "short": "shorts",
+    # Legacy value that collapsed documentary and shorts into one.
+    "documentary_shorts": "documentary",
 }
 
 
@@ -62,7 +64,13 @@ def _slugify(title: str, job_id: str) -> str:
 
 def render_job_env(job: Dict[str, Any], source_text: str) -> Dict[str, str]:
     """The environment overrides for one execution of pm-render-job."""
-    tier = FORMAT_TO_TIER.get(str(job.get("format", "")), "documentary")
+    fmt = str(job.get("format", ""))
+    if fmt not in FORMAT_TO_TIER:
+        raise DispatchNotConfigured(
+            f"Unknown content format '{fmt}': cannot choose an engine tier. "
+            f"Known: {sorted(FORMAT_TO_TIER)}"
+        )
+    tier = FORMAT_TO_TIER[fmt]
     target_seconds = max(1, int(job.get("targetDurationMs", 300_000)) // 1000)
     env = {
         "BOOK_SLUG": _slugify(str(job.get("title", "")), str(job.get("jobId", ""))),

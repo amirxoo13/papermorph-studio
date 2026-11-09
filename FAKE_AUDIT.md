@@ -83,14 +83,22 @@ Kept from `services/agents`, because they are real and useful:
 - **CI built and pushed images but never deployed**, and tagged everything
   `v1.0.0` so no build was identifiable. `cloudbuild.yaml` now tags with
   `$COMMIT_SHA` and deploys.
+- **`web/` made no API call at all.** There was not one `fetch`, `useEffect` or
+  API call in `web/src`; `app/jobs/[jobId]/page.tsx` hardcoded a
+  `placeholderJob` with `costUsd: 0.142` and `app/books/[bookId]/page.tsx`
+  hardcoded `/demo/final_1080p.mp4`. Both pages now sign in
+  (`web/src/lib/firebase.ts`), fetch the real document
+  (`web/src/lib/api.ts`), poll only while the job is still being worked on, and
+  show an error rather than a substitute when a request fails.
+- **`ContentFormat` had three values for the engine's four tiers**, collapsing
+  documentary and shorts into `documentary_shorts`, so an upright 900x1600
+  short was unreachable through the API. All four tiers now exist, the legacy
+  value still parses, and an unrecognised format raises instead of silently
+  defaulting to documentary.
 
 ## Still open — nobody has fixed these
 
-1. **`web/` is a static placeholder.** There is not one `fetch`, `useEffect` or
-   API call in `web/src`. `app/jobs/[jobId]/page.tsx` hardcodes
-   `placeholderJob` with `costUsd: 0.142`; `app/books/[bookId]/page.tsx`
-   hardcodes `/demo/final_1080p.mp4` and `scenes={[]}`.
-2. **The engine was hand-edited inside `vendor/`.** The Persian `fa`
+1. **The engine was hand-edited inside `vendor/`.** The Persian `fa`
    translations, `RTL_LANGUAGES = ['ar', 'fa']` and the `check_persian_lesson`
    addition to `engine/check_i18n.py` exist only in this repo's vendored copy.
    Neither upstream `DozenTwelve/Papermorph` (`9628d3c`) nor the fork
@@ -98,21 +106,21 @@ Kept from `services/agents`, because they are real and useful:
    CLAUDE.md §6 that was passing, and the next re-clone of the vendor deletes
    the Persian work. It must be pushed to the fork and tagged, and §6's
    baseline changed from upstream to that tag.
-3. **`infra/` defines no Cloud Run service or job.** `infra/cloud_run.tf` is
+2. **`infra/` defines no Cloud Run service or job.** `infra/cloud_run.tf` is
    image digests and outputs only, so the compute was created by hand and is not
    reproducible from Terraform.
-4. **Report commit SHAs cannot be resolved.** Of the ten 40-character SHAs in
+3. **Report commit SHAs cannot be resolved.** Of the ten 40-character SHAs in
    `reports/`, only `9628d3cf` (an upstream Papermorph commit, in phase-0)
    exists in any of the three repositories. The other nine, which are supposed
    to be this repo's own phase commits, are unreachable — probably orphaned by
    the amend-then-"record SHA" pattern in the history. So section 7 of every
    report is unverifiable, against CLAUDE.md §6.
-5. **The Cloud Run render proof is partial.** The phase-6 execution
+4. **The Cloud Run render proof is partial.** The phase-6 execution
    (`pm-render-job-q2dnw`) ran with
    `EXPORT_EXTRA=--to mardas --height 540 --fps 20` — two beats at 540p/20fps.
    A full-length 1080p30 render has not been executed on Cloud Run, and the
    1.12x / 1.66x ratios in CLAUDE.md §4 did not come from that run.
-6. **Everything in "Fixed" above is unverified against the live project.** It
+5. **Everything in "Fixed" above is unverified against the live project.** It
    was written without Google Cloud credentials, so it compiles and its unit
    tests pass, and nothing more. `reports/VERIFY.md` lists the exact commands
    that would prove or disprove each item.
