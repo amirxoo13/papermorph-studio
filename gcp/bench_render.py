@@ -37,7 +37,7 @@ def run_benchmark(chapter: str, url: str, site_dir: str, port: int, out_dir: str
     serve_proc = None
     if not port_open(port):
         serve_proc = subprocess.Popen(
-            [sys.executable, "vendor/Papermorph/.claude/skills/papermorph/scripts/serve.py", str(port), site_dir],
+            [sys.executable, "/app/vendor/papermorph/.claude/skills/papermorph/scripts/serve.py" if os.path.isdir("/app/vendor/papermorph") else "vendor/Papermorph/.claude/skills/papermorph/scripts/serve.py", str(port), site_dir],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -56,7 +56,7 @@ def run_benchmark(chapter: str, url: str, site_dir: str, port: int, out_dir: str
             print(f"RUN jobs={jobs} to_beat={to_beat or 'FULL'}")
             inner_args = [
                 "uv", "run", "--with", "playwright", "--with", "numpy",
-                "vendor/Papermorph/.claude/skills/papermorph/scripts/export.py",
+                "/app/vendor/papermorph/.claude/skills/papermorph/scripts/export.py" if os.path.isdir("/app/vendor/papermorph") else "vendor/Papermorph/.claude/skills/papermorph/scripts/export.py",
                 chapter,
                 "--url", url,
                 "--out", out_dir,
@@ -129,7 +129,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Papermorph render benchmark harness")
     ap.add_argument("--chapter", default="ch01")
     ap.add_argument("--url", default="http://localhost:8765/madness/")
-    ap.add_argument("--site", default="vendor/Papermorph/site")
+    ap.add_argument("--site", default="/app/vendor/papermorph/site" if os.path.isdir("/app/vendor/papermorph") else "vendor/Papermorph/site")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--out", default="/tmp/out")
     ap.add_argument("--jobs", default="4,8", help="Comma-separated job counts")
