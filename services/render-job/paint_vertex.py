@@ -31,6 +31,10 @@ def _load_ledger():
         pathlib.Path(__file__).resolve().parent
         / "vendor/papermorph/.claude/skills/papermorph/scripts"
     )
+    candidates.append(
+        pathlib.Path(__file__).resolve().parent.parent
+        / "vendor/Papermorph/.claude/skills/papermorph/scripts"
+    )
     for c in candidates:
         if (c / "ledger.py").is_file():
             sys.path.insert(0, str(c))
