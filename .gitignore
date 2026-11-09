@@ -1,17 +1,9 @@
+*.pdf
+books/
+books/*/pages/
+content/
+tools/
+site/
+out/
+vendor/
 __pycache__/
-*.py[cod]
-.venv/
-node_modules/
-.next/
-.terraform/
-*.tfstate*
-*.tfvars.secret
-.env*
-*.mp4
-*.wav
-*.zip
-/tmp/
-
-# The vendored engine must stay byte-identical to upstream.
-# Root patterns above (*.mp4, *.wav, *.zip) must never apply inside it.
-!services/render-job/vendor/papermorph/**
