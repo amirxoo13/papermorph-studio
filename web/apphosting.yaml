@@ -10,3 +10,21 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The pm-api base URL. Without it the client throws a named error instead of
+  # rendering invented numbers.
+  - variable: NEXT_PUBLIC_API_BASE_URL
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  # Public Identity Platform client config (not secrets).
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME

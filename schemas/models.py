@@ -55,9 +55,19 @@ def validate_transition(current: JobState, target: JobState) -> bool:
     return True
 
 class ContentFormat(str, Enum):
+    """One value per engine tier.
+
+    new_book.py takes exactly four tiers: lesson, picture, documentary and
+    shorts. DOCUMENTARY_SHORTS collapsed the last two into one value, so a
+    caller could not choose between a landscape documentary and an upright
+    900x1600 short. It is kept only so existing job documents still parse.
+    """
+
     TEXTBOOK_LESSON = "textbook_lesson"
     PICTURE_BOOK = "picture_book"
-    DOCUMENTARY_SHORTS = "documentary_shorts"
+    DOCUMENTARY = "documentary"
+    SHORT = "short"
+    DOCUMENTARY_SHORTS = "documentary_shorts"  # legacy, treated as documentary
 
 class LanguageCode(str, Enum):
     EN = "en"
