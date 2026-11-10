@@ -59,6 +59,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+    # Without this the browser hides these on a cross-origin response, so a
+    # player cannot show a size or a filename.
+    expose_headers=["Content-Length", "Content-Disposition", "Content-Range", "Accept-Ranges"],
 )
 
 
@@ -192,7 +195,11 @@ def job_playback(job_id: str, uid: str = Depends(verify_caller)):
 
 
 @app.get("/v1/jobs/{job_id}/video")
-def job_video(job_id: str, uid: str = Depends(verify_caller)):
+def job_video(
+    job_id: str,
+    uid: str = Depends(verify_caller),
+    range_header: Optional[str] = Header(default=None, alias="Range"),
+):
     """Stream the finished film through the API.
 
     The signed URL above is the better path: the browser fetches straight from
@@ -216,22 +223,47 @@ def job_video(job_id: str, uid: str = Depends(verify_caller)):
         raise HTTPException(status_code=409, detail=f"Recorded film is not in the bucket: {video_uri}")
     blob.reload()
 
-    def _chunks():
-        with blob.open("rb") as fh:
-            while True:
-                chunk = fh.read(1024 * 1024)
-                if not chunk:
-                    return
-                yield chunk
+    size = int(blob.size or 0)
+    media_type = blob.content_type or "video/mp4"
 
-    return StreamingResponse(
-        _chunks(),
-        media_type=blob.content_type or "video/mp4",
-        headers={
-            "Content-Length": str(blob.size),
-            "Content-Disposition": f'inline; filename="{job_id}.mp4"',
-        },
-    )
+    # A Range request is answered in full, so <video> can seek. Everything else
+    # gets the whole file.
+    start, end = 0, size - 1
+    status = 200
+    if range_header and range_header.startswith("bytes=") and size:
+        spec = range_header[6:].split(",")[0].strip()
+        first, _, last = spec.partition("-")
+        try:
+            if first:
+                start = int(first)
+                end = int(last) if last else size - 1
+            elif last:  # suffix range: the last N bytes
+                start = max(0, size - int(last))
+            start = max(0, min(start, size - 1))
+            end = max(start, min(end, size - 1))
+            status = 206
+        except ValueError:
+            start, end, status = 0, size - 1, 200
+
+    def _chunks():
+        pos = start
+        step = 1024 * 1024
+        while pos <= end:
+            stop = min(pos + step - 1, end)
+            # download_as_bytes takes an inclusive byte range.
+            yield blob.download_as_bytes(start=pos, end=stop, raw_download=True)
+            pos = stop + 1
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": f'inline; filename="{job_id}.mp4"',
+    }
+    if status == 206:
+        headers["Content-Range"] = f"bytes {start}-{end}/{size}"
+    # Content-Length is deliberately NOT set for the full-file case: the body is
+    # produced by a generator, and declaring a length alongside a streamed body
+    # made the browser drop the connection with a bare "Failed to fetch".
+    return StreamingResponse(_chunks(), status_code=status, media_type=media_type, headers=headers)
 
 
 class CreateJobRequest(BaseModel):

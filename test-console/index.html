@@ -280,7 +280,8 @@ async function play(id) {
   try {
     const p = await api("/v1/jobs/" + encodeURIComponent(id) + "/playback");
     box.innerHTML = `<video controls preload="metadata" src="${p.url}"></video>
-      <div class="kv">signed URL · ${(p.sizeBytes/1048576).toFixed(1)} MB · ${p.durationMs ?? "?"} ms</div>`;
+      <div class="kv">signed URL · ${(p.sizeBytes/1048576).toFixed(1)} MB · ${
+        p.durationMs ? (p.durationMs/1000).toFixed(1) + " s (ffprobe)" : "length unknown"}</div>`;
     return;
   } catch (e) {
     box.innerHTML = `<div class="msg warn">Signed URL unavailable (${e.status}): ${e.message}
@@ -295,7 +296,19 @@ Falling back to streaming the file through the API.</div>`;
     box.innerHTML += `<video controls src="${URL.createObjectURL(blob)}"></video>
       <div class="kv">streamed through the API · ${(blob.size/1048576).toFixed(1)} MB</div>`;
   } catch (e) {
-    box.innerHTML += `<div class="msg bad">Could not load the film: ${e.message}</div>`;
+    let job = null;
+    try { job = (await api("/v1/jobs/" + encodeURIComponent(id))).job; } catch {}
+    const uri = (job && job.artifacts && job.artifacts.video1080pUrl) || "";
+    box.innerHTML += `<div class="msg bad">Could not load the film through the API either: ${e.message}
+
+The film itself exists. Until one of the two routes works you can fetch it directly:
+gcloud storage cp "${uri}" .
+
+The signed-URL route is the one to fix. It needs, once:
+gcloud iam service-accounts add-iam-policy-binding 149479920662-compute@developer.gserviceaccount.com \
+  --project=gen-lang-client-0484425781 \
+  --member="serviceAccount:149479920662-compute@developer.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountTokenCreator"</div>`;
   }
 }
 </script>
