@@ -247,3 +247,51 @@ Nothing has yet exercised `POST /v1/uploads` → `POST /v1/jobs` → Cloud Tasks
 `/internal/jobs/{id}/start` → `pm-render-job` → `report.py` → `done`. That one
 run is the only thing that can show whether the chain holds, and it is the next
 thing to do.
+
+---
+
+## 7. The first end-to-end run (2026-11-10)
+
+The owner enabled anonymous sign-in and submitted a job from the console. The
+whole chain ran, for the first time since the repository existed:
+
+```
+job-6e912729fe64
+state      queued → ingesting → scripting → illustrating → critiquing
+                  → rendering → publishing → done
+task       projects/gen-lang-client-0484425781/locations/us-central1/
+           queues/papermorph-job-queue/tasks/start-job-6e912729fe64
+execution  projects/gen-lang-client-0484425781/locations/us-central1/
+           jobs/pm-render-job/executions/pm-render-job-d7b29
+video      gs://gen-lang-client-0484425781-pm-published/
+           books/job-6e912729fe64/export/ch01.mp4
+actualDurationMs  126178
+costUsd           0
+```
+
+`actualDurationMs` is `ffprobe` on the file the run produced, written by
+`report.py`; it is not a target echoed back. The target was 120 000 ms. Compare
+with section 3: the four `books/` artifacts from the old fake pipeline were
+4 042 ms against the same 300 000 ms target.
+
+So every link holds: `POST /v1/uploads` → `POST /v1/jobs` → Cloud Tasks →
+`/internal/jobs/{id}/start` with an OIDC token → `pm-render-job` → publish under
+the job's own id → `report.py` → `done`.
+
+### What still failed
+
+* `/playback` returned 500 carrying `IAM_PERMISSION_DENIED` on
+  `iam.serviceAccounts.signBlob` — the grant in section 6 that has not been
+  made. The endpoint named the exact missing role, which is what it is for.
+* `/video`, the fallback, failed in the browser with `Failed to fetch`. That one
+  was a real fault: it declared `Content-Length` on a body produced by a
+  generator. Fixed in `fef346e`, which also answers Range requests and exposes
+  the length and range headers through CORS. **Not yet deployed.**
+
+### Still not established
+
+`costUsd` is 0 because nothing records model usage against the job, and
+CLAUDE.md §3 allows only Cloud Billing to say what a run cost. What this film
+cost is therefore still unknown, and reading it from the billing console is the
+next thing worth doing — it is also the check that caught the fake pipeline the
+first time.
